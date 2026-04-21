@@ -14,6 +14,7 @@ import ProductResult from './pages/ProductResult';
 import LaunchAssistant from './pages/LaunchAssistant';
 import Dashboard from './pages/Dashboard';
 import Pricing from './pages/Pricing';
+import SocialMediaKit from './pages/SocialMediaKit';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -43,6 +44,7 @@ const AuthenticatedApp = () => {
       <Route path="/launch/:id" element={<LaunchAssistant />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/pricing" element={<Pricing />} />
+      <Route path="/social/:id" element={<SocialMediaKit />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

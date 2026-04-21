@@ -5,7 +5,7 @@ import Navbar from '@/components/layout/Navbar';
 import ResultSection from '@/components/product/ResultSection';
 import LaunchChecklist from '@/components/product/LaunchChecklist';
 import { Button } from '@/components/ui/button';
-import { Copy, Download, Plus, Rocket, CheckCircle2 } from 'lucide-react';
+import { Copy, Download, Plus, Rocket, CheckCircle2, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
@@ -152,6 +152,11 @@ export default function ProductResult() {
                 <Link to={`/launch/${id}`} className="block">
                   <Button className="gradient-bg text-white w-full hover:opacity-90 font-semibold rounded-xl">
                     <Rocket className="w-4 h-4 mr-2" />{t(lang, 'result_full_launch')}
+                  </Button>
+                </Link>
+                <Link to={`/social/${id}`} className="block">
+                  <Button variant="outline" className="w-full rounded-xl font-medium border-primary/30 text-primary hover:bg-primary/5">
+                    <Share2 className="w-4 h-4 mr-2" />Social Media Kit
                   </Button>
                 </Link>
                 <Link to="/create" className="block">
