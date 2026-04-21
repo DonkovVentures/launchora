@@ -88,8 +88,9 @@ Return ONLY valid JSON with these exact fields:
     });
 
     // Save immediately with phase 1 data so user can see results fast
+    const productTitle = (phase1.title || phase1.listing_title || formData.idea || 'Untitled Product').toString().trim().slice(0, 150) || 'Untitled Product';
     const saved = await base44.entities.Product.create({
-      title: phase1.title || phase1.listing_title || formData.idea.slice(0, 80) || 'Untitled Product',
+      title: productTitle,
       subtitle: phase1.subtitle,
       product_type: formData.productType, niche: formData.niche,
       idea_description: formData.idea, tone: formData.tone,
