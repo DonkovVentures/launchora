@@ -40,17 +40,17 @@ export default function Create() {
   const handleGenerate = async () => {
     setLoading(true);
 
-    // PHASE 1: Fast generation of core data
+    // ── PHASE 1: Core concept (fast) ──────────────────────────
     setLoadingPhase('Generating product concept...');
-    const phase1Prompt = `You are a world-class digital product strategist. Create a PREMIUM digital product based on this brief:
-
+    const phase1 = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are a world-class digital product strategist. Create a PREMIUM digital product based on this brief:
 - Type: ${formData.productType}
 - Niche: ${formData.niche}
 - Idea: ${formData.idea}
 - Tone: ${formData.tone}
 - Platform: ${formData.platform}
 
-Return ONLY valid JSON with these exact fields:
+Return ONLY valid JSON:
 {
   "title": "magnetic, specific, benefit-driven title (50-70 chars)",
   "subtitle": "one punchy line clarifying who it's for and what they get (max 100 chars)",
@@ -67,10 +67,7 @@ Return ONLY valid JSON with these exact fields:
   "cta": "specific action-oriented CTA",
   "visual_direction": "specific visual direction with hex colors, typography, mood",
   "cover_concept": "detailed mockup description"
-}`;
-
-    const phase1 = await base44.integrations.Core.InvokeLLM({
-      prompt: phase1Prompt,
+}`,
       model: 'gemini_3_flash',
       response_json_schema: {
         type: 'object',
@@ -87,8 +84,8 @@ Return ONLY valid JSON with these exact fields:
       }
     });
 
-    // Save immediately with phase 1 data so user can see results fast
-    const productTitle = (phase1.title || phase1.listing_title || formData.idea || 'Untitled Product').toString().trim().slice(0, 150) || 'Untitled Product';
+    // Save immediately with phase 1 — user navigates to product right away
+    const productTitle = (phase1.title || formData.idea || 'Untitled Product').toString().trim().slice(0, 150) || 'Untitled Product';
     const saved = await base44.entities.Product.create({
       title: productTitle,
       subtitle: phase1.subtitle,
@@ -97,59 +94,97 @@ Return ONLY valid JSON with these exact fields:
       platform: formData.platform, status: 'draft', generated_data: phase1,
     });
 
-    // Navigate immediately — user sees phase 1 results right away
     setLoading(false);
     navigate(`/product/${saved.id}?generating=true`);
 
-    // PHASE 2: Generate rich content in background (fire and forget)
-    const phase2Prompt = `You are a world-class digital product copywriter. Complete these missing fields for a ${formData.productType} product in the ${formData.niche} niche, sold on ${formData.platform}, with tone: ${formData.tone}.
-
-Product concept: "${phase1.title}" — ${phase1.subtitle}
+    // ── PHASE 2, 3, 4: Run in background sequentially to avoid truncation ──
+    (async () => {
+      try {
+        // Phase 2: Content draft only
+        const phase2 = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are an expert content creator. Write premium content for a ${formData.productType} product.
+Product: "${phase1.title}" — ${phase1.subtitle}
+Tone: ${formData.tone} | Niche: ${formData.niche}
 
 Return ONLY valid JSON:
 {
-  "content_draft": "300-400 words of ACTUAL product content — real prompts, exercises, or checklist items a buyer would pay for. Tone: ${formData.tone}",
-  "listing_title": "platform-optimized title for ${formData.platform} with best search ranking practices",
-  "listing_description": "150-200 word premium listing: hook → problem → solution → 4-5 bullet benefits → what's included → CTA",
-  "keywords": ["10-13 real search terms buyers use on ${formData.platform}"],
-  "platform_guidance": {
-    "why_this_platform": "specific reason ${formData.platform} is ideal for this product",
-    "platform_audience": "who shops on ${formData.platform} for this",
-    "pricing_strategy": "hyper-specific pricing advice for ${formData.platform}",
-    "best_title": "exact title format that performs best on ${formData.platform}",
-    "best_description": "optimized 100-150 word description for ${formData.platform}",
-    "tags": ["13 tags optimized for ${formData.platform} search algorithm"],
-    "thumbnail_guidance": "specific thumbnail guidance for ${formData.platform}",
-    "publishing_steps": ["7-8 specific actionable publishing steps"],
-    "pro_tips": ["4-5 advanced platform-specific tips"],
-    "mistakes_to_avoid": ["4-5 common mistakes that tank sales"]
-  }
-}`;
+  "content_draft": "400-500 words of ACTUAL product content — real exercises, prompts, frameworks, or checklists a buyer would pay for. Use the product's tone. Include headers, numbered lists, and actionable steps."
+}`,
+          model: 'claude_sonnet_4_6',
+          response_json_schema: {
+            type: 'object',
+            properties: { content_draft: { type: 'string' } }
+          }
+        });
 
-    // Fire phase 2 without awaiting — it will update the product in background
-    base44.integrations.Core.InvokeLLM({
-      prompt: phase2Prompt,
-      model: 'claude_sonnet_4_6',
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          content_draft: { type: 'string' },
-          listing_title: { type: 'string' },
-          listing_description: { type: 'string' },
-          keywords: { type: 'array', items: { type: 'string' } },
-          platform_guidance: { type: 'object' },
-        }
+        await base44.entities.Product.update(saved.id, {
+          generated_data: { ...phase1, ...phase2 },
+        });
+
+        // Phase 3: Marketing copy (listing + keywords)
+        const phase3 = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are a top-converting digital product copywriter. Write marketing copy for ${formData.platform}.
+Product: "${phase1.title}" — ${phase1.subtitle}
+Audience: ${phase1.audience}
+Niche: ${formData.niche}
+
+Return ONLY valid JSON:
+{
+  "listing_title": "platform-optimized listing title for ${formData.platform}, front-loading best keywords (max 140 chars)",
+  "listing_description": "120-150 word listing: hook sentence → problem → solution → 4 bullet benefits → what's included → CTA",
+  "keywords": ["12-13 real buyer search terms for ${formData.platform}"]
+}`,
+          model: 'gemini_3_flash',
+          response_json_schema: {
+            type: 'object',
+            properties: {
+              listing_title: { type: 'string' },
+              listing_description: { type: 'string' },
+              keywords: { type: 'array', items: { type: 'string' } },
+            }
+          }
+        });
+
+        await base44.entities.Product.update(saved.id, {
+          generated_data: { ...phase1, ...phase2, ...phase3 },
+        });
+
+        // Phase 4: Platform strategy
+        const phase4 = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are a ${formData.platform} sales expert. Give platform strategy for this product.
+Product: "${phase1.title}" in the ${formData.niche} niche.
+Platform: ${formData.platform}
+
+Return ONLY valid JSON:
+{
+  "platform_guidance": {
+    "why_this_platform": "specific reason this platform is ideal (2-3 sentences)",
+    "platform_audience": "who buys this type of product on ${formData.platform}",
+    "pricing_strategy": "specific pricing advice with exact numbers for ${formData.platform}",
+    "thumbnail_guidance": "exact thumbnail design advice for ${formData.platform}",
+    "pro_tips": ["4 advanced platform-specific tips that most sellers miss"],
+    "mistakes_to_avoid": ["4 common mistakes that tank sales on ${formData.platform}"]
+  }
+}`,
+          model: 'gemini_3_flash',
+          response_json_schema: {
+            type: 'object',
+            properties: {
+              platform_guidance: { type: 'object' }
+            }
+          }
+        });
+
+        await base44.entities.Product.update(saved.id, {
+          generated_data: { ...phase1, ...phase2, ...phase3, ...phase4 },
+          status: 'ready',
+        });
+
+      } catch (e) {
+        // Mark ready even if background phases partially fail
+        await base44.entities.Product.update(saved.id, { status: 'ready' });
       }
-    }).then(phase2 => {
-      const merged = { ...phase1, ...phase2 };
-      base44.entities.Product.update(saved.id, {
-        generated_data: merged,
-        listing_title: phase2.listing_title,
-        status: 'ready',
-      });
-    }).catch(() => {
-      // silently fail — phase 1 data is already saved and shown
-    });
+    })();
   };
 
   const stepComponents = [

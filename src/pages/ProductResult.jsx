@@ -15,6 +15,8 @@ import AIABTesting from '@/components/product/AIABTesting';
 import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
 import AIAssistant from '@/components/product/AIAssistant';
 import AICoverGenerator from '@/components/product/AICoverGenerator';
+import ProductWorkspace from '@/components/product/ProductWorkspace';
+import PlatformPublishGuide from '@/components/product/PlatformPublishGuide';
 
 export default function ProductResult() {
   const { id } = useParams();
@@ -22,6 +24,7 @@ export default function ProductResult() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [activeTab, setActiveTab] = useState('workspace');
 
   const isGenerating = new URLSearchParams(window.location.search).get('generating') === 'true';
 
@@ -138,22 +141,41 @@ export default function ProductResult() {
             </div>
           </motion.div>
 
+          {/* Tab switcher */}
+          <div className="flex gap-1 p-1 bg-muted rounded-xl mb-6 w-fit">
+            {['workspace', 'overview'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${activeTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                {tab === 'workspace' ? '✏️ Workspace' : '📋 Overview'}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              <ResultSection title={t(lang, 'result_product_title')} content={d.title} />
-              <ResultSection title={t(lang, 'result_subtitle')} content={d.subtitle} />
-              <ResultSection title={t(lang, 'result_promise')} content={d.promise} />
-              <ResultSection title={t(lang, 'result_audience')} content={d.audience} />
-              <ResultSection title={t(lang, 'result_format')} content={d.format} />
-              <ResultSection title={t(lang, 'result_structure')} content={d.structure} />
-              <ResultSection title={t(lang, 'result_content')} content={d.content_draft} badge={t(lang, 'result_premium')} />
-              <ResultSection title={t(lang, 'result_benefits')} content={d.benefits} />
-              <ResultSection title={t(lang, 'result_angle')} content={d.selling_angle} />
-              <ResultSection title={t(lang, 'result_listing_title')} content={d.listing_title} badge={t(lang, 'result_platform_ready')} />
-              <ResultSection title={t(lang, 'result_listing_desc')} content={d.listing_description} badge={t(lang, 'result_platform_ready')} />
-              <ResultSection title={t(lang, 'result_keywords')} content={d.keywords} />
-              <ResultSection title={t(lang, 'result_visual')} content={d.visual_direction} />
-              <ResultSection title={t(lang, 'result_cover')} content={d.cover_concept} />
+              {activeTab === 'workspace' ? (
+                <ProductWorkspace product={product} onUpdate={setProduct} />
+              ) : (
+                <>
+                  <ResultSection title={t(lang, 'result_product_title')} content={d.title} />
+                  <ResultSection title={t(lang, 'result_subtitle')} content={d.subtitle} />
+                  <ResultSection title={t(lang, 'result_promise')} content={d.promise} />
+                  <ResultSection title={t(lang, 'result_audience')} content={d.audience} />
+                  <ResultSection title={t(lang, 'result_format')} content={d.format} />
+                  <ResultSection title={t(lang, 'result_structure')} content={d.structure} />
+                  <ResultSection title={t(lang, 'result_content')} content={d.content_draft} badge={t(lang, 'result_premium')} />
+                  <ResultSection title={t(lang, 'result_benefits')} content={d.benefits} />
+                  <ResultSection title={t(lang, 'result_angle')} content={d.selling_angle} />
+                  <ResultSection title={t(lang, 'result_listing_title')} content={d.listing_title} badge={t(lang, 'result_platform_ready')} />
+                  <ResultSection title={t(lang, 'result_listing_desc')} content={d.listing_description} badge={t(lang, 'result_platform_ready')} />
+                  <ResultSection title={t(lang, 'result_keywords')} content={d.keywords} />
+                  <ResultSection title={t(lang, 'result_visual')} content={d.visual_direction} />
+                  <ResultSection title={t(lang, 'result_cover')} content={d.cover_concept} />
+                </>
+              )}
             </div>
             <div className="space-y-4">
               <div className="bg-card border border-border rounded-xl p-5 card-shadow">
@@ -169,6 +191,7 @@ export default function ProductResult() {
                 <h3 className="font-semibold text-foreground text-sm mb-2">{t(lang, 'result_cta_label')}</h3>
                 <p className="text-sm font-semibold text-primary">{d.cta}</p>
               </div>
+              <PlatformPublishGuide platform={product.platform} />
               <AICoverGenerator product={product} />
               <AIContentAnalyzer product={product} />
               <AIABTesting product={product} />
