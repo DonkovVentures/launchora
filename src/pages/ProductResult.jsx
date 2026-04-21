@@ -9,7 +9,7 @@ import { Copy, Download, Plus, Rocket, CheckCircle2, Share2, FileText } from 'lu
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
-import { exportProductPDF } from '@/lib/exportPDF';
+import { exportProductAsPDF, exportProductAsTXT, copyListingToClipboard } from '@/lib/exportProduct';
 import AIContentAnalyzer from '@/components/product/AIContentAnalyzer';
 import AIABTesting from '@/components/product/AIABTesting';
 import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
@@ -71,22 +71,10 @@ export default function ProductResult() {
 
   const d = product.generated_data || {};
 
-  const copyAllListing = () => {
-    const text = `TITLE: ${d.listing_title || d.title}\n\nDESCRIPTION:\n${d.listing_description}\n\nKEYWORDS: ${(d.keywords || []).join(', ')}\n\nPRICE: $${d.price_min}–$${d.price_max}`;
-    navigator.clipboard.writeText(text);
+  const copyAllListing = async () => {
+    await copyListingToClipboard(product);
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 3000);
-  };
-
-  const exportProduct = () => {
-    const content = `LAUNCHORA PRODUCT EXPORT\n===========================\nProduct: ${d.title}\nType: ${product.product_type}\nPlatform: ${product.platform}\n\nTITLE: ${d.title}\nSUBTITLE: ${d.subtitle}\nPROMISE: ${d.promise}\n\nTARGET AUDIENCE: ${d.audience}\nFORMAT: ${d.format}\n\nSTRUCTURE:\n${(d.structure || []).map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\nCONTENT DRAFT:\n${d.content_draft}\n\nLISTING TITLE: ${d.listing_title}\nLISTING DESCRIPTION:\n${d.listing_description}\n\nKEYWORDS: ${(d.keywords || []).join(', ')}\nPRICE: $${d.price_min}–$${d.price_max}\n\nPLATFORM GUIDANCE (${product.platform}):\n${d.platform_guidance?.best_description || ''}\n\nPUBLISHING STEPS:\n${(d.platform_guidance?.publishing_steps || []).map((s, i) => `${i + 1}. ${s}`).join('\n')}`;
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(d.title || 'product').replace(/\s+/g, '-').toLowerCase()}-launchora.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -126,11 +114,11 @@ export default function ProductResult() {
                 <Button size="sm" onClick={copyAllListing} variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
                   <Copy className="w-3.5 h-3.5 mr-1.5" />{copiedAll ? t(lang, 'result_copied') : t(lang, 'result_copy_listing')}
                 </Button>
-                <Button size="sm" onClick={exportProduct} variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
-                  <FileText className="w-3.5 h-3.5 mr-1.5" />Export TXT
+                <Button size="sm" onClick={() => exportProductAsTXT(product)} variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
+                  <FileText className="w-3.5 h-3.5 mr-1.5" />Свали TXT
                 </Button>
-                <Button size="sm" onClick={() => exportProductPDF(product)} variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50">
-                  <Download className="w-3.5 h-3.5 mr-1.5" />Export PDF
+                <Button size="sm" onClick={() => exportProductAsPDF(product)} variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50">
+                  <Download className="w-3.5 h-3.5 mr-1.5" />Свали PDF
                 </Button>
                 <Link to={`/launch/${id}`}>
                   <Button size="sm" className="gradient-bg text-white hover:opacity-90">
