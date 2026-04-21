@@ -379,10 +379,10 @@ Return ONLY valid JSON:
 
   const stepComponents = [
     <StepProductType value={formData.productType} onChange={update('productType')} />,
-    <StepNiche value={formData.niche} onChange={update('niche')} />,
+    <StepNiche value={formData.niche} onChange={update('niche')} productType={formData.productType} />,
     <StepIdea value={formData.idea} onChange={update('idea')} productType={formData.productType} niche={formData.niche} />,
-    <StepTone value={formData.tone} onChange={update('tone')} />,
-    <StepPlatform value={formData.platform} onChange={update('platform')} />,
+    <StepTone value={formData.tone} onChange={update('tone')} productType={formData.productType} />,
+    <StepPlatform value={formData.platform} onChange={update('platform')} productType={formData.productType} />,
     <StepGenerate data={formData} onGenerate={handleGenerate} loading={loading} />,
   ];
 
