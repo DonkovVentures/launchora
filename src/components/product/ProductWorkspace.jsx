@@ -162,7 +162,9 @@ export default function ProductWorkspace({ product, onUpdate }) {
     { label: 'Selling Angle', path: 'selling_angle', isArray: false },
     { label: 'Listing Title', path: 'listing_title', isArray: false, badge: 'Platform Ready' },
     { label: 'Listing Description', path: 'listing_description', isArray: false, badge: 'Platform Ready' },
-    { label: 'Keywords', path: 'keywords', isArray: true },
+    { label: 'SEO Meta Description', path: 'seo_meta_description', isArray: false, badge: 'SEO' },
+    { label: 'Platform CTA', path: 'platform_cta', isArray: false, badge: 'Platform Ready' },
+    { label: 'Keywords', path: 'keywords', isArray: true, badge: 'SEO' },
     { label: 'Visual Direction', path: 'visual_direction', isArray: false },
     { label: 'Cover Concept', path: 'cover_concept', isArray: false },
   ];

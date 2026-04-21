@@ -305,30 +305,76 @@ Return ONLY valid JSON:
           generated_data: { ...phase1, ...phase2 },
         });
 
-        // Phase 3: Marketing copy (listing + keywords)
-        const phase3 = await base44.integrations.Core.InvokeLLM({
-          prompt: `You are a 7-figure digital product copywriter specializing in ${formData.platform} listings. Write high-converting marketplace copy for this product.
+        // Phase 3: Platform-specific SEO copy — claude_sonnet writes, gemini_3_flash verifies/augments keywords
+        const platformSeoContext = {
+          'Etsy': 'Etsy SEO uses up to 13 tags (each max 20 chars), 140-char title front-loading the primary keyword, and a description where the first 160 chars appear in Google search snippets. Buyers search conversationally. Long-tail phrases like "weekly planner for moms printable" outperform generic terms. Etsy ranks listings with high click-through and conversion rates.',
+          'Gumroad': 'Gumroad has no internal search algorithm — traffic is mostly from creator audiences, Twitter/X, newsletters, and Google. The product page title and first paragraph are indexed by Google. Use emotional hooks, social proof language, and benefit-driven headlines. The description should read like a sales page, not a product listing.',
+          'Payhip': 'Payhip pages are crawled by Google. Use H1-style titles with primary keyword + audience. First 200 chars of description serve as meta description. Buyers arrive mostly via Pinterest, Instagram, and Google search. Descriptions should be benefit-led with clear deliverables and a bold CTA.',
+          'Creative Market': 'Creative Market buyers are designers, marketers, and creative professionals. They search by use case ("brand kit", "Instagram template") and style. Titles should include format + style + use case. Tags allow up to 10 comma-separated terms. The platform rewards detailed, specific descriptions that mention software compatibility and file types.',
+          'Stan Store': 'Stan Store is creator-economy focused — buyers follow the creator first, then buy. Descriptions should feel personal and conversational. CTAs like "grab your copy" outperform "buy now". Highlight transformation and community. SEO matters less; social proof and specificity matter more.',
+          'Ko-fi': 'Ko-fi buyers are supporters who already follow the creator. Descriptions should be warm, personal, and specific about what they get. Mention the exact format, page count, and who it\'s for. No complex SEO — just clear value communication.',
+          'Shopify': 'Shopify product pages are fully Google-indexed. Use schema-friendly titles with primary keyword first. Meta descriptions (155 chars) and product descriptions must include semantic keyword clusters. Use bullet points for scannability. Internal linking and collections help with on-site SEO.',
+          'Custom Website': 'Custom website product pages should be fully SEO-optimized with title tags, meta descriptions, H1/H2 structure, and semantic keywords throughout the body. Target long-tail transactional keywords. Include schema markup for digital products. First 150 words must contain the primary keyword naturally.',
+        };
+        const seoContext = platformSeoContext[formData.platform] || 'Optimize for search with buyer-intent keywords, clear benefit-led copy, and a strong CTA.';
 
-PRODUCT: "${phase1.title}"
-SUBTITLE: ${phase1.subtitle}
-AUDIENCE: ${phase1.audience}
-NICHE: ${formData.niche}
-PLATFORM: ${formData.platform}
-SELLING ANGLE: ${phase1.selling_angle}
+        const phase3 = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are a world-class SEO copywriter and digital product launch specialist. You know exactly how ${formData.platform} ranks and converts listings for ${formData.productType} products in the ${formData.niche} niche.
+
+PLATFORM SEO RULES FOR ${formData.platform.toUpperCase()}:
+${seoContext}
+
+PRODUCT DETAILS:
+- Title: "${phase1.title}"
+- Type: ${formData.productType}
+- Niche: ${formData.niche}
+- Tone: ${formData.tone}
+- Audience: ${phase1.audience}
+- Promise: ${phase1.promise}
+- Selling angle: ${phase1.selling_angle}
+- Benefits: ${(phase1.benefits || []).slice(0, 3).join(' | ')}
+- Price: $${phase1.price_min}–$${phase1.price_max}
+
+TASK — Generate ALL of the following, fully written and ready to copy-paste:
+
+1. LISTING TITLE: Front-load the #1 buyer-intent keyword for this niche on ${formData.platform}. Include product type + core benefit + audience signal. Max 140 chars. No ALL CAPS. No filler words.
+
+2. LISTING DESCRIPTION: 180-220 words. Structure for ${formData.platform}:
+   - Hook (1 sentence): Name the exact pain or desire the buyer feels right now
+   - Problem agitation (1-2 sentences): What they've tried, why it hasn't worked
+   - Product reveal (2 sentences): What this IS and what it DOES — specific, not vague
+   - Benefits list (4 items starting with ✓): Each one names a concrete outcome, not a feature
+   - What's included (1 sentence): Exact deliverable, format, page count, file type
+   - CTA (1 sentence): Creates desire and specificity, not generic urgency
+   Write in ${formData.tone} tone. Sound like a human expert.
+
+3. SEO KEYWORDS: 15 buyer-intent search terms. Mix:
+   - 3 broad (1-2 words, high volume)
+   - 7 mid-tail (3-4 words, specific)
+   - 5 long-tail (5+ words, high intent, conversational)
+   All must be terms real buyers actually type when looking for a ${formData.productType.toLowerCase()} in ${formData.niche}.
+
+4. PLATFORM CTA: The single most compelling call-to-action phrase for ${formData.platform} buyers — specific to their mindset on this platform.
+
+5. SEO META DESCRIPTION: 150-155 chars. Includes primary keyword naturally. Appears in Google search results for this product page.
 
 Return ONLY valid JSON:
 {
-  "listing_title": "Front-load the most searched keyword for ${formData.niche} on ${formData.platform}. Include product type + key benefit + audience hint. Max 140 chars. No generic phrases. No ALL CAPS.",
-  "listing_description": "Write a 130-160 word listing that converts. Structure: [1 sentence hook that names their exact pain point] → [1 sentence on what they've tried and why it failed] → [2 sentences on what this product IS and what it delivers] → [4 bullet points each starting with ✓ and naming a specific benefit] → [1 sentence on what's included with file format] → [closing CTA that creates desire, not urgency]. Sound like a human expert, not an AI.",
-  "keywords": ["12 highly specific buyer-intent search terms that real customers type into ${formData.platform} when looking for ${formData.productType.toLowerCase()} products in the ${formData.niche} niche — mix of broad and long-tail"]
+  "listing_title": "...",
+  "listing_description": "...",
+  "keywords": ["keyword 1", "keyword 2", "... 15 total"],
+  "platform_cta": "...",
+  "seo_meta_description": "..."
 }`,
-          model: 'gemini_3_flash',
+          model: 'claude_sonnet_4_6',
           response_json_schema: {
             type: 'object',
             properties: {
               listing_title: { type: 'string' },
               listing_description: { type: 'string' },
               keywords: { type: 'array', items: { type: 'string' } },
+              platform_cta: { type: 'string' },
+              seo_meta_description: { type: 'string' },
             }
           }
         });
@@ -401,6 +447,8 @@ Return ONLY valid JSON:
             listing_title: phase3.listing_title,
             listing_description: phase3.listing_description,
             keywords: phase3.keywords,
+            platform_cta: phase3.platform_cta,
+            seo_meta_description: phase3.seo_meta_description,
             price_min: phase1.price_min,
             price_max: phase1.price_max,
             cta: phase1.cta,

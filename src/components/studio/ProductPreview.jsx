@@ -140,10 +140,21 @@ function PreviewListing({ content, preset }) {
         <h2 className="text-lg font-bold mb-3" style={{ color: preset.heading }}>{content.listing_title}</h2>
       )}
       {content.listing_description && (
-        <p className="text-sm mb-4 whitespace-pre-wrap" style={{ color: preset.text }}>{content.listing_description}</p>
+        <p className="text-sm mb-4 whitespace-pre-wrap leading-relaxed" style={{ color: preset.text }}>{content.listing_description}</p>
+      )}
+      {content.seo_meta_description && (
+        <div className="rounded-lg p-3 mb-4 text-xs" style={{ background: preset.accent + '12', borderLeft: `3px solid ${preset.accent}` }}>
+          <span className="font-bold uppercase tracking-wider text-[10px]" style={{ color: preset.accent }}>SEO Meta Description · </span>
+          <span style={{ color: preset.text }}>{content.seo_meta_description}</span>
+        </div>
+      )}
+      {content.platform_cta && (
+        <div className="inline-block px-4 py-2 rounded-full text-sm font-semibold mb-4" style={{ background: preset.accent, color: preset.bg }}>
+          {content.platform_cta}
+        </div>
       )}
       {content.keywords?.length > 0 && (
-        <div className="flex flex-wrap gap-1 mb-3">
+        <div className="flex flex-wrap gap-1 mb-4">
           {content.keywords.map((k, i) => (
             <span key={i} className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: preset.accent + '20', color: preset.accent }}>{k}</span>
           ))}
