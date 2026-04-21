@@ -37,51 +37,66 @@ export default function Create() {
 
   const handleGenerate = async () => {
     setLoading(true);
-    const prompt = `You are an expert digital product creator. Generate a complete, premium, sell-ready digital product based on these inputs:
+    const prompt = `You are a world-class digital product strategist and copywriter with 10+ years of experience selling on Etsy, Gumroad, and creative marketplaces. You've created hundreds of best-selling digital products. Your task is to create a PREMIUM, POLISHED, SELL-READY digital product — not a generic template or rough draft.
 
-Product Type: ${formData.productType}
-Niche/Audience: ${formData.niche}
-Idea Description: ${formData.idea}
-Tone/Style: ${formData.tone}
-Selling Platform: ${formData.platform}
+PRODUCT BRIEF:
+- Type: ${formData.productType}
+- Niche/Audience: ${formData.niche}
+- Creator's Idea: ${formData.idea}
+- Tone/Style: ${formData.tone}
+- Selling Platform: ${formData.platform}
 
-Generate a comprehensive, high-quality product creation package. Return ONLY valid JSON with this structure:
+CRITICAL QUALITY STANDARDS:
+1. The title must be magnetic and specific — not generic. Think like a bestseller, not a template.
+2. The content_draft must be REAL, USABLE content — actual prompts, actual exercises, actual pages, actual frameworks. Not placeholders. Not "Section 1: [content here]". Write real content a buyer would pay for.
+3. The listing_description must follow professional copywriting principles: hook → problem → solution → benefits → what's included → social proof language → strong CTA. No fluff.
+4. Keywords must be real search terms buyers actually use on ${formData.platform}.
+5. Platform guidance must be hyper-specific to ${formData.platform} — not generic advice that works for any platform.
+6. The structure must reflect a logical, professional product flow — not just a list of vague topics.
+
+Return ONLY valid JSON (no markdown, no preamble) with this exact structure:
 {
-  "title": "compelling product title (60-80 chars for SEO)",
-  "subtitle": "one-line product subtitle",
-  "promise": "what transformation/outcome the product delivers",
-  "audience": "detailed buyer profile and demographic",
-  "format": "file format and delivery details",
-  "structure": ["section 1 title", "section 2 title", "section 3 title", "section 4 title", "section 5 title", "section 6 title", "section 7 title", "section 8 title"],
-  "content_draft": "Write 400-600 words of actual premium product content — real sections, real exercises, real value. Make it feel polished and sell-ready.",
-  "benefits": ["benefit 1", "benefit 2", "benefit 3", "benefit 4", "benefit 5"],
-  "selling_angle": "the unique angle that makes this product stand out",
-  "listing_title": "platform-optimized listing title",
-  "listing_description": "Write a 200-300 word premium listing description with strong opening, benefits, what's included, and CTA.",
-  "keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5", "keyword6", "keyword7", "keyword8", "keyword9", "keyword10"],
-  "price_min": 9,
-  "price_max": 19,
-  "price_rationale": "why this price range is optimal",
-  "buyer_profile": "detailed description of ideal buyer",
-  "cta": "suggested call-to-action text",
+  "title": "A specific, benefit-driven, SEO-optimized product title (50-70 chars). Must feel premium and professional. NO generic words like 'Ultimate Guide' or 'Complete Bundle'. Be specific to the niche.",
+  "subtitle": "One punchy line that clarifies who this is for and what they'll get. Max 100 chars.",
+  "promise": "The specific, measurable transformation this product delivers. Be concrete — not vague like 'improve your life'. Example: 'Go from scattered and overwhelmed to having a clear 90-day plan in one afternoon.'",
+  "audience": "Describe the ideal buyer in 2-3 sentences: their situation, their frustration, their aspiration. Be psychographically specific.",
+  "format": "Specific delivery format — e.g. '24-page PDF workbook, A4, print-ready + digital fill-in version'. Include page count estimate.",
+  "structure": [
+    "Section title — with brief description of what's in it (8-10 sections minimum, each title should be evocative and specific)"
+  ],
+  "content_draft": "Write 600-900 words of ACTUAL product content. This must be real, polished, sellable content — not a description of the content. If it's a planner, write actual planner pages with prompts. If it's a checklist, write the actual checklist items with context. If it's a workbook, write actual exercises with instructions. If it's a prompt pack, write 10-15 real prompts. Make it feel like something worth paying $15-25 for. Use the correct tone: ${formData.tone}.",
+  "benefits": [
+    "Specific, outcome-oriented benefit (not vague — not 'save time' but 'cut your weekly planning from 2 hours to 20 minutes')",
+    "benefit 2", "benefit 3", "benefit 4", "benefit 5", "benefit 6"
+  ],
+  "selling_angle": "The single most compelling reason someone buys THIS product over alternatives. What makes it unique? What specific gap does it fill?",
+  "listing_title": "Platform-optimized title following ${formData.platform}'s best practices for search ranking and click-through rate.",
+  "listing_description": "Write a 250-350 word premium listing description. Structure: 1) Attention-grabbing hook (1-2 sentences identifying the pain point). 2) Empathy bridge (you understand them). 3) Product intro as the solution. 4) 5-6 specific bullet-point benefits. 5) Exactly what's included (format, pages, sections). 6) Who it's perfect for. 7) Strong, urgency-based CTA. Use line breaks for readability. No emoji overuse.",
+  "keywords": ["10-13 real search terms buyers use on ${formData.platform} — mix of short-tail and long-tail, specific to this niche and product type"],
+  "price_min": 12,
+  "price_max": 27,
+  "price_rationale": "Data-backed pricing rationale for this specific product type and niche on ${formData.platform}. Include psychological pricing notes.",
+  "buyer_profile": "Paint a vivid picture of the ideal buyer: name-level persona, their daily struggle, what they've tried before, why this product is the answer they've been looking for.",
+  "cta": "A specific, action-oriented CTA that creates urgency or excitement. Not 'Buy Now'. Example: 'Download instantly and start planning today.'",
+  "visual_direction": "Specific visual direction: exact color palette (hex codes if possible), typography pairings, layout style, design mood. Be specific enough that a designer could execute this without asking questions.",
+  "cover_concept": "Detailed mockup description: what the cover looks like, what text appears, what visual elements, what mockup style (flat lay, device mockup, etc.), what would make someone stop scrolling and click.",
   "platform_guidance": {
-    "why_this_platform": "why this product fits the chosen platform",
-    "platform_audience": "who buys this type of product on this platform",
-    "pricing_strategy": "specific pricing advice for this platform",
-    "best_title": "optimized title for this specific platform",
-    "best_description": "optimized description style for this platform",
-    "tags": ["tag1", "tag2", "tag3", "tag4", "tag5"],
-    "thumbnail_guidance": "what the cover image should look like",
-    "publishing_steps": ["step 1", "step 2", "step 3", "step 4", "step 5", "step 6"],
-    "pro_tips": ["tip 1", "tip 2", "tip 3"],
-    "mistakes_to_avoid": ["mistake 1", "mistake 2", "mistake 3"]
-  },
-  "visual_direction": "describe the ideal visual style for this product — colors, typography, layout, cover design",
-  "cover_concept": "detailed description of what the product cover should look like for maximum appeal on the chosen platform"
+    "why_this_platform": "Specific, data-driven reason why ${formData.platform} is ideal for THIS product — buyer demographics, search volume, competition level, pricing norms.",
+    "platform_audience": "Who specifically shops on ${formData.platform} for this type of product — their age range, income level, buying motivation, what they search for.",
+    "pricing_strategy": "Hyper-specific pricing advice for ${formData.platform}: launch price, regular price, bundle pricing, seasonal pricing, competitor benchmarks.",
+    "best_title": "The exact title format that performs best on ${formData.platform} for this category — follow their algorithm and buyer psychology.",
+    "best_description": "Platform-specific description formatted correctly for ${formData.platform}'s listing page — correct length, formatting style, what to include vs omit.",
+    "tags": ["13 tags optimized specifically for ${formData.platform}'s search algorithm — not generic, not repeated from title"],
+    "thumbnail_guidance": "Specific thumbnail/cover guidance for ${formData.platform}: correct dimensions, what high-performing covers in this category look like, color psychology for this niche, text overlay strategy.",
+    "publishing_steps": ["7-8 specific, actionable steps to publish on ${formData.platform} — technical steps, settings to configure, what to fill in where"],
+    "pro_tips": ["4-5 advanced, platform-specific tips that most sellers don't know — real insider knowledge"],
+    "mistakes_to_avoid": ["4-5 common mistakes that tank sales on ${formData.platform} — be specific, not generic"]
+  }
 }`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt,
+      model: 'claude_sonnet_4_6',
       response_json_schema: {
         type: 'object',
         properties: {

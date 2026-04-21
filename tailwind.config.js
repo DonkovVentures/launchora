@@ -12,6 +12,7 @@ module.exports = {
       fontFamily: {
         inter: ['var(--font-inter)'],
         display: ['var(--font-display)'],
+        serif: ['var(--font-serif)'],
       },
   		colors: {
   			background: 'hsl(var(--background))',
@@ -88,8 +89,8 @@ module.exports = {
   },
   plugins: [require("tailwindcss-animate")],
   safelist: [
-    'bg-purple-50', 'bg-blue-50', 'bg-green-50', 'bg-orange-50', 'bg-pink-50', 'bg-yellow-50',
-    'text-purple-600', 'text-blue-600', 'text-green-600', 'text-orange-600', 'text-pink-600',
-    'border-purple-200', 'border-blue-200', 'border-green-200', 'border-orange-200',
+    'bg-orange-50', 'bg-amber-50', 'bg-stone-50', 'bg-yellow-50', 'bg-red-50', 'bg-brown-50',
+    'text-orange-600', 'text-amber-600', 'text-stone-600', 'text-yellow-600', 'text-red-600',
+    'border-orange-200', 'border-amber-200', 'border-stone-200', 'border-yellow-200',
   ]
 }
