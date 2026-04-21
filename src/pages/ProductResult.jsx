@@ -9,6 +9,10 @@ import { Copy, Download, Plus, Rocket, CheckCircle2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
+import AIContentAnalyzer from '@/components/product/AIContentAnalyzer';
+import AIABTesting from '@/components/product/AIABTesting';
+import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
+import AIAssistant from '@/components/product/AIAssistant';
 
 export default function ProductResult() {
   const { id } = useParams();
@@ -140,6 +144,9 @@ export default function ProductResult() {
                 <h3 className="font-semibold text-foreground text-sm mb-2">{t(lang, 'result_cta_label')}</h3>
                 <p className="text-sm font-semibold text-primary">{d.cta}</p>
               </div>
+              <AIContentAnalyzer product={product} />
+              <AIABTesting product={product} />
+              <AIBundleSuggestions product={product} />
               <LaunchChecklist />
               <div className="space-y-3">
                 <Link to={`/launch/${id}`} className="block">
@@ -157,6 +164,7 @@ export default function ProductResult() {
           </div>
         </div>
       </main>
+      <AIAssistant product={product} />
     </div>
   );
 }
