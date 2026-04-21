@@ -187,76 +187,119 @@ TEMPLATE 3 — [Bonus advanced use case]: instructions, template, customization 
         };
         const contentGuide = contentInstructions[formData.productType] || 'Write 3 complete, premium sections of actual usable content with exercises, frameworks, and actionable steps.';
 
-        const phase2 = await base44.integrations.Core.InvokeLLM({
-          prompt: `You are an elite digital product content writer. Write REAL, COMPLETE product content that a buyer would find immediately valuable and usable.
+        // ── PHASE 2a: gemini_3_1_pro generates the raw full content (capable, cost-efficient) ──
+        const blockType = formData.productType === 'Checklist' ? 'checklist'
+          : (formData.productType === 'Journal' || formData.productType === 'Workbook') ? 'worksheet'
+          : formData.productType === 'Prompt Pack' ? 'prompt' : 'section';
+
+        const phase2raw = await base44.integrations.Core.InvokeLLM({
+          prompt: `You are an expert digital product content writer. Your job is to write COMPLETE, DETAILED, IMMEDIATELY USABLE content for a paid digital product. A real buyer will download and use this — it must be worth every cent.
 
 PRODUCT: "${phase1.title}"
 TYPE: ${formData.productType} | NICHE: ${formData.niche} | TONE: ${formData.tone}
 AUDIENCE: ${phase1.audience}
+PROMISE: ${phase1.promise}
 
-CONTENT REQUIREMENTS:
+CONTENT REQUIREMENTS — write EVERYTHING listed below, fully:
 ${contentGuide}
 
-QUALITY RULES:
-- Write ACTUAL content — no placeholders, no "[write content here]"
-- Every exercise/prompt must be specific to the ${formData.niche} niche
-- Avoid generic filler phrases like "this will help you grow" or "take action today"
-- Use ${formData.tone} tone throughout
-- Make it feel like it was written by a human expert, not an AI
-- Density over volume: every sentence must add value
+STRICT RULES:
+- NO placeholders like "[insert here]", "[write content]", "[your answer]" — write the actual content
+- NO generic filler. Every sentence must be niche-specific and actionable
+- Each section must be fully written — not summarized or truncated
+- Use ${formData.tone} tone throughout every word
+- Minimum 1000 words of real usable content in content_draft
+- Use markdown: ## headers, **bold key terms**, numbered steps, - bullet lists
 
 Return ONLY valid JSON:
 {
-  "content_draft": "The complete formatted product content — use markdown formatting with ## for section headers, **bold** for key terms, numbered lists for steps, and - for checklist items. Minimum 600 words of real usable content.",
-  "product_blocks": [
-    {
-      "id": "1",
-      "type": "cover",
-      "heading": "Cover",
-      "content": {
-        "title": "${phase1.title || ''}",
-        "subtitle": "${phase1.subtitle || ''}",
-        "promise": "${phase1.promise || ''}",
-        "audience": "For: [specific audience description]"
-      }
-    },
-    {
-      "id": "2", 
-      "type": "toc",
-      "heading": "Contents",
-      "content": {
-        "items": ["section title 1", "section title 2", "section title 3", "section title 4", "section title 5", "section title 6", "BONUS section"]
-      }
-    },
-    {
-      "id": "3",
-      "type": "${formData.productType === 'Checklist' ? 'checklist' : formData.productType === 'Journal' || formData.productType === 'Workbook' ? 'worksheet' : formData.productType === 'Prompt Pack' ? 'prompt' : 'section'}",
-      "heading": "First Section",
-      "content": {}
-    },
-    {
-      "id": "4",
-      "type": "${formData.productType === 'Checklist' ? 'checklist' : formData.productType === 'Journal' || formData.productType === 'Workbook' ? 'worksheet' : formData.productType === 'Prompt Pack' ? 'prompt' : 'section'}",
-      "heading": "Second Section",
-      "content": {}
-    },
-    {
-      "id": "5",
-      "type": "notes",
-      "heading": "Notes",
-      "content": { "title": "Your Notes", "lines": 12 }
-    }
+  "content_draft": "FULL formatted product content here — every section written completely with real exercises, prompts, frameworks, templates or tracking fields. No truncation.",
+  "sections": [
+    { "title": "Section title", "body": "Full written section content — at least 120 words each, specific and actionable" },
+    { "title": "Section title", "body": "..." },
+    { "title": "Section title", "body": "..." },
+    { "title": "Section title", "body": "..." },
+    { "title": "BONUS: Section title", "body": "..." }
   ]
 }`,
-          model: 'claude_sonnet_4_6',
+          model: 'gemini_3_1_pro',
           response_json_schema: {
             type: 'object',
             properties: {
               content_draft: { type: 'string' },
-              product_blocks: { type: 'array', items: { type: 'object' } }
+              sections: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, body: { type: 'string' } } } }
             }
           }
         });
+
+        // ── PHASE 2b: claude_sonnet_4_6 acts as QA — enriches weak content ──
+        const wordCount = (phase2raw.content_draft || '').split(/\s+/).length;
+        let finalContentDraft = phase2raw.content_draft || '';
+        let finalSections = phase2raw.sections || [];
+
+        if (wordCount < 800) {
+          // Content is thin — ask Claude to enrich it
+          const enriched = await base44.integrations.Core.InvokeLLM({
+            prompt: `You are a senior editor reviewing a digital product draft. The content below is TOO THIN — it needs significant enrichment to be worth paying for.
+
+PRODUCT: "${phase1.title}" (${formData.productType} for ${formData.niche})
+TONE: ${formData.tone}
+AUDIENCE: ${phase1.audience}
+
+CURRENT DRAFT (needs improvement):
+${finalContentDraft}
+
+YOUR TASK:
+1. Expand every section to at least 150 words with specific, actionable content
+2. Add concrete examples, real scenarios, and niche-specific detail
+3. Remove any vague or filler sentences — replace with substance
+4. Ensure every exercise/prompt/step is fully written, not just labeled
+5. Total output must be at least 1200 words
+
+Return ONLY valid JSON:
+{
+  "content_draft": "The fully enriched, expanded content in markdown format — complete and polished",
+  "sections": [
+    { "title": "Section title", "body": "Fully enriched section body — specific, detailed, actionable" }
+  ]
+}`,
+            model: 'claude_sonnet_4_6',
+            response_json_schema: {
+              type: 'object',
+              properties: {
+                content_draft: { type: 'string' },
+                sections: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, body: { type: 'string' } } } }
+              }
+            }
+          });
+          finalContentDraft = enriched.content_draft || finalContentDraft;
+          finalSections = enriched.sections || finalSections;
+        }
+
+        // Build product_blocks from the enriched sections
+        const sectionBlocks = (finalSections || []).map((sec, i) => ({
+          id: String(3 + i),
+          type: blockType,
+          heading: sec.title || `Section ${i + 1}`,
+          content: {
+            title: sec.title,
+            body: sec.body,
+            // For checklist blocks
+            items: sec.body ? sec.body.split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()).filter(Boolean) : [],
+            // For worksheet blocks
+            prompts: sec.body ? sec.body.split('\n').filter(l => /^\d+\./.test(l.trim())).map(l => l.replace(/^\d+\.\s*/, '').trim()).filter(Boolean) : [],
+          }
+        }));
+
+        const phase2 = {
+          content_draft: finalContentDraft,
+          product_blocks: [
+            { id: '1', type: 'cover', heading: 'Cover', content: { title: phase1.title, subtitle: phase1.subtitle, promise: phase1.promise, audience: phase1.audience } },
+            { id: '2', type: 'toc', heading: 'Contents', content: { items: (finalSections || []).map(s => s.title).filter(Boolean) } },
+            ...sectionBlocks,
+            { id: String(Date.now() + 1), type: 'notes', heading: 'Notes', content: { title: 'Your Notes', lines: 12 } },
+          ]
+        };
 
         await base44.entities.Product.update(saved.id, {
           generated_data: { ...phase1, ...phase2 },
