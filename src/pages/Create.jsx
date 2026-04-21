@@ -265,18 +265,61 @@ Return ONLY valid JSON:
         let finalContentDraft = phase2raw.content_draft || '';
         let finalSections = phase2raw.sections || [];
 
-        // Template Pack always goes through enrichment — it needs full template bodies, not summaries
-        const needsEnrichment = wordCount < 800 || formData.productType === 'Template Pack';
+        // Always run enrichment — ensures every product type gets premium, detailed content
+        const needsEnrichment = true;
         if (needsEnrichment) {
           // Content is thin — ask Claude to enrich it
-          const templatePackEnrichmentExtra = formData.productType === 'Template Pack' ? `
+          const typeEnrichmentExtra = {
+            'Template Pack': `
 SPECIAL RULES FOR TEMPLATE PACK:
-- Every template section body MUST contain the ACTUAL TEMPLATE — not a description of the template
-- Each section body must include: the full template with all fields/sections written out, a real completed example, and usage instructions
-- Templates must be immediately copy-pasteable and usable — no "fill this in" without showing WHAT to fill in
-- Minimum 300 words per template section
-- Include specific ${formData.niche}-relevant field names, headings, and example values
-` : '';
+- Every section body MUST contain the ACTUAL TEMPLATE — not a description of it
+- Include the full template with all fields/sections written out, a real completed example, and step-by-step usage instructions
+- Templates must be immediately copy-pasteable — no vague placeholders without showing WHAT to fill in
+- Minimum 300 words per template section with specific ${formData.niche}-relevant field names and example values`,
+            'Planner': `
+SPECIAL RULES FOR PLANNER:
+- Every section must contain ACTUAL planner page content — real time blocks, real prompts, real tracking fields
+- Write out every cell, every prompt, every row as if designing the actual page
+- Include specific time slots, habit names, goal metrics relevant to ${formData.niche}
+- Minimum 200 words per section with fully written planner fields`,
+            'Checklist': `
+SPECIAL RULES FOR CHECKLIST:
+- Every checklist item must be a SPECIFIC, ACTIONABLE task — not a category label
+- Write 12-15 items per checklist, each starting with a strong verb
+- Items must be niche-specific to ${formData.niche} — not generic
+- Include sub-items or notes where relevant`,
+            'Tracker': `
+SPECIAL RULES FOR TRACKER:
+- Every section must define EXACT fields to track with column headers, data types, and example entries
+- Write out a full week or month of example data rows to show how it works
+- Include formulas or calculation instructions where relevant
+- Make it feel like a real, professional tracking tool for ${formData.niche}`,
+            'Workbook': `
+SPECIAL RULES FOR WORKBOOK:
+- Every module must contain real exercises with ACTUAL questions written out in full
+- Include a framework or model with a real name and explanation
+- Write example answers/responses to show the reader what good looks like
+- Minimum 250 words per module with exercises that produce tangible outputs`,
+            'Journal': `
+SPECIAL RULES FOR JOURNAL:
+- Every prompt must be emotionally resonant and specific — no generic "how do you feel?" questions
+- Write 5-6 prompts per page, each with 2-3 lines of follow-up space description
+- Prompts must be tailored to ${formData.niche} context and struggles
+- Include transition phrases between prompts to create a flowing experience`,
+            'Prompt Pack': `
+SPECIAL RULES FOR PROMPT PACK:
+- Every prompt must be COMPLETE and READY TO USE — copy-paste into ChatGPT/Claude immediately
+- Include context-setting instructions before each prompt explaining when and why to use it
+- Prompts must be specific to ${formData.niche} — not generic AI prompts
+- Include expected output description so users know what to look for`,
+            'Mini Ebook': `
+SPECIAL RULES FOR MINI EBOOK:
+- Every chapter must read like a PUBLISHED book — polished prose, real examples, clear frameworks
+- Include a named framework or methodology unique to this product
+- Write actual case studies or examples with specific numbers and outcomes
+- Minimum 300 words per chapter with actionable takeaways at the end`,
+          };
+          const enrichmentExtra = typeEnrichmentExtra[formData.productType] || '';
 
           const enriched = await base44.integrations.Core.InvokeLLM({
             prompt: `You are a senior editor and expert digital product creator. Your job is to transform a thin draft into a PREMIUM, SELLABLE digital product worth $20-50.
@@ -296,7 +339,7 @@ YOUR TASK:
 4. Ensure every exercise/prompt/template/step is FULLY written with real content, not just labeled
 5. Total output must be at least 1500 words
 6. Make every section feel like it was written by a $500/hr expert in ${formData.niche}
-${templatePackEnrichmentExtra}
+${enrichmentExtra}
 
 Return ONLY valid JSON:
 {
