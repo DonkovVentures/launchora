@@ -9,6 +9,10 @@ module.exports = {
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
   		},
+      fontFamily: {
+        inter: ['var(--font-inter)'],
+        display: ['var(--font-display)'],
+      },
   		colors: {
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
@@ -49,41 +53,43 @@ module.exports = {
   				'3': 'hsl(var(--chart-3))',
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
-  			},
-  			sidebar: {
-  				DEFAULT: 'hsl(var(--sidebar-background))',
-  				foreground: 'hsl(var(--sidebar-foreground))',
-  				primary: 'hsl(var(--sidebar-primary))',
-  				'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-  				accent: 'hsl(var(--sidebar-accent))',
-  				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-  				border: 'hsl(var(--sidebar-border))',
-  				ring: 'hsl(var(--sidebar-ring))'
   			}
   		},
   		keyframes: {
   			'accordion-down': {
-  				from: {
-  					height: '0'
-  				},
-  				to: {
-  					height: 'var(--radix-accordion-content-height)'
-  				}
+  				from: { height: '0' },
+  				to: { height: 'var(--radix-accordion-content-height)' }
   			},
   			'accordion-up': {
-  				from: {
-  					height: 'var(--radix-accordion-content-height)'
-  				},
-  				to: {
-  					height: '0'
-  				}
-  			}
+  				from: { height: 'var(--radix-accordion-content-height)' },
+  				to: { height: '0' }
+  			},
+        'fade-up': {
+          from: { opacity: '0', transform: 'translateY(20px)' },
+          to: { opacity: '1', transform: 'translateY(0)' }
+        },
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' }
+        },
+        'scale-in': {
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to: { opacity: '1', transform: 'scale(1)' }
+        }
   		},
   		animation: {
   			'accordion-down': 'accordion-down 0.2s ease-out',
-  			'accordion-up': 'accordion-up 0.2s ease-out'
+  			'accordion-up': 'accordion-up 0.2s ease-out',
+        'fade-up': 'fade-up 0.5s ease-out forwards',
+        'fade-in': 'fade-in 0.4s ease-out forwards',
+        'scale-in': 'scale-in 0.3s ease-out forwards',
   		}
   	}
   },
   plugins: [require("tailwindcss-animate")],
+  safelist: [
+    'bg-purple-50', 'bg-blue-50', 'bg-green-50', 'bg-orange-50', 'bg-pink-50', 'bg-yellow-50',
+    'text-purple-600', 'text-blue-600', 'text-green-600', 'text-orange-600', 'text-pink-600',
+    'border-purple-200', 'border-blue-200', 'border-green-200', 'border-orange-200',
+  ]
 }

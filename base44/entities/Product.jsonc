@@ -1,0 +1,44 @@
+{
+  "name": "Product",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "string"
+    },
+    "product_type": {
+      "type": "string"
+    },
+    "niche": {
+      "type": "string"
+    },
+    "idea_description": {
+      "type": "string"
+    },
+    "tone": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "ready",
+        "launched"
+      ],
+      "default": "draft"
+    },
+    "generated_data": {
+      "type": "object",
+      "description": "Full AI-generated product output"
+    }
+  },
+  "required": [
+    "title",
+    "product_type"
+  ]
+}
