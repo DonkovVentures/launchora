@@ -117,7 +117,8 @@ Return ONLY valid JSON (no markdown, no preamble) with this exact structure:
     });
 
     const saved = await base44.entities.Product.create({
-      title: result.title, subtitle: result.subtitle,
+      title: result.title || result.listing_title || formData.idea.slice(0, 80) || 'Untitled Product',
+      subtitle: result.subtitle,
       product_type: formData.productType, niche: formData.niche,
       idea_description: formData.idea, tone: formData.tone,
       platform: formData.platform, status: 'ready', generated_data: result,
