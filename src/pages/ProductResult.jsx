@@ -14,6 +14,7 @@ import AIContentAnalyzer from '@/components/product/AIContentAnalyzer';
 import AIABTesting from '@/components/product/AIABTesting';
 import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
 import AIAssistant from '@/components/product/AIAssistant';
+import AICoverGenerator from '@/components/product/AICoverGenerator';
 
 export default function ProductResult() {
   const { id } = useParams();
@@ -31,22 +32,16 @@ export default function ProductResult() {
     });
   }, [id]);
 
-  // Poll for updates when phase 2 is still generating
+  // Real-time subscription for live updates
   useEffect(() => {
-    if (!isGenerating || !product) return;
-    if (product.status === 'ready') return;
-
-    const interval = setInterval(() => {
-      base44.entities.Product.filter({ id }).then(results => {
-        if (results && results[0]) {
-          setProduct(results[0]);
-          if (results[0].status === 'ready') clearInterval(interval);
-        }
-      });
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [isGenerating, product?.status, id]);
+    if (!id) return;
+    const unsubscribe = base44.entities.Product.subscribe((event) => {
+      if (event.id === id && (event.type === 'update' || event.type === 'create')) {
+        setProduct(event.data);
+      }
+    });
+    return unsubscribe;
+  }, [id]);
 
   if (loading) {
     return (
@@ -174,6 +169,7 @@ export default function ProductResult() {
                 <h3 className="font-semibold text-foreground text-sm mb-2">{t(lang, 'result_cta_label')}</h3>
                 <p className="text-sm font-semibold text-primary">{d.cta}</p>
               </div>
+              <AICoverGenerator product={product} />
               <AIContentAnalyzer product={product} />
               <AIABTesting product={product} />
               <AIBundleSuggestions product={product} />

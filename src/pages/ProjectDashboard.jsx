@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import Navbar from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
-import { Plus, Rocket, Share2, FileText, MoreVertical, Loader2, CheckCircle2, Clock, Trash2 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Plus, Rocket, Share2, FileText, MoreVertical, Loader2, CheckCircle2, Clock, Trash2, Search, SlidersHorizontal } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,8 +35,10 @@ function ProductCard({ product, onDelete }) {
 
   return (
     <motion.div
+      layout
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
       className="bg-card border border-border rounded-2xl p-5 card-shadow hover:card-shadow-hover transition-all group"
     >
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -108,29 +110,67 @@ function ProductCard({ product, onDelete }) {
   );
 }
 
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'name', label: 'Name A–Z' },
+];
+
 export default function ProjectDashboard() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterPlatform, setFilterPlatform] = useState('all');
+  const [sort, setSort] = useState('newest');
 
-  const fetchProducts = () => {
-    base44.entities.Product.list('-created_date', 50).then(data => {
+  useEffect(() => {
+    base44.entities.Product.list('-created_date', 100).then(data => {
       setProducts(data || []);
       setLoading(false);
     });
-  };
 
-  useEffect(() => {
-    fetchProducts();
-    // Poll to catch draft→ready transitions
-    const interval = setInterval(fetchProducts, 6000);
-    return () => clearInterval(interval);
+    // Real-time updates
+    const unsubscribe = base44.entities.Product.subscribe((event) => {
+      if (event.type === 'create') {
+        setProducts(prev => [event.data, ...prev]);
+      } else if (event.type === 'update') {
+        setProducts(prev => prev.map(p => p.id === event.id ? event.data : p));
+      } else if (event.type === 'delete') {
+        setProducts(prev => prev.filter(p => p.id !== event.id));
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this product?')) return;
     await base44.entities.Product.delete(id);
-    setProducts(prev => prev.filter(p => p.id !== id));
   };
+
+  const platforms = useMemo(() => {
+    const all = products.map(p => p.platform).filter(Boolean);
+    return [...new Set(all)];
+  }, [products]);
+
+  const filtered = useMemo(() => {
+    let list = [...products];
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        (p.generated_data?.title || p.title || '').toLowerCase().includes(q) ||
+        (p.niche || '').toLowerCase().includes(q) ||
+        (p.product_type || '').toLowerCase().includes(q)
+      );
+    }
+    if (filterStatus !== 'all') list = list.filter(p => p.status === filterStatus);
+    if (filterPlatform !== 'all') list = list.filter(p => p.platform === filterPlatform);
+    if (sort === 'oldest') list = list.sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+    else if (sort === 'name') list = list.sort((a, b) => (a.generated_data?.title || a.title || '').localeCompare(b.generated_data?.title || b.title || ''));
+    else list = list.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+    return list;
+  }, [products, search, filterStatus, filterPlatform, sort]);
 
   const stats = {
     total: products.length,
@@ -173,6 +213,43 @@ export default function ProjectDashboard() {
             ))}
           </div>
 
+          {/* Search + Filters */}
+          {products.length > 0 && (
+            <div className="flex flex-wrap gap-3 mb-6">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 text-sm bg-card border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                  className="text-sm bg-card border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="all">All Status</option>
+                  <option value="draft">Generating</option>
+                  <option value="ready">Ready</option>
+                  <option value="launched">Launched</option>
+                </select>
+                {platforms.length > 1 && (
+                  <select value={filterPlatform} onChange={e => setFilterPlatform(e.target.value)}
+                    className="text-sm bg-card border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="all">All Platforms</option>
+                    {platforms.map(pl => <option key={pl} value={pl}>{pl}</option>)}
+                  </select>
+                )}
+                <select value={sort} onChange={e => setSort(e.target.value)}
+                  className="text-sm bg-card border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring">
+                  {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Products Grid */}
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -189,12 +266,20 @@ export default function ProjectDashboard() {
                 </Button>
               </Link>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {products.map(product => (
-                <ProductCard key={product.id} product={product} onDelete={handleDelete} />
-              ))}
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-muted-foreground">No products match your filters.</p>
+              <button onClick={() => { setSearch(''); setFilterStatus('all'); setFilterPlatform('all'); }}
+                className="text-primary text-sm mt-2 hover:underline">Clear filters</button>
             </div>
+          ) : (
+            <AnimatePresence mode="popLayout">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {filtered.map(product => (
+                  <ProductCard key={product.id} product={product} onDelete={handleDelete} />
+                ))}
+              </div>
+            </AnimatePresence>
           )}
         </div>
       </main>
