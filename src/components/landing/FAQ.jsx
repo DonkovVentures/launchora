@@ -1,48 +1,40 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const faqs = [
-  { q: 'Do I need any design or writing skills?', a: 'No. Launchora generates everything for you — product content, titles, descriptions, keywords and launch instructions. You just describe your idea and the AI does the work.' },
-  { q: 'How long does it take to create a product?', a: 'Most products are fully generated in 2–3 minutes. You can go from idea to a complete, sell-ready product and launch plan in one session.' },
-  { q: 'What kinds of digital products can I create?', a: 'You can create planners, checklists, trackers, worksheets, workbooks, journals, prompt packs, mini eBooks, template packs, social media packs, printable bundles and lead magnets.' },
-  { q: 'Which selling platforms does Launchora support?', a: 'Etsy, Gumroad, Payhip, Shopify, Ko-fi, Stan Store, Creative Market and custom websites. Each platform gets tailored guidance — title format, description style, pricing and publishing steps.' },
-  { q: 'Is the free plan really free?', a: 'Yes. You can create one full product for free with no credit card required. Upgrade when you\'re ready to create more.' },
-  { q: 'Can I export my product content?', a: 'Yes. You can copy your listing, export your product draft, keywords, launch checklist and platform-specific guidance to use anywhere.' },
-];
+import { useLang } from '@/lib/LanguageContext';
+import { t } from '@/lib/i18n';
 
 export default function FAQ() {
   const [open, setOpen] = useState(null);
+  const { lang } = useLang();
+
+  const faqs = [
+    { qKey: 'faq_q1', aKey: 'faq_a1' },
+    { qKey: 'faq_q2', aKey: 'faq_a2' },
+    { qKey: 'faq_q3', aKey: 'faq_a3' },
+    { qKey: 'faq_q4', aKey: 'faq_a4' },
+    { qKey: 'faq_q5', aKey: 'faq_a5' },
+    { qKey: 'faq_q6', aKey: 'faq_a6' },
+  ];
 
   return (
     <section className="py-24 px-4 sm:px-6 bg-muted/30">
       <div className="max-w-3xl mx-auto">
         <div className="text-center mb-14">
-          <h2 className="font-display text-4xl font-bold text-foreground mb-3">Frequently asked questions</h2>
-          <p className="text-muted-foreground">Everything you need to know about Launchora.</p>
+          <h2 className="font-display text-4xl font-bold text-foreground mb-3">{t(lang, 'faq_title')}</h2>
+          <p className="text-muted-foreground">{t(lang, 'faq_sub')}</p>
         </div>
         <div className="space-y-3">
           {faqs.map((faq, i) => (
             <div key={i} className="bg-card border border-border rounded-xl overflow-hidden">
-              <button
-                onClick={() => setOpen(open === i ? null : i)}
-                className="w-full flex items-center justify-between px-6 py-5 text-left"
-              >
-                <span className="font-medium text-foreground text-sm">{faq.q}</span>
+              <button onClick={() => setOpen(open === i ? null : i)} className="w-full flex items-center justify-between px-6 py-5 text-left">
+                <span className="font-medium text-foreground text-sm">{t(lang, faq.qKey)}</span>
                 <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ml-4 ${open === i ? 'rotate-180' : ''}`} />
               </button>
               <AnimatePresence>
                 {open === i && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-6 pb-5 text-sm text-muted-foreground leading-relaxed border-t border-border pt-4">
-                      {faq.a}
-                    </div>
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+                    <div className="px-6 pb-5 text-sm text-muted-foreground leading-relaxed border-t border-border pt-4">{t(lang, faq.aKey)}</div>
                   </motion.div>
                 )}
               </AnimatePresence>

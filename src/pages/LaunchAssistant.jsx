@@ -5,18 +5,15 @@ import Navbar from '@/components/layout/Navbar';
 import { Button } from '@/components/ui/button';
 import { Copy, Check, ArrowLeft, AlertTriangle, Rocket, CheckSquare, Square } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useLang } from '@/lib/LanguageContext';
+import { t } from '@/lib/i18n';
 
-function CopyButton({ text, label = 'Copy' }) {
+function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
-  const handleCopy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const { lang } = useLang();
   return (
-    <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 px-2 text-muted-foreground hover:text-foreground">
+    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="h-7 px-2 text-muted-foreground hover:text-foreground">
       {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-      <span className="ml-1 text-xs">{copied ? 'Copied' : label}</span>
     </Button>
   );
 }
@@ -33,8 +30,11 @@ function Section({ title, children, action }) {
   );
 }
 
+const platformIcons = { Etsy: '🛍️', Gumroad: '💚', Payhip: '💜', Shopify: '🛒', 'Ko-fi': '☕', 'Stan Store': '⭐', 'Creative Market': '🎨', 'Custom Website': '🌐' };
+
 export default function LaunchAssistant() {
   const { id } = useParams();
+  const { lang } = useLang();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checked, setChecked] = useState([]);
@@ -46,118 +46,82 @@ export default function LaunchAssistant() {
     });
   }, [id]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background"><Navbar />
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-        </div>
+  if (loading) return (
+    <div className="min-h-screen bg-background"><Navbar />
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
       </div>
-    );
-  }
+    </div>
+  );
 
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-background"><Navbar />
-        <div className="flex items-center justify-center min-h-screen">
-          <Link to="/dashboard"><Button>Back to Dashboard</Button></Link>
-        </div>
+  if (!product) return (
+    <div className="min-h-screen bg-background"><Navbar />
+      <div className="flex items-center justify-center min-h-screen">
+        <Link to="/dashboard"><Button>Dashboard</Button></Link>
       </div>
-    );
-  }
+    </div>
+  );
 
   const d = product.generated_data || {};
   const pg = d.platform_guidance || {};
   const toggle = (i) => setChecked(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
-  const launchItems = ['Finalize your title', 'Copy your listing description', 'Set your price', 'Add keywords/tags', 'Create cover image', 'Upload product file', 'Publish', 'Share your link'];
-
-  const platformIcons = {
-    Etsy: '🛍️', Gumroad: '💚', Payhip: '💜', Shopify: '🛒',
-    'Ko-fi': '☕', 'Stan Store': '⭐', 'Creative Market': '🎨', 'Custom Website': '🌐'
-  };
+  const launchItems = t(lang, 'checklist_items');
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="pt-24 pb-20 px-4 sm:px-6">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
             <Link to={`/product/${id}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Back to product
+              <ArrowLeft className="w-4 h-4" /> {t(lang, 'launch_back')}
             </Link>
-
             <div className="gradient-bg rounded-2xl p-8 text-white mb-8">
               <div className="flex items-center gap-4 mb-4">
                 <div className="text-4xl">{platformIcons[product.platform] || '🚀'}</div>
                 <div>
-                  <p className="text-white/70 text-xs uppercase tracking-wider font-semibold mb-1">Launch Assistant</p>
-                  <h1 className="font-display text-2xl font-bold">{product.platform} Launch Plan</h1>
+                  <p className="text-white/70 text-xs uppercase tracking-wider font-semibold mb-1">{t(lang, 'launch_assistant')}</p>
+                  <h1 className="font-display text-2xl font-bold">{product.platform} {t(lang, 'launch_plan')}</h1>
                   <p className="text-white/70 text-sm mt-1">{d.title}</p>
                 </div>
               </div>
               <div className="bg-white/15 rounded-xl p-4">
-                <p className="text-sm text-white/90 font-medium">I know exactly what to do next.</p>
-                <p className="text-xs text-white/60 mt-1">Follow this plan and your product will be live today.</p>
+                <p className="text-sm text-white/90 font-medium">{t(lang, 'launch_ready_msg')}</p>
+                <p className="text-xs text-white/60 mt-1">{t(lang, 'launch_ready_sub')}</p>
               </div>
             </div>
           </motion.div>
 
           <div className="space-y-5">
-            {/* Why this platform */}
-            <Section title={`Why ${product.platform} is right for this product`}>
+            <Section title={t(lang, 'launch_why_title', { platform: product.platform })}>
               <p className="text-sm text-muted-foreground leading-relaxed">{pg.why_this_platform}</p>
             </Section>
-
-            {/* Platform audience */}
-            <Section title="Who buys this on this platform">
+            <Section title={t(lang, 'launch_who')}>
               <p className="text-sm text-muted-foreground leading-relaxed">{pg.platform_audience}</p>
             </Section>
-
-            {/* Best title */}
-            <Section
-              title={`Best title for ${product.platform}`}
-              action={<CopyButton text={pg.best_title || d.listing_title} />}
-            >
+            <Section title={t(lang, 'launch_best_title', { platform: product.platform })} action={<CopyButton text={pg.best_title || d.listing_title} />}>
               <div className="bg-muted/50 rounded-lg p-4">
                 <p className="font-semibold text-foreground text-sm">{pg.best_title || d.listing_title}</p>
               </div>
             </Section>
-
-            {/* Best description */}
-            <Section
-              title={`Optimized description for ${product.platform}`}
-              action={<CopyButton text={pg.best_description || d.listing_description} />}
-            >
+            <Section title={t(lang, 'launch_best_desc', { platform: product.platform })} action={<CopyButton text={pg.best_description || d.listing_description} />}>
               <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{pg.best_description || d.listing_description}</p>
             </Section>
-
-            {/* Pricing */}
-            <Section title="Pricing strategy">
-              <div className="flex items-center gap-4 mb-3">
-                <div className="text-3xl font-display font-bold gradient-text">${d.price_min}–${d.price_max}</div>
-              </div>
+            <Section title={t(lang, 'launch_pricing')}>
+              <div className="text-3xl font-display font-bold gradient-text mb-3">${d.price_min}–${d.price_max}</div>
               <p className="text-sm text-muted-foreground leading-relaxed">{pg.pricing_strategy || d.price_rationale}</p>
             </Section>
-
-            {/* Tags */}
-            <Section title="Tags & keywords">
+            <Section title={t(lang, 'launch_tags')}>
               <div className="flex flex-wrap gap-2">
                 {(pg.tags?.length ? pg.tags : d.keywords || []).map((tag, i) => (
-                  <span key={i} className="bg-secondary text-secondary-foreground text-xs px-3 py-1.5 rounded-full font-medium">
-                    {tag}
-                  </span>
+                  <span key={i} className="bg-secondary text-secondary-foreground text-xs px-3 py-1.5 rounded-full font-medium">{tag}</span>
                 ))}
               </div>
             </Section>
-
-            {/* Thumbnail */}
-            <Section title="Thumbnail & cover guidance">
+            <Section title={t(lang, 'launch_thumbnail')}>
               <p className="text-sm text-muted-foreground leading-relaxed">{pg.thumbnail_guidance || d.cover_concept}</p>
             </Section>
-
-            {/* Publishing steps */}
-            <Section title={`Step-by-step: How to publish on ${product.platform}`}>
+            <Section title={t(lang, 'launch_steps_title', { platform: product.platform })}>
               <ol className="space-y-3">
                 {(pg.publishing_steps || []).map((step, i) => (
                   <li key={i} className="flex items-start gap-3">
@@ -167,23 +131,15 @@ export default function LaunchAssistant() {
                 ))}
               </ol>
             </Section>
-
-            {/* Pro tips */}
             {pg.pro_tips?.length > 0 && (
-              <Section title="Pro tips for better conversion">
+              <Section title={t(lang, 'launch_pro_tips')}>
                 <ul className="space-y-2.5">
-                  {pg.pro_tips.map((tip, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <span className="text-primary">✦</span> {tip}
-                    </li>
-                  ))}
+                  {pg.pro_tips.map((tip, i) => <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground"><span className="text-primary">✦</span> {tip}</li>)}
                 </ul>
               </Section>
             )}
-
-            {/* Mistakes */}
             {pg.mistakes_to_avoid?.length > 0 && (
-              <Section title="Common mistakes to avoid">
+              <Section title={t(lang, 'launch_mistakes')}>
                 <ul className="space-y-2.5">
                   {pg.mistakes_to_avoid.map((m, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -193,22 +149,17 @@ export default function LaunchAssistant() {
                 </ul>
               </Section>
             )}
-
-            {/* Launch checklist */}
             <div className="bg-gradient-to-br from-primary/5 to-purple-50 border border-primary/15 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-5">
                 <Rocket className="w-5 h-5 text-primary" />
-                <h3 className="font-display font-bold text-foreground">Launch This Today</h3>
+                <h3 className="font-display font-bold text-foreground">{t(lang, 'checklist_title')}</h3>
                 <span className="text-xs text-muted-foreground ml-auto">{checked.length}/{launchItems.length}</span>
               </div>
               <ul className="space-y-3">
                 {launchItems.map((item, i) => (
                   <li key={i}>
                     <button onClick={() => toggle(i)} className="flex items-center gap-3 w-full text-left group">
-                      {checked.includes(i)
-                        ? <CheckSquare className="w-4 h-4 text-green-500 flex-shrink-0" />
-                        : <Square className="w-4 h-4 text-muted-foreground flex-shrink-0 group-hover:text-primary transition-colors" />
-                      }
+                      {checked.includes(i) ? <CheckSquare className="w-4 h-4 text-green-500 flex-shrink-0" /> : <Square className="w-4 h-4 text-muted-foreground flex-shrink-0 group-hover:text-primary transition-colors" />}
                       <span className={`text-sm ${checked.includes(i) ? 'line-through text-muted-foreground' : 'text-foreground'}`}>{item}</span>
                     </button>
                   </li>
@@ -216,7 +167,7 @@ export default function LaunchAssistant() {
               </ul>
               {checked.length === launchItems.length && (
                 <div className="mt-5 bg-green-50 border border-green-200 rounded-xl p-4 text-center">
-                  <p className="font-bold text-green-800">🎉 You're live! Start earning now.</p>
+                  <p className="font-bold text-green-800">{t(lang, 'launch_done')}</p>
                 </div>
               )}
             </div>

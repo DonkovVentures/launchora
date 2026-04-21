@@ -1,3 +1,6 @@
+import { useLang } from '@/lib/LanguageContext';
+import { t } from '@/lib/i18n';
+
 const types = [
   { name: 'Planner', emoji: '📅', desc: 'Planning systems' },
   { name: 'Checklist', emoji: '✅', desc: 'Step-by-step lists' },
@@ -14,25 +17,21 @@ const types = [
 ];
 
 export default function StepProductType({ value, onChange }) {
+  const { lang } = useLang();
   return (
     <div>
-      <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">What do you want to create?</h2>
-      <p className="text-muted-foreground mb-8">Pick the type of digital product you want to build and sell.</p>
+      <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">{t(lang, 'step_type_title')}</h2>
+      <p className="text-muted-foreground mb-8">{t(lang, 'step_type_sub')}</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {types.map(t => (
-          <button
-            key={t.name}
-            onClick={() => onChange(t.name)}
+        {types.map(tp => (
+          <button key={tp.name} onClick={() => onChange(tp.name)}
             className={`flex items-start gap-3 p-4 rounded-xl border text-left transition-all hover:scale-[1.02] ${
-              value === t.name
-                ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                : 'border-border bg-card hover:border-primary/40'
-            }`}
-          >
-            <span className="text-xl flex-shrink-0">{t.emoji}</span>
+              value === tp.name ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : 'border-border bg-card hover:border-primary/40'
+            }`}>
+            <span className="text-xl flex-shrink-0">{tp.emoji}</span>
             <div>
-              <div className="font-semibold text-sm text-foreground">{t.name}</div>
-              <div className="text-xs text-muted-foreground">{t.desc}</div>
+              <div className="font-semibold text-sm text-foreground">{tp.name}</div>
+              <div className="text-xs text-muted-foreground">{tp.desc}</div>
             </div>
           </button>
         ))}

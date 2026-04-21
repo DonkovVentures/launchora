@@ -12,20 +12,17 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLang } from '@/lib/LanguageContext';
+import { t } from '@/lib/i18n';
 
 const TOTAL_STEPS = 6;
 
 export default function Create() {
   const navigate = useNavigate();
+  const { lang } = useLang();
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    productType: '',
-    niche: '',
-    idea: '',
-    tone: '',
-    platform: '',
-  });
+  const [formData, setFormData] = useState({ productType: '', niche: '', idea: '', tone: '', platform: '' });
 
   const update = (field) => (value) => setFormData(prev => ({ ...prev, [field]: value }));
 
@@ -40,8 +37,7 @@ export default function Create() {
 
   const handleGenerate = async () => {
     setLoading(true);
-    try {
-      const prompt = `You are an expert digital product creator. Generate a complete, premium, sell-ready digital product based on these inputs:
+    const prompt = `You are an expert digital product creator. Generate a complete, premium, sell-ready digital product based on these inputs:
 
 Product Type: ${formData.productType}
 Niche/Audience: ${formData.niche}
@@ -84,53 +80,36 @@ Generate a comprehensive, high-quality product creation package. Return ONLY val
   "cover_concept": "detailed description of what the product cover should look like for maximum appeal on the chosen platform"
 }`;
 
-      const result = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            title: { type: 'string' },
-            subtitle: { type: 'string' },
-            promise: { type: 'string' },
-            audience: { type: 'string' },
-            format: { type: 'string' },
-            structure: { type: 'array', items: { type: 'string' } },
-            content_draft: { type: 'string' },
-            benefits: { type: 'array', items: { type: 'string' } },
-            selling_angle: { type: 'string' },
-            listing_title: { type: 'string' },
-            listing_description: { type: 'string' },
-            keywords: { type: 'array', items: { type: 'string' } },
-            price_min: { type: 'number' },
-            price_max: { type: 'number' },
-            price_rationale: { type: 'string' },
-            buyer_profile: { type: 'string' },
-            cta: { type: 'string' },
-            platform_guidance: { type: 'object' },
-            visual_direction: { type: 'string' },
-            cover_concept: { type: 'string' },
-          }
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt,
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' }, subtitle: { type: 'string' }, promise: { type: 'string' },
+          audience: { type: 'string' }, format: { type: 'string' },
+          structure: { type: 'array', items: { type: 'string' } },
+          content_draft: { type: 'string' },
+          benefits: { type: 'array', items: { type: 'string' } },
+          selling_angle: { type: 'string' }, listing_title: { type: 'string' },
+          listing_description: { type: 'string' },
+          keywords: { type: 'array', items: { type: 'string' } },
+          price_min: { type: 'number' }, price_max: { type: 'number' },
+          price_rationale: { type: 'string' }, buyer_profile: { type: 'string' },
+          cta: { type: 'string' }, platform_guidance: { type: 'object' },
+          visual_direction: { type: 'string' }, cover_concept: { type: 'string' },
         }
-      });
+      }
+    });
 
-      const saved = await base44.entities.Product.create({
-        title: result.title,
-        subtitle: result.subtitle,
-        product_type: formData.productType,
-        niche: formData.niche,
-        idea_description: formData.idea,
-        tone: formData.tone,
-        platform: formData.platform,
-        status: 'ready',
-        generated_data: result,
-      });
+    const saved = await base44.entities.Product.create({
+      title: result.title, subtitle: result.subtitle,
+      product_type: formData.productType, niche: formData.niche,
+      idea_description: formData.idea, tone: formData.tone,
+      platform: formData.platform, status: 'ready', generated_data: result,
+    });
 
-      navigate(`/product/${saved.id}`);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(false);
+    navigate(`/product/${saved.id}`);
   };
 
   const stepComponents = [
@@ -150,37 +129,18 @@ Generate a comprehensive, high-quality product creation package. Return ONLY val
           <WizardProgress currentStep={step} />
           <div className="bg-card border border-border rounded-2xl p-8 card-shadow min-h-[400px]">
             <AnimatePresence mode="wait">
-              <motion.div
-                key={step}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-              >
+              <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
                 {stepComponents[step]}
               </motion.div>
             </AnimatePresence>
           </div>
-
           <div className="flex items-center justify-between mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setStep(s => s - 1)}
-              disabled={step === 0}
-              className="rounded-xl font-medium"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
+            <Button variant="outline" onClick={() => setStep(s => s - 1)} disabled={step === 0} className="rounded-xl font-medium">
+              <ArrowLeft className="w-4 h-4 mr-2" />{t(lang, 'wizard_back')}
             </Button>
-
             {step < TOTAL_STEPS - 1 && (
-              <Button
-                onClick={() => setStep(s => s + 1)}
-                disabled={!canProceed()}
-                className="gradient-bg text-white hover:opacity-90 rounded-xl font-semibold"
-              >
-                Continue
-                <ArrowRight className="w-4 h-4 ml-2" />
+              <Button onClick={() => setStep(s => s + 1)} disabled={!canProceed()} className="gradient-bg text-white hover:opacity-90 rounded-xl font-semibold">
+                {t(lang, 'wizard_continue')}<ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             )}
           </div>
