@@ -64,14 +64,14 @@ Return ONLY valid JSON (no markdown, no preamble) with this exact structure:
   "structure": [
     "Section title — with brief description of what's in it (8-10 sections minimum, each title should be evocative and specific)"
   ],
-  "content_draft": "Write 600-900 words of ACTUAL product content. This must be real, polished, sellable content — not a description of the content. If it's a planner, write actual planner pages with prompts. If it's a checklist, write the actual checklist items with context. If it's a workbook, write actual exercises with instructions. If it's a prompt pack, write 10-15 real prompts. Make it feel like something worth paying $15-25 for. Use the correct tone: ${formData.tone}.",
+  "content_draft": "Write 300-400 words of ACTUAL product content — real prompts, exercises, or checklist items (not descriptions of them). Use tone: ${formData.tone}.",
   "benefits": [
     "Specific, outcome-oriented benefit (not vague — not 'save time' but 'cut your weekly planning from 2 hours to 20 minutes')",
     "benefit 2", "benefit 3", "benefit 4", "benefit 5", "benefit 6"
   ],
   "selling_angle": "The single most compelling reason someone buys THIS product over alternatives. What makes it unique? What specific gap does it fill?",
   "listing_title": "Platform-optimized title following ${formData.platform}'s best practices for search ranking and click-through rate.",
-  "listing_description": "Write a 250-350 word premium listing description. Structure: 1) Attention-grabbing hook (1-2 sentences identifying the pain point). 2) Empathy bridge (you understand them). 3) Product intro as the solution. 4) 5-6 specific bullet-point benefits. 5) Exactly what's included (format, pages, sections). 6) Who it's perfect for. 7) Strong, urgency-based CTA. Use line breaks for readability. No emoji overuse.",
+  "listing_description": "Write a 150-200 word premium listing description: hook → problem → solution → 4-5 bullet benefits → what's included → CTA. No filler.",
   "keywords": ["10-13 real search terms buyers use on ${formData.platform} — mix of short-tail and long-tail, specific to this niche and product type"],
   "price_min": 12,
   "price_max": 27,
@@ -85,7 +85,7 @@ Return ONLY valid JSON (no markdown, no preamble) with this exact structure:
     "platform_audience": "Who specifically shops on ${formData.platform} for this type of product — their age range, income level, buying motivation, what they search for.",
     "pricing_strategy": "Hyper-specific pricing advice for ${formData.platform}: launch price, regular price, bundle pricing, seasonal pricing, competitor benchmarks.",
     "best_title": "The exact title format that performs best on ${formData.platform} for this category — follow their algorithm and buyer psychology.",
-    "best_description": "Platform-specific description formatted correctly for ${formData.platform}'s listing page — correct length, formatting style, what to include vs omit.",
+    "best_description": "Optimized 100-150 word description for ${formData.platform}'s listing page format.",
     "tags": ["13 tags optimized specifically for ${formData.platform}'s search algorithm — not generic, not repeated from title"],
     "thumbnail_guidance": "Specific thumbnail/cover guidance for ${formData.platform}: correct dimensions, what high-performing covers in this category look like, color psychology for this niche, text overlay strategy.",
     "publishing_steps": ["7-8 specific, actionable steps to publish on ${formData.platform} — technical steps, settings to configure, what to fill in where"],
