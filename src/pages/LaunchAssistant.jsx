@@ -40,8 +40,9 @@ export default function LaunchAssistant() {
   const [checked, setChecked] = useState([]);
 
   useEffect(() => {
-    base44.entities.Product.filter({ id }).then(results => {
-      if (results && results[0]) setProduct(results[0]);
+    base44.entities.Product.list().then(results => {
+      const found = (results || []).find(p => p.id === id);
+      if (found) setProduct(found);
       setLoading(false);
     });
   }, [id]);
@@ -121,16 +122,11 @@ export default function LaunchAssistant() {
             <Section title={t(lang, 'launch_thumbnail')}>
               <p className="text-sm text-muted-foreground leading-relaxed">{pg.thumbnail_guidance || d.cover_concept}</p>
             </Section>
-            <Section title={t(lang, 'launch_steps_title', { platform: product.platform })}>
-              <ol className="space-y-3">
-                {(pg.publishing_steps || []).map((step, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="w-6 h-6 rounded-full gradient-bg flex items-center justify-center flex-shrink-0 text-white text-xs font-bold mt-0.5">{i + 1}</span>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{step}</p>
-                  </li>
-                ))}
-              </ol>
-            </Section>
+            {pg.launch_plan && (
+              <Section title={t(lang, 'launch_steps_title', { platform: product.platform })}>
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{pg.launch_plan}</p>
+              </Section>
+            )}
             {pg.pro_tips?.length > 0 && (
               <Section title={t(lang, 'launch_pro_tips')}>
                 <ul className="space-y-2.5">

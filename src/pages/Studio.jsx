@@ -35,8 +35,8 @@ export default function Studio() {
   const [copiedListing, setCopiedListing] = useState(false);
 
   useEffect(() => {
-    base44.entities.Product.filter({ id }).then(results => {
-      const p = results?.[0];
+    base44.entities.Product.list().then(results => {
+      const p = (results || []).find(r => r.id === id);
       if (p) {
         setProduct(p);
         const existingBlocks = p.generated_data?.product_blocks;
@@ -58,13 +58,13 @@ export default function Studio() {
       if (event.id === id && event.type === 'update') {
         setProduct(event.data);
         const newBlocks = event.data?.generated_data?.product_blocks;
-        if (newBlocks && newBlocks.length > 0 && blocks.length === 0) {
-          setBlocks(newBlocks);
+        if (newBlocks && newBlocks.length > 0) {
+          setBlocks(prev => prev.length === 0 ? newBlocks : prev);
         }
       }
     });
     return unsub;
-  }, [id, blocks.length]);
+  }, [id]);
 
   const saveBlocks = async (newBlocks, newStyle) => {
     setSaving(true);

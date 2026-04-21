@@ -25,7 +25,7 @@ export default function Footer() {
             <h4 className="text-sm font-semibold mb-4">{t(lang, 'footer_product')}</h4>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
               <li><Link to="/create" className="hover:text-foreground transition-colors">{t(lang, 'footer_create')}</Link></li>
-              <li><Link to="/dashboard" className="hover:text-foreground transition-colors">{t(lang, 'footer_dashboard')}</Link></li>
+              <li><Link to="/projects" className="hover:text-foreground transition-colors">{t(lang, 'footer_dashboard')}</Link></li>
               <li><Link to="/pricing" className="hover:text-foreground transition-colors">{t(lang, 'footer_pricing')}</Link></li>
             </ul>
           </div>

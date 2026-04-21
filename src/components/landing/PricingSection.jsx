@@ -69,12 +69,21 @@ export default function PricingSection() {
                   </li>
                 ))}
               </ul>
-              <Link to="/create">
-                <Button className={`w-full font-semibold rounded-xl ${plan.popular ? 'gradient-bg text-white hover:opacity-90' : 'border-border hover:bg-muted/50'}`}
-                  variant={plan.popular ? 'default' : 'outline'}>
-                  {t(lang, plan.ctaKey)}
+              {plan.name === 'Free' ? (
+                <Link to="/create">
+                  <Button className="w-full font-semibold rounded-xl border-border hover:bg-muted/50" variant="outline">
+                    {t(lang, plan.ctaKey)}
+                  </Button>
+                </Link>
+              ) : (
+                <Button
+                  className={`w-full font-semibold rounded-xl ${plan.popular ? 'gradient-bg text-white hover:opacity-90' : 'border-border hover:bg-muted/50'}`}
+                  variant={plan.popular ? 'default' : 'outline'}
+                  disabled
+                >
+                  Coming Soon
                 </Button>
-              </Link>
+              )}
             </motion.div>
           ))}
         </div>

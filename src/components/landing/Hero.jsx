@@ -44,11 +44,11 @@ export default function Hero() {
               {t(lang, 'hero_cta1')} <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </Link>
-          <Link to="/create">
-            <Button size="lg" variant="outline" className="px-8 py-6 text-base rounded-xl font-medium border-border hover:bg-muted/50">
-              {t(lang, 'hero_cta2')}
-            </Button>
-          </Link>
+          <a href="#how-it-works">
+              <Button size="lg" variant="outline" className="px-8 py-6 text-base rounded-xl font-medium border-border hover:bg-muted/50">
+                {t(lang, 'hero_cta2')}
+              </Button>
+            </a>
         </motion.div>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5, delay: 0.5 }}

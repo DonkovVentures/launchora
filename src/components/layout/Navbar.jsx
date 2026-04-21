@@ -28,9 +28,8 @@ export default function Navbar() {
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
-            <Link to="/#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_how_it_works')}</Link>
-            <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Projects</Link>
-            <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_dashboard')}</Link>
+            <a href="/#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_how_it_works')}</a>
+            <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_dashboard')}</Link>
             <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_pricing')}</Link>
           </div>
 
@@ -56,7 +55,7 @@ export default function Navbar() {
         <div className="md:hidden bg-background border-t border-border px-4 py-4 space-y-3">
           <Link to="/" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>{t(lang, 'footer_home')}</Link>
           <Link to="/pricing" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>{t(lang, 'nav_pricing')}</Link>
-          <Link to="/dashboard" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>{t(lang, 'nav_dashboard')}</Link>
+          <Link to="/projects" className="block text-sm text-muted-foreground" onClick={() => setOpen(false)}>{t(lang, 'nav_dashboard')}</Link>
           <Link to="/create" onClick={() => setOpen(false)}>
             <Button className="gradient-bg text-white w-full font-semibold">{t(lang, 'nav_start_creating')}</Button>
           </Link>

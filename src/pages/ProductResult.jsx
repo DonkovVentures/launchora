@@ -29,8 +29,9 @@ export default function ProductResult() {
   const isGenerating = new URLSearchParams(window.location.search).get('generating') === 'true';
 
   useEffect(() => {
-    base44.entities.Product.filter({ id }).then(results => {
-      if (results && results[0]) setProduct(results[0]);
+    base44.entities.Product.list().then(results => {
+      const found = (results || []).find(p => p.id === id);
+      if (found) setProduct(found);
       setLoading(false);
     });
   }, [id]);

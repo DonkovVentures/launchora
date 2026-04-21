@@ -22,8 +22,9 @@ export default function SocialMediaKit() {
   const [activeTab, setActiveTab] = useState('calendar');
 
   useEffect(() => {
-    base44.entities.Product.filter({ id }).then(results => {
-      if (results?.[0]) setProduct(results[0]);
+    base44.entities.Product.list().then(results => {
+      const found = (results || []).find(p => p.id === id);
+      if (found) setProduct(found);
       setLoading(false);
     });
   }, [id]);

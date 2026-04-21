@@ -112,28 +112,16 @@ export function exportBlocksPDF(blocks, product, preset) {
       return; // no more rendering for cover
     }
 
-    // All other blocks — start on a new page or continue
-    if (blockIdx === 0 || blockIdx === 1) {
-      doc.addPage();
-      pageNum++;
-      doc.setFillColor(...bgRgb);
-      doc.rect(0, 0, W, H, 'F');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
-      doc.text(`${product?.generated_data?.title || 'Product'} · Page ${pageNum}`, W / 2, H - 6, { align: 'center' });
-      y = margin + 6;
-    } else {
-      doc.addPage();
-      pageNum++;
-      doc.setFillColor(...bgRgb);
-      doc.rect(0, 0, W, H, 'F');
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
-      doc.text(`${product?.generated_data?.title || 'Product'} · Page ${pageNum}`, W / 2, H - 6, { align: 'center' });
-      y = margin + 6;
-    }
+    // All other blocks — each on a new page
+    doc.addPage();
+    pageNum++;
+    doc.setFillColor(...bgRgb);
+    doc.rect(0, 0, W, H, 'F');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`${product?.generated_data?.title || 'Product'} · Page ${pageNum}`, W / 2, H - 6, { align: 'center' });
+    y = margin + 6;
 
     // Accent top rule
     doc.setFillColor(...accentRgb);
