@@ -35,97 +35,120 @@ export default function Create() {
     return true;
   };
 
+  const [loadingPhase, setLoadingPhase] = useState('');
+
   const handleGenerate = async () => {
     setLoading(true);
-    const prompt = `You are a world-class digital product strategist and copywriter with 10+ years of experience selling on Etsy, Gumroad, and creative marketplaces. You've created hundreds of best-selling digital products. Your task is to create a PREMIUM, POLISHED, SELL-READY digital product — not a generic template or rough draft.
 
-PRODUCT BRIEF:
+    // PHASE 1: Fast generation of core data
+    setLoadingPhase('Generating product concept...');
+    const phase1Prompt = `You are a world-class digital product strategist. Create a PREMIUM digital product based on this brief:
+
 - Type: ${formData.productType}
-- Niche/Audience: ${formData.niche}
-- Creator's Idea: ${formData.idea}
-- Tone/Style: ${formData.tone}
-- Selling Platform: ${formData.platform}
+- Niche: ${formData.niche}
+- Idea: ${formData.idea}
+- Tone: ${formData.tone}
+- Platform: ${formData.platform}
 
-CRITICAL QUALITY STANDARDS:
-1. The title must be magnetic and specific — not generic. Think like a bestseller, not a template.
-2. The content_draft must be REAL, USABLE content — actual prompts, actual exercises, actual pages, actual frameworks. Not placeholders. Not "Section 1: [content here]". Write real content a buyer would pay for.
-3. The listing_description must follow professional copywriting principles: hook → problem → solution → benefits → what's included → social proof language → strong CTA. No fluff.
-4. Keywords must be real search terms buyers actually use on ${formData.platform}.
-5. Platform guidance must be hyper-specific to ${formData.platform} — not generic advice that works for any platform.
-6. The structure must reflect a logical, professional product flow — not just a list of vague topics.
-
-Return ONLY valid JSON (no markdown, no preamble) with this exact structure:
+Return ONLY valid JSON with these exact fields:
 {
-  "title": "A specific, benefit-driven, SEO-optimized product title (50-70 chars). Must feel premium and professional. NO generic words like 'Ultimate Guide' or 'Complete Bundle'. Be specific to the niche.",
-  "subtitle": "One punchy line that clarifies who this is for and what they'll get. Max 100 chars.",
-  "promise": "The specific, measurable transformation this product delivers. Be concrete — not vague like 'improve your life'. Example: 'Go from scattered and overwhelmed to having a clear 90-day plan in one afternoon.'",
-  "audience": "Describe the ideal buyer in 2-3 sentences: their situation, their frustration, their aspiration. Be psychographically specific.",
-  "format": "Specific delivery format — e.g. '24-page PDF workbook, A4, print-ready + digital fill-in version'. Include page count estimate.",
-  "structure": [
-    "Section title — with brief description of what's in it (8-10 sections minimum, each title should be evocative and specific)"
-  ],
-  "content_draft": "Write 300-400 words of ACTUAL product content — real prompts, exercises, or checklist items (not descriptions of them). Use tone: ${formData.tone}.",
-  "benefits": [
-    "Specific, outcome-oriented benefit (not vague — not 'save time' but 'cut your weekly planning from 2 hours to 20 minutes')",
-    "benefit 2", "benefit 3", "benefit 4", "benefit 5", "benefit 6"
-  ],
-  "selling_angle": "The single most compelling reason someone buys THIS product over alternatives. What makes it unique? What specific gap does it fill?",
-  "listing_title": "Platform-optimized title following ${formData.platform}'s best practices for search ranking and click-through rate.",
-  "listing_description": "Write a 150-200 word premium listing description: hook → problem → solution → 4-5 bullet benefits → what's included → CTA. No filler.",
-  "keywords": ["10-13 real search terms buyers use on ${formData.platform} — mix of short-tail and long-tail, specific to this niche and product type"],
+  "title": "magnetic, specific, benefit-driven title (50-70 chars)",
+  "subtitle": "one punchy line clarifying who it's for and what they get (max 100 chars)",
+  "promise": "specific measurable transformation the product delivers",
+  "audience": "ideal buyer description in 2-3 sentences, psychographically specific",
+  "format": "specific delivery format with page count estimate",
+  "structure": ["8-10 evocative section titles with brief descriptions"],
+  "benefits": ["6 specific outcome-oriented benefits"],
+  "selling_angle": "single most compelling reason to buy THIS over alternatives",
   "price_min": 12,
   "price_max": 27,
-  "price_rationale": "Data-backed pricing rationale for this specific product type and niche on ${formData.platform}. Include psychological pricing notes.",
-  "buyer_profile": "Paint a vivid picture of the ideal buyer: name-level persona, their daily struggle, what they've tried before, why this product is the answer they've been looking for.",
-  "cta": "A specific, action-oriented CTA that creates urgency or excitement. Not 'Buy Now'. Example: 'Download instantly and start planning today.'",
-  "visual_direction": "Specific visual direction: exact color palette (hex codes if possible), typography pairings, layout style, design mood. Be specific enough that a designer could execute this without asking questions.",
-  "cover_concept": "Detailed mockup description: what the cover looks like, what text appears, what visual elements, what mockup style (flat lay, device mockup, etc.), what would make someone stop scrolling and click.",
-  "platform_guidance": {
-    "why_this_platform": "Specific, data-driven reason why ${formData.platform} is ideal for THIS product — buyer demographics, search volume, competition level, pricing norms.",
-    "platform_audience": "Who specifically shops on ${formData.platform} for this type of product — their age range, income level, buying motivation, what they search for.",
-    "pricing_strategy": "Hyper-specific pricing advice for ${formData.platform}: launch price, regular price, bundle pricing, seasonal pricing, competitor benchmarks.",
-    "best_title": "The exact title format that performs best on ${formData.platform} for this category — follow their algorithm and buyer psychology.",
-    "best_description": "Optimized 100-150 word description for ${formData.platform}'s listing page format.",
-    "tags": ["13 tags optimized specifically for ${formData.platform}'s search algorithm — not generic, not repeated from title"],
-    "thumbnail_guidance": "Specific thumbnail/cover guidance for ${formData.platform}: correct dimensions, what high-performing covers in this category look like, color psychology for this niche, text overlay strategy.",
-    "publishing_steps": ["7-8 specific, actionable steps to publish on ${formData.platform} — technical steps, settings to configure, what to fill in where"],
-    "pro_tips": ["4-5 advanced, platform-specific tips that most sellers don't know — real insider knowledge"],
-    "mistakes_to_avoid": ["4-5 common mistakes that tank sales on ${formData.platform} — be specific, not generic"]
-  }
+  "price_rationale": "data-backed pricing rationale",
+  "buyer_profile": "vivid ideal buyer persona",
+  "cta": "specific action-oriented CTA",
+  "visual_direction": "specific visual direction with hex colors, typography, mood",
+  "cover_concept": "detailed mockup description"
 }`;
 
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt,
-      model: 'claude_sonnet_4_6',
+    const phase1 = await base44.integrations.Core.InvokeLLM({
+      prompt: phase1Prompt,
+      model: 'gemini_3_flash',
       response_json_schema: {
         type: 'object',
         properties: {
           title: { type: 'string' }, subtitle: { type: 'string' }, promise: { type: 'string' },
           audience: { type: 'string' }, format: { type: 'string' },
           structure: { type: 'array', items: { type: 'string' } },
-          content_draft: { type: 'string' },
           benefits: { type: 'array', items: { type: 'string' } },
-          selling_angle: { type: 'string' }, listing_title: { type: 'string' },
-          listing_description: { type: 'string' },
-          keywords: { type: 'array', items: { type: 'string' } },
+          selling_angle: { type: 'string' },
           price_min: { type: 'number' }, price_max: { type: 'number' },
           price_rationale: { type: 'string' }, buyer_profile: { type: 'string' },
-          cta: { type: 'string' }, platform_guidance: { type: 'object' },
-          visual_direction: { type: 'string' }, cover_concept: { type: 'string' },
+          cta: { type: 'string' }, visual_direction: { type: 'string' }, cover_concept: { type: 'string' },
         }
       }
     });
 
+    // Save immediately with phase 1 data so user can see results fast
     const saved = await base44.entities.Product.create({
-      title: result.title || result.listing_title || formData.idea.slice(0, 80) || 'Untitled Product',
-      subtitle: result.subtitle,
+      title: phase1.title || phase1.listing_title || formData.idea.slice(0, 80) || 'Untitled Product',
+      subtitle: phase1.subtitle,
       product_type: formData.productType, niche: formData.niche,
       idea_description: formData.idea, tone: formData.tone,
-      platform: formData.platform, status: 'ready', generated_data: result,
+      platform: formData.platform, status: 'draft', generated_data: phase1,
     });
 
+    // Navigate immediately — user sees phase 1 results right away
     setLoading(false);
-    navigate(`/product/${saved.id}`);
+    navigate(`/product/${saved.id}?generating=true`);
+
+    // PHASE 2: Generate rich content in background (fire and forget)
+    const phase2Prompt = `You are a world-class digital product copywriter. Complete these missing fields for a ${formData.productType} product in the ${formData.niche} niche, sold on ${formData.platform}, with tone: ${formData.tone}.
+
+Product concept: "${phase1.title}" — ${phase1.subtitle}
+
+Return ONLY valid JSON:
+{
+  "content_draft": "300-400 words of ACTUAL product content — real prompts, exercises, or checklist items a buyer would pay for. Tone: ${formData.tone}",
+  "listing_title": "platform-optimized title for ${formData.platform} with best search ranking practices",
+  "listing_description": "150-200 word premium listing: hook → problem → solution → 4-5 bullet benefits → what's included → CTA",
+  "keywords": ["10-13 real search terms buyers use on ${formData.platform}"],
+  "platform_guidance": {
+    "why_this_platform": "specific reason ${formData.platform} is ideal for this product",
+    "platform_audience": "who shops on ${formData.platform} for this",
+    "pricing_strategy": "hyper-specific pricing advice for ${formData.platform}",
+    "best_title": "exact title format that performs best on ${formData.platform}",
+    "best_description": "optimized 100-150 word description for ${formData.platform}",
+    "tags": ["13 tags optimized for ${formData.platform} search algorithm"],
+    "thumbnail_guidance": "specific thumbnail guidance for ${formData.platform}",
+    "publishing_steps": ["7-8 specific actionable publishing steps"],
+    "pro_tips": ["4-5 advanced platform-specific tips"],
+    "mistakes_to_avoid": ["4-5 common mistakes that tank sales"]
+  }
+}`;
+
+    // Fire phase 2 without awaiting — it will update the product in background
+    base44.integrations.Core.InvokeLLM({
+      prompt: phase2Prompt,
+      model: 'claude_sonnet_4_6',
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          content_draft: { type: 'string' },
+          listing_title: { type: 'string' },
+          listing_description: { type: 'string' },
+          keywords: { type: 'array', items: { type: 'string' } },
+          platform_guidance: { type: 'object' },
+        }
+      }
+    }).then(phase2 => {
+      const merged = { ...phase1, ...phase2 };
+      base44.entities.Product.update(saved.id, {
+        generated_data: merged,
+        listing_title: phase2.listing_title,
+        status: 'ready',
+      });
+    }).catch(() => {
+      // silently fail — phase 1 data is already saved and shown
+    });
   };
 
   const stepComponents = [

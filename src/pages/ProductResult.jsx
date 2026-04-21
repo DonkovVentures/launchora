@@ -22,12 +22,31 @@ export default function ProductResult() {
   const [loading, setLoading] = useState(true);
   const [copiedAll, setCopiedAll] = useState(false);
 
+  const isGenerating = new URLSearchParams(window.location.search).get('generating') === 'true';
+
   useEffect(() => {
     base44.entities.Product.filter({ id }).then(results => {
       if (results && results[0]) setProduct(results[0]);
       setLoading(false);
     });
   }, [id]);
+
+  // Poll for updates when phase 2 is still generating
+  useEffect(() => {
+    if (!isGenerating || !product) return;
+    if (product.status === 'ready') return;
+
+    const interval = setInterval(() => {
+      base44.entities.Product.filter({ id }).then(results => {
+        if (results && results[0]) {
+          setProduct(results[0]);
+          if (results[0].status === 'ready') clearInterval(interval);
+        }
+      });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isGenerating, product?.status, id]);
 
   if (loading) {
     return (
@@ -90,12 +109,19 @@ export default function ProductResult() {
             </div>
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center">
-                  <CheckCircle2 className="w-5 h-5 text-white" />
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${product.status === 'ready' ? 'bg-green-500' : 'bg-orange-400'}`}>
+                  {product.status === 'ready'
+                    ? <CheckCircle2 className="w-5 h-5 text-white" />
+                    : <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  }
                 </div>
                 <div>
-                  <p className="font-bold text-green-800 text-sm">{t(lang, 'result_ready_title')}</p>
-                  <p className="text-green-600 text-xs">{t(lang, 'result_ready_sub')}</p>
+                  <p className={`font-bold text-sm ${product.status === 'ready' ? 'text-green-800' : 'text-orange-800'}`}>
+                    {product.status === 'ready' ? t(lang, 'result_ready_title') : 'Enriching your product...'}
+                  </p>
+                  <p className={`text-xs ${product.status === 'ready' ? 'text-green-600' : 'text-orange-600'}`}>
+                    {product.status === 'ready' ? t(lang, 'result_ready_sub') : 'Generating listing copy, keywords & platform guide. This page updates automatically.'}
+                  </p>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

@@ -31,6 +31,7 @@ export default function Navbar() {
             <Link to="/#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_how_it_works')}</Link>
             <Link to="/#what-you-can-create" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_products')}</Link>
             <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_pricing')}</Link>
+            <Link to="/projects" className="text-sm text-muted-foreground hover:text-foreground transition-colors">Projects</Link>
             <Link to="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">{t(lang, 'nav_dashboard')}</Link>
           </div>
 
