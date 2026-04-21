@@ -51,12 +51,20 @@ export default function Create() {
       'Journal': 'daily prompts, gratitude sections, intention-setting, emotional check-ins, guided reflection',
       'Prompt Pack': 'categorized AI/writing prompts, usage instructions, context-setting intro, clear prompt formatting',
       'Mini Ebook': 'intro chapter, 4-6 content chapters with frameworks, examples, key takeaways, conclusion + resources',
-      'Template Pack': 'reusable fill-in-the-blank templates with instructions, examples, and customization notes',
+      'Template Pack': '8-10 distinct, fully designed templates with: exact file formats (Canva/Notion/Google Docs), step-by-step usage instructions per template, a completed example for each, customization variables clearly marked, and a "Quick Start" guide explaining when to use which template',
     };
     const typeGuide = productTypeGuidance[formData.productType] || 'clear sections, practical content, logical flow';
 
+    const templatePackExtra = formData.productType === 'Template Pack' ? `
+TEMPLATE PACK SPECIFICS — the "structure" field must list each INDIVIDUAL TEMPLATE by name and exact use case:
+- Each structure item = one specific template (e.g. "Client Onboarding Template — captures project scope, timeline, deliverables, and payment terms in one professional document")
+- Templates must be distinct from each other — different formats, different situations
+- Include file format compatibility: Canva, Google Docs, Notion, or PDF
+- The "format" field must specify: number of templates, file formats, and total page count
+` : '';
+
     const phase1 = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an elite digital product designer and strategist with 10+ years creating best-selling Etsy and Gumroad products. Your job is to design a PREMIUM, SELLABLE digital product — not a description of one.
+      prompt: `You are an elite digital product designer and strategist with 10+ years creating best-selling Etsy and ${formData.platform} products. Your job is to design a PREMIUM, SELLABLE digital product — not a description of one.
 
 PRODUCT BRIEF:
 - Type: ${formData.productType}
@@ -67,6 +75,7 @@ PRODUCT BRIEF:
 
 PRODUCT TYPE REQUIREMENTS (${formData.productType}):
 This product MUST include: ${typeGuide}
+${templatePackExtra}
 
 QUALITY STANDARDS — every field must be:
 ✓ Specific (not vague or generic)
@@ -180,10 +189,29 @@ Format each prompt clearly, include any variables in [brackets].`,
           'Mini Ebook': `Write Chapter 1 and Chapter 2 fully:
 CHAPTER 1 — Introduction/Foundation: compelling hook story (1 paragraph), the core problem this ebook solves, why existing solutions fail, what the reader will discover, how to use this ebook.
 CHAPTER 2 — First Core Framework: main concept explained clearly, 3-step framework with each step explained in detail, real-world example, common mistake to avoid, chapter action step.`,
-          'Template Pack': `Write 3 complete, fill-in-the-blank templates:
-TEMPLATE 1 — [Primary use case]: instructions for use, the full template with [FILL IN] placeholders, example completed version, pro tip for customization.
-TEMPLATE 2 — [Secondary use case]: instructions, template with placeholders, example.
-TEMPLATE 3 — [Bonus advanced use case]: instructions, template, customization notes.`,
+          'Template Pack': `You are writing a PREMIUM Template Pack for ${formData.niche} professionals. This is a PAID product — write COMPLETE, PROFESSIONAL-GRADE templates that buyers will USE immediately.
+
+Write 4 FULLY COMPLETE templates. Each template must contain:
+- A clear TITLE explaining exactly what the template does
+- WHO IT'S FOR and WHEN TO USE IT (2-3 sentences)
+- STEP-BY-STEP INSTRUCTIONS: numbered list of exactly how to fill it in and use it
+- THE FULL TEMPLATE BODY: every field, section header, placeholder written out IN FULL — use [YOUR NAME], [DATE], [INSERT X] style variables clearly
+- A COMPLETED EXAMPLE: show the template filled out with realistic, niche-specific example data
+- PRO TIP: one advanced customization idea
+
+TEMPLATE 1 — Core Use Case (the main reason someone buys this pack):
+Write the complete template for the most common, high-value use case in ${formData.niche}. This is the hero template.
+
+TEMPLATE 2 — Supporting Use Case:
+Write a complementary template that pairs with Template 1. Different format/purpose.
+
+TEMPLATE 3 — Advanced / Power User Template:
+A more complex, detailed template for experienced ${formData.niche} professionals who need more depth.
+
+TEMPLATE 4 — BONUS Quick-Reference Template:
+A fast, at-a-glance 1-page template or checklist that makes the pack feel like exceptional value.
+
+CRITICAL: Do NOT write placeholder instructions. Write the ACTUAL CONTENT of every template field. If it's a client proposal template, write the actual proposal sections. If it's a social media template, write the actual post structures with example copy.`,
         };
         const contentGuide = contentInstructions[formData.productType] || 'Write 3 complete, premium sections of actual usable content with exercises, frameworks, and actionable steps.';
 
@@ -237,30 +265,44 @@ Return ONLY valid JSON:
         let finalContentDraft = phase2raw.content_draft || '';
         let finalSections = phase2raw.sections || [];
 
-        if (wordCount < 800) {
+        // Template Pack always goes through enrichment — it needs full template bodies, not summaries
+        const needsEnrichment = wordCount < 800 || formData.productType === 'Template Pack';
+        if (needsEnrichment) {
           // Content is thin — ask Claude to enrich it
+          const templatePackEnrichmentExtra = formData.productType === 'Template Pack' ? `
+SPECIAL RULES FOR TEMPLATE PACK:
+- Every template section body MUST contain the ACTUAL TEMPLATE — not a description of the template
+- Each section body must include: the full template with all fields/sections written out, a real completed example, and usage instructions
+- Templates must be immediately copy-pasteable and usable — no "fill this in" without showing WHAT to fill in
+- Minimum 300 words per template section
+- Include specific ${formData.niche}-relevant field names, headings, and example values
+` : '';
+
           const enriched = await base44.integrations.Core.InvokeLLM({
-            prompt: `You are a senior editor reviewing a digital product draft. The content below is TOO THIN — it needs significant enrichment to be worth paying for.
+            prompt: `You are a senior editor and expert digital product creator. Your job is to transform a thin draft into a PREMIUM, SELLABLE digital product worth $20-50.
 
 PRODUCT: "${phase1.title}" (${formData.productType} for ${formData.niche})
 TONE: ${formData.tone}
 AUDIENCE: ${phase1.audience}
+PROMISE: ${phase1.promise}
 
-CURRENT DRAFT (needs improvement):
+CURRENT DRAFT:
 ${finalContentDraft}
 
 YOUR TASK:
-1. Expand every section to at least 150 words with specific, actionable content
-2. Add concrete examples, real scenarios, and niche-specific detail
-3. Remove any vague or filler sentences — replace with substance
-4. Ensure every exercise/prompt/step is fully written, not just labeled
-5. Total output must be at least 1200 words
+1. Expand every section to at least 200 words with specific, actionable content
+2. Add concrete ${formData.niche}-specific examples, real scenarios, and niche-specific detail
+3. Remove ALL vague or filler sentences — replace every one with substance
+4. Ensure every exercise/prompt/template/step is FULLY written with real content, not just labeled
+5. Total output must be at least 1500 words
+6. Make every section feel like it was written by a $500/hr expert in ${formData.niche}
+${templatePackEnrichmentExtra}
 
 Return ONLY valid JSON:
 {
   "content_draft": "The fully enriched, expanded content in markdown format — complete and polished",
   "sections": [
-    { "title": "Section title", "body": "Fully enriched section body — specific, detailed, actionable" }
+    { "title": "Section title", "body": "Fully enriched section body — specific, detailed, actionable, minimum 200 words each" }
   ]
 }`,
             model: 'claude_sonnet_4_6',
