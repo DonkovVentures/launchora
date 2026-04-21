@@ -16,6 +16,7 @@ import Dashboard from './pages/Dashboard';
 import Pricing from './pages/Pricing';
 import SocialMediaKit from './pages/SocialMediaKit';
 import ProjectDashboard from './pages/ProjectDashboard';
+import Studio from './pages/Studio';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -47,6 +48,7 @@ const AuthenticatedApp = () => {
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/social/:id" element={<SocialMediaKit />} />
       <Route path="/projects" element={<ProjectDashboard />} />
+      <Route path="/studio/:id" element={<Studio />} />
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

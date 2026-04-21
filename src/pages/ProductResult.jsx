@@ -5,7 +5,7 @@ import Navbar from '@/components/layout/Navbar';
 import ResultSection from '@/components/product/ResultSection';
 import LaunchChecklist from '@/components/product/LaunchChecklist';
 import { Button } from '@/components/ui/button';
-import { Copy, Download, Plus, Rocket, CheckCircle2, Share2, FileText } from 'lucide-react';
+import { Copy, Download, Plus, Rocket, CheckCircle2, Share2, FileText, Layers } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
@@ -111,6 +111,11 @@ export default function ProductResult() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <Link to={`/studio/${id}`}>
+                  <Button size="sm" className="gradient-bg text-white font-semibold">
+                    <Layers className="w-3.5 h-3.5 mr-1.5" />Open Product Studio
+                  </Button>
+                </Link>
                 <Button size="sm" onClick={copyAllListing} variant="outline" className="border-green-300 text-green-700 hover:bg-green-50">
                   <Copy className="w-3.5 h-3.5 mr-1.5" />{copiedAll ? t(lang, 'result_copied') : t(lang, 'result_copy_listing')}
                 </Button>
