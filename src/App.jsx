@@ -5,6 +5,8 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { Navigate } from 'react-router-dom';
 import { LanguageProvider } from '@/lib/LanguageContext';
 
 // Page imports
@@ -19,9 +21,9 @@ import ProjectDashboard from './pages/ProjectDashboard';
 import Studio from './pages/Studio';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingPublicSettings } = useAuth();
 
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  if (isLoadingPublicSettings) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-slate-200 border-t-primary rounded-full animate-spin"></div>
@@ -29,26 +31,23 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      navigateToLogin();
-      return null;
-    }
-  }
-
   return (
     <Routes>
+      {/* Public routes */}
       <Route path="/" element={<Landing />} />
       <Route path="/create" element={<Create />} />
       <Route path="/product/:id" element={<ProductResult />} />
       <Route path="/launch/:id" element={<LaunchAssistant />} />
-      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/pricing" element={<Pricing />} />
       <Route path="/social/:id" element={<SocialMediaKit />} />
-      <Route path="/projects" element={<ProjectDashboard />} />
       <Route path="/studio/:id" element={<Studio />} />
+
+      {/* Protected routes */}
+      <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/projects" element={<ProjectDashboard />} />
+      </Route>
+
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
