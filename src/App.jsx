@@ -14,7 +14,7 @@ import Landing from './pages/Landing';
 import Create from './pages/Create';
 import ProductResult from './pages/ProductResult';
 import LaunchAssistant from './pages/LaunchAssistant';
-import Dashboard from './pages/Dashboard';
+// Dashboard is unified under /projects — keeping import for backwards compat redirect
 import Pricing from './pages/Pricing';
 import SocialMediaKit from './pages/SocialMediaKit';
 import ProjectDashboard from './pages/ProjectDashboard';
@@ -44,7 +44,7 @@ const AuthenticatedApp = () => {
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/" replace />} />}>
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<ProjectDashboard />} />
       </Route>
 

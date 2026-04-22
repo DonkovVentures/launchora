@@ -11,7 +11,7 @@ const PLANS = [
     price: '$0',
     period: '',
     features: ['1 ZIP export total', 'PDF + TXT files', 'All templates'],
-    cta: 'Download Free (1 left)',
+    cta: 'Download Free (1×)',
     popular: false,
     isFree: true,
   },
@@ -62,35 +62,20 @@ export default function ZipExportModal({ product, style, onClose }) {
         productId: product.id,
         stylePreset: style,
       });
-      // res.data is the raw response — for binary we need to re-fetch using the function URL
-      // Instead, use fetch directly with the base44 token approach via axios blob
-      const safeName = (product.generated_data?.title || product.title || 'product')
-        .replace(/[^a-zA-Z0-9\s]/g, '').replace(/\s+/g, '_').substring(0, 40);
+      const { zip_base64, filename } = res.data;
+      if (!zip_base64) throw new Error('No ZIP data returned');
 
-      // The SDK invoke returns the response. For binary zip, use arraybuffer approach
-      if (res.data instanceof ArrayBuffer || res.data instanceof Uint8Array) {
-        const blob = new Blob([res.data], { type: 'application/zip' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `${safeName}_launchora.zip`; a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        // Fallback: re-invoke using raw fetch with session token
-        const tokenRes = await base44.auth.me().catch(() => null);
-        const token = document.cookie.match(/session_token=([^;]+)/)?.[1] || '';
-        const fetchRes = await fetch('/api/functions/generateZip', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ productId: product.id, stylePreset: style }),
-          credentials: 'include',
-        });
-        if (!fetchRes.ok) throw new Error('Failed to generate ZIP');
-        const blob = await fetchRes.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = `${safeName}_launchora.zip`; a.click();
-        URL.revokeObjectURL(url);
-      }
+      // Decode base64 to binary
+      const binary = atob(zip_base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'product_launchora.zip';
+      a.click();
+      URL.revokeObjectURL(url);
 
       if (markFreeUsed) {
         localStorage.setItem(FREE_EXPORT_KEY, 'true');
@@ -112,7 +97,7 @@ export default function ZipExportModal({ product, style, onClose }) {
     try {
       const res = await base44.functions.invoke('createCheckout', {
         plan: planKey,
-        successUrl: window.location.href,
+        successUrl: window.location.origin + '/projects',
         cancelUrl: window.location.href,
       });
       if (res.data?.url) window.location.href = res.data.url;
@@ -188,9 +173,9 @@ export default function ZipExportModal({ product, style, onClose }) {
                   disabled={freeUsed || loading}
                 >
                   {loading ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating...</>
                   ) : freeUsed ? (
-                    <><Lock className="w-3.5 h-3.5 mr-1" /> Used</>
+                    <><Lock className="w-3.5 h-3.5 mr-1" /> Already used — upgrade to download</>
                   ) : (
                     <><Download className="w-3.5 h-3.5 mr-1" /> {plan.cta}</>
                   )}

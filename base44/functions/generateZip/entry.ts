@@ -1,7 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { jsPDF } from 'npm:jspdf@4.0.0';
 
-// Helper: generate rich PDF from product blocks
 async function generateProductPDF(product, blocks, preset) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const d = product.generated_data || {};
@@ -21,10 +20,8 @@ async function generateProductPDF(product, blocks, preset) {
 
   let pageNum = 1;
   const addPage = () => { doc.addPage(); pageNum++; };
-
   const setColor = (rgb) => doc.setTextColor(...rgb);
   const setFill = (rgb) => doc.setFillColor(...rgb);
-
   const wrapText = (text, maxWidth, fontSize) => {
     doc.setFontSize(fontSize);
     return doc.splitTextToSize(String(text || ''), maxWidth);
@@ -34,31 +31,25 @@ async function generateProductPDF(product, blocks, preset) {
     const block = blocks[bi];
     if (bi > 0) { addPage(); }
 
-    // Background
     setFill(colors.bg);
     doc.rect(0, 0, 210, 297, 'F');
-
     let y = MARGIN;
 
     if (block.type === 'cover') {
-      // Accent bar top
       doc.setFillColor(...colors.accent);
       doc.rect(0, 0, 210, 8, 'F');
       y = 40;
-
       setColor(colors.accent);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.text((product.product_type || '').toUpperCase(), MARGIN, y);
       y += 12;
-
       setColor(colors.heading);
       doc.setFontSize(26);
       doc.setFont('helvetica', 'bold');
       const titleLines = wrapText(block.content?.title || d.title || product.title, TW, 26);
       titleLines.forEach(line => { doc.text(line, MARGIN, y); y += 10; });
       y += 6;
-
       if (block.content?.subtitle) {
         setColor(colors.text);
         doc.setFontSize(13);
@@ -67,7 +58,6 @@ async function generateProductPDF(product, blocks, preset) {
         subLines.forEach(line => { doc.text(line, MARGIN, y); y += 7; });
         y += 8;
       }
-
       if (block.content?.promise) {
         doc.setFillColor(...colors.accent);
         doc.rect(MARGIN, y, TW, 0.5, 'F');
@@ -82,8 +72,6 @@ async function generateProductPDF(product, blocks, preset) {
         const pLines = wrapText(block.content.promise, TW, 10);
         pLines.forEach(line => { doc.text(line, MARGIN, y); y += 6; });
       }
-
-      // Bottom accent bar
       doc.setFillColor(...colors.accent);
       doc.rect(0, 289, 210, 8, 'F');
 
@@ -92,10 +80,8 @@ async function generateProductPDF(product, blocks, preset) {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('TABLE OF CONTENTS', MARGIN, y); y += 12;
-
       doc.setFillColor(...colors.accent);
       doc.rect(MARGIN, y, TW, 0.5, 'F'); y += 8;
-
       const items = block.content?.items || [];
       items.forEach((item, i) => {
         setColor(colors.text);
@@ -114,7 +100,6 @@ async function generateProductPDF(product, blocks, preset) {
       hLines.forEach(l => { doc.text(l, MARGIN, y); y += 8; });
       doc.setFillColor(...colors.accent);
       doc.rect(MARGIN, y, TW, 0.5, 'F'); y += 8;
-
       setColor(colors.text);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
@@ -129,7 +114,6 @@ async function generateProductPDF(product, blocks, preset) {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text(block.content?.title || block.heading, MARGIN, y); y += 12;
-
       const items = block.content?.items || [];
       items.forEach(item => {
         if (y > 275) { addPage(); setFill(colors.bg); doc.rect(0,0,210,297,'F'); y = MARGIN; }
@@ -148,7 +132,6 @@ async function generateProductPDF(product, blocks, preset) {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
       doc.text('PLATFORM LISTING', MARGIN, y); y += 12;
-
       const fields = [
         { label: 'LISTING TITLE', val: block.content?.listing_title },
         { label: 'DESCRIPTION', val: block.content?.listing_description },
@@ -172,7 +155,6 @@ async function generateProductPDF(product, blocks, preset) {
       });
 
     } else {
-      // Generic block
       setColor(colors.heading);
       doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
@@ -188,7 +170,6 @@ async function generateProductPDF(product, blocks, preset) {
       });
     }
 
-    // Page footer
     setColor([180,180,180]);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
@@ -198,7 +179,6 @@ async function generateProductPDF(product, blocks, preset) {
   return doc.output('arraybuffer');
 }
 
-// Helper: generate plain text listing file
 function generateListingTXT(product) {
   const d = product.generated_data || {};
   return [
@@ -249,13 +229,11 @@ function generateListingTXT(product) {
   ].join('\n');
 }
 
-// Helper: generate content draft TXT
 function generateContentTXT(product) {
   const d = product.generated_data || {};
   return `${d.title || product.title}\n${'='.repeat(60)}\n\n${d.content_draft || 'No content draft available.'}`;
 }
 
-// Helper: generate platform guide TXT
 function generatePlatformGuideTXT(product) {
   const d = product.generated_data || {};
   const pg = d.platform_guidance || {};
@@ -279,22 +257,17 @@ function generatePlatformGuideTXT(product) {
     pg.launch_plan || '',
     '',
     'PRO TIPS',
-    (pg.pro_tips || []).map((t, i) => `${i + 1}. ${t}`).join('\n'),
+    (pg.pro_tips || []).map((tip, i) => `${i + 1}. ${tip}`).join('\n'),
     '',
     'MISTAKES TO AVOID',
     (pg.mistakes_to_avoid || []).map((m, i) => `${i + 1}. ${m}`).join('\n'),
   ].join('\n');
 }
 
-// Simple ZIP builder (using stored file approach)
 async function buildZip(files) {
-  // We'll encode files as a simple ZIP using pure JS
-  // Using a minimal ZIP implementation
   const encoder = new TextEncoder();
-
   const toBytes = (str) => typeof str === 'string' ? encoder.encode(str) : new Uint8Array(str);
 
-  // CRC32 table
   const crcTable = (() => {
     const t = new Uint32Array(256);
     for (let i = 0; i < 256; i++) {
@@ -313,7 +286,6 @@ async function buildZip(files) {
 
   const u16 = (n) => { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, n, true); return b; };
   const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
-
   const concat = (...arrays) => {
     const total = arrays.reduce((s, a) => s + a.length, 0);
     const out = new Uint8Array(total);
@@ -334,16 +306,14 @@ async function buildZip(files) {
     const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
 
     const localHeader = concat(
-      new Uint8Array([0x50,0x4B,0x03,0x04]), // signature
-      u16(20), // version needed
-      u16(0),  // flags
-      u16(0),  // compression (stored)
+      new Uint8Array([0x50,0x4B,0x03,0x04]),
+      u16(20), u16(0), u16(0),
       u16(dosTime), u16(dosDate),
       u32(crc),
-      u32(fileData.length), // compressed size
-      u32(fileData.length), // uncompressed size
+      u32(fileData.length),
+      u32(fileData.length),
       u16(nameBytes.length),
-      u16(0), // extra length
+      u16(0),
       nameBytes,
     );
 
@@ -351,7 +321,6 @@ async function buildZip(files) {
     offset += localHeader.length + fileData.length;
   }
 
-  // Central directory
   const cdParts = [];
   for (const e of entries) {
     const cd = concat(
@@ -370,23 +339,26 @@ async function buildZip(files) {
   }
 
   const centralDir = concat(...cdParts);
-  const cdSize = centralDir.length;
   const cdOffset = offset;
-
   const eocd = concat(
     new Uint8Array([0x50,0x4B,0x05,0x06]),
     u16(0), u16(0),
     u16(entries.length), u16(entries.length),
-    u32(cdSize), u32(cdOffset),
+    u32(centralDir.length), u32(cdOffset),
     u16(0),
   );
 
-  const allParts = [
-    ...entries.flatMap(e => [e.localHeader, e.fileData]),
-    centralDir,
-    eocd,
-  ];
+  const allParts = [...entries.flatMap(e => [e.localHeader, e.fileData]), centralDir, eocd];
   return concat(...allParts);
+}
+
+// Convert Uint8Array to base64
+function uint8ToBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 const STYLE_PRESETS = {
@@ -419,7 +391,6 @@ Deno.serve(async (req) => {
     const blocks = product.generated_data?.product_blocks || [];
     const preset = STYLE_PRESETS[stylePreset] || STYLE_PRESETS.minimal;
 
-    // Generate files
     const pdfBytes = await generateProductPDF(product, blocks, preset);
     const listingTxt = generateListingTXT(product);
     const contentTxt = generateContentTXT(product);
@@ -430,21 +401,20 @@ Deno.serve(async (req) => {
       .replace(/\s+/g, '_')
       .substring(0, 40);
 
+    const readmeTxt = `Launchora Product Package\n========================\n\nFiles included:\n- ${safeName}_product.pdf   → Full formatted product (print-ready)\n- ${safeName}_listing.txt  → Ready-to-paste platform listing\n- ${safeName}_content.txt  → Full product content draft\n- ${safeName}_platform_guide.txt → Platform-specific launch strategy\n\nGenerated by Launchora · launchora.com\n`;
+
     const zipData = await buildZip([
       { name: `${safeName}_product.pdf`, data: pdfBytes },
       { name: `${safeName}_listing.txt`, data: listingTxt },
       { name: `${safeName}_content.txt`, data: contentTxt },
       { name: `${safeName}_platform_guide.txt`, data: platformTxt },
-      { name: 'README.txt', data: `Launchora Product Package\n========================\n\nFiles included:\n- ${safeName}_product.pdf   → Full formatted product (print-ready)\n- ${safeName}_listing.txt  → Ready-to-paste platform listing\n- ${safeName}_content.txt  → Full product content draft\n- ${safeName}_platform_guide.txt → Platform-specific launch strategy\n\nGenerated by Launchora · launchora.com\n` },
+      { name: 'README.txt', data: readmeTxt },
     ]);
 
-    return new Response(zipData, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/zip',
-        'Content-Disposition': `attachment; filename="${safeName}_launchora.zip"`,
-      },
-    });
+    // Return as base64 JSON so the SDK can deserialize it correctly
+    const zip_base64 = uint8ToBase64(zipData);
+    return Response.json({ zip_base64, filename: `${safeName}_launchora.zip` });
+
   } catch (error) {
     console.error('ZIP generation error:', error.message);
     return Response.json({ error: error.message }, { status: 500 });

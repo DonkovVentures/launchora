@@ -156,7 +156,17 @@ export default function Studio() {
             {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             {showPreview ? 'Edit' : 'Preview'}
           </Button>
-          <Button size="sm" onClick={() => setShowZipModal(true)} className="gradient-bg text-white h-8 gap-1.5">
+          <Button
+            size="sm"
+            onClick={() => {
+              if (product.status !== 'ready') {
+                alert('Your product is still generating. Please wait until it\'s ready before downloading.');
+                return;
+              }
+              setShowZipModal(true);
+            }}
+            className="gradient-bg text-white h-8 gap-1.5"
+          >
             <Download className="w-3.5 h-3.5" /> Download ZIP
           </Button>
         </div>
