@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import Navbar from '@/components/layout/Navbar';
-import ResultSection from '@/components/product/ResultSection';
 import LaunchChecklist from '@/components/product/LaunchChecklist';
 import { Button } from '@/components/ui/button';
-import { Copy, Download, Plus, Rocket, CheckCircle2, Share2, Layers } from 'lucide-react';
+import { Copy, Plus, Rocket, CheckCircle2, Share2, Layers } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
@@ -23,7 +22,6 @@ export default function ProductResult() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copiedAll, setCopiedAll] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
 
   const isGenerating = new URLSearchParams(window.location.search).get('generating') === 'true';
 
@@ -131,40 +129,19 @@ export default function ProductResult() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              {/* Product Studio CTA */}
-              <Link to={`/studio/${id}`}>
-                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-primary/20 rounded-2xl p-6 hover:border-primary/40 transition-colors cursor-pointer group">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Layers className="w-5 h-5 text-primary" />
-                        <h3 className="font-display font-bold text-foreground text-lg">Product Studio</h3>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Edit title, subtitle, promise, content blocks, listing copy and more — all in one place.</p>
-                    </div>
-                    <Button className="gradient-bg text-white group-hover:opacity-90 transition-opacity ml-4 shrink-0">
-                      Open Studio →
-                    </Button>
+              <Link to={`/studio/${id}`} className="block">
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-primary/30 rounded-2xl p-10 hover:border-primary/60 transition-all cursor-pointer group text-center">
+                  <div className="w-16 h-16 gradient-bg rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg group-hover:scale-105 transition-transform">
+                    <Layers className="w-8 h-8 text-white" />
                   </div>
+                  <h3 className="font-display font-bold text-foreground text-2xl mb-2">Open Product Studio</h3>
+                  <p className="text-muted-foreground mb-6 max-w-sm mx-auto">Edit title, subtitle, promise, content blocks, listing copy, SEO keywords and more — all in one visual editor.</p>
+                  <Button size="lg" className="gradient-bg text-white font-semibold px-8 group-hover:opacity-90 transition-opacity">
+                    <Layers className="w-4 h-4 mr-2" /> Open Product Studio
+                  </Button>
                 </div>
               </Link>
-              <>
-                <ResultSection title={t(lang, 'result_product_title')} content={d.title} />
-                <ResultSection title={t(lang, 'result_subtitle')} content={d.subtitle} />
-                <ResultSection title={t(lang, 'result_promise')} content={d.promise} />
-                <ResultSection title={t(lang, 'result_audience')} content={d.audience} />
-                <ResultSection title={t(lang, 'result_format')} content={d.format} />
-                <ResultSection title={t(lang, 'result_structure')} content={d.structure} />
-                <ResultSection title={t(lang, 'result_content')} content={d.content_draft} badge={t(lang, 'result_premium')} />
-                <ResultSection title={t(lang, 'result_benefits')} content={d.benefits} />
-                <ResultSection title={t(lang, 'result_angle')} content={d.selling_angle} />
-                <ResultSection title={t(lang, 'result_listing_title')} content={d.listing_title} badge={t(lang, 'result_platform_ready')} />
-                <ResultSection title={t(lang, 'result_listing_desc')} content={d.listing_description} badge={t(lang, 'result_platform_ready')} />
-                <ResultSection title={t(lang, 'result_keywords')} content={d.keywords} />
-                <ResultSection title={t(lang, 'result_visual')} content={d.visual_direction} />
-                <ResultSection title={t(lang, 'result_cover')} content={d.cover_concept} />
-                </>
-                </div>
+            </div>
             <div className="space-y-4">
               <div className="bg-card border border-border rounded-xl p-5 card-shadow">
                 <h3 className="font-semibold text-foreground text-sm mb-3">{t(lang, 'result_price')}</h3>
