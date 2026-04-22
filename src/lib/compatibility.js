@@ -8,28 +8,34 @@ export const TONES = ['Professional', 'Friendly', 'Motivational', 'Educational',
 
 // Strong tones per product type (only these are shown)
 export const toneFitByType = {
-  'Planner':       { strong: ['Professional', 'Friendly', 'Motivational'],     weak: ['Calm'] },
-  'Checklist':     { strong: ['Professional', 'Educational', 'Motivational'],  weak: ['Calm'] },
-  'Tracker':       { strong: ['Professional', 'Educational', 'Motivational'],  weak: ['Calm'] },
-  'Worksheet':     { strong: ['Educational', 'Professional', 'Friendly'],      weak: ['Calm'] },
-  'Workbook':      { strong: ['Educational', 'Professional', 'Motivational'],  weak: ['Calm'] },
-  'Journal':       { strong: ['Friendly', 'Calm', 'Educational'],              weak: ['Professional'] },
-  'Prompt Pack':   { strong: ['Professional', 'Educational', 'Friendly'],      weak: ['Calm'] },
-  'Mini Ebook':    { strong: ['Educational', 'Professional', 'Friendly'],      weak: ['Calm'] },
-  'Template Pack': { strong: ['Professional', 'Educational', 'Motivational'],  weak: ['Calm'] },
+  'Planner':          { strong: ['Professional', 'Friendly', 'Motivational'],    weak: ['Calm'] },
+  'Checklist':        { strong: ['Professional', 'Educational', 'Motivational'], weak: ['Calm'] },
+  'Tracker':          { strong: ['Professional', 'Educational', 'Motivational'], weak: ['Calm'] },
+  'Worksheet':        { strong: ['Educational', 'Professional', 'Friendly'],     weak: ['Calm'] },
+  'Workbook':         { strong: ['Educational', 'Professional', 'Motivational'], weak: ['Calm'] },
+  'Journal':          { strong: ['Friendly', 'Calm', 'Educational'],             weak: ['Professional'] },
+  'Prompt Pack':      { strong: ['Professional', 'Educational', 'Friendly'],     weak: ['Calm'] },
+  'Mini eBook':       { strong: ['Educational', 'Professional', 'Friendly'],     weak: ['Calm'] },
+  'Template Pack':    { strong: ['Professional', 'Educational', 'Motivational'], weak: ['Calm'] },
+  'Social Media Pack':{ strong: ['Friendly', 'Motivational', 'Professional'],    weak: ['Calm'] },
+  'Printable Bundle': { strong: ['Friendly', 'Motivational', 'Educational'],     weak: [] },
+  'Lead Magnet':      { strong: ['Professional', 'Friendly', 'Motivational'],    weak: ['Calm'] },
 };
 
 // Default tone per product type (auto-selected if user picks none)
 export const defaultToneByType = {
-  'Planner':       'Motivational',
-  'Checklist':     'Professional',
-  'Tracker':       'Professional',
-  'Worksheet':     'Educational',
-  'Workbook':      'Educational',
-  'Journal':       'Calm',
-  'Prompt Pack':   'Educational',
-  'Mini Ebook':    'Educational',
-  'Template Pack': 'Professional',
+  'Planner':          'Motivational',
+  'Checklist':        'Professional',
+  'Tracker':          'Professional',
+  'Worksheet':        'Educational',
+  'Workbook':         'Educational',
+  'Journal':          'Calm',
+  'Prompt Pack':      'Educational',
+  'Mini eBook':       'Educational',
+  'Template Pack':    'Professional',
+  'Social Media Pack':'Friendly',
+  'Printable Bundle': 'Motivational',
+  'Lead Magnet':      'Professional',
 };
 
 // ── NICHES ───────────────────────────────────────────────────────────────────

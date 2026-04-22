@@ -24,7 +24,13 @@ export default function StepTone({ value, onChange, productType }) {
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">
         {t(lang, 'step_tone_title')}
       </h2>
-      <p className="text-muted-foreground mb-6">{t(lang, 'step_tone_sub')}</p>
+      <p className="text-muted-foreground mb-4">{t(lang, 'step_tone_sub')}</p>
+
+      {productType && (
+        <div className="mb-5 text-xs text-muted-foreground bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          💡 Recommended tones for a <strong>{productType}</strong> are highlighted below
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {visibleTones.map(toneName => {
