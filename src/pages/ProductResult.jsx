@@ -15,7 +15,6 @@ import AIABTesting from '@/components/product/AIABTesting';
 import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
 import AIAssistant from '@/components/product/AIAssistant';
 import AICoverGenerator from '@/components/product/AICoverGenerator';
-import ProductWorkspace from '@/components/product/ProductWorkspace';
 import PlatformPublishGuide from '@/components/product/PlatformPublishGuide';
 
 export default function ProductResult() {
@@ -24,7 +23,7 @@ export default function ProductResult() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copiedAll, setCopiedAll] = useState(false);
-  const [activeTab, setActiveTab] = useState('workspace');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const isGenerating = new URLSearchParams(window.location.search).get('generating') === 'true';
 
@@ -130,42 +129,42 @@ export default function ProductResult() {
             </div>
           </motion.div>
 
-          {/* Tab switcher */}
-          <div className="flex gap-1 p-1 bg-muted rounded-xl mb-6 w-fit">
-            {['workspace', 'overview'].map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${activeTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-              >
-                {tab === 'workspace' ? '✏️ Workspace' : '📋 Overview'}
-              </button>
-            ))}
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
-              {activeTab === 'workspace' ? (
-                <ProductWorkspace product={product} onUpdate={setProduct} />
-              ) : (
-                <>
-                  <ResultSection title={t(lang, 'result_product_title')} content={d.title} />
-                  <ResultSection title={t(lang, 'result_subtitle')} content={d.subtitle} />
-                  <ResultSection title={t(lang, 'result_promise')} content={d.promise} />
-                  <ResultSection title={t(lang, 'result_audience')} content={d.audience} />
-                  <ResultSection title={t(lang, 'result_format')} content={d.format} />
-                  <ResultSection title={t(lang, 'result_structure')} content={d.structure} />
-                  <ResultSection title={t(lang, 'result_content')} content={d.content_draft} badge={t(lang, 'result_premium')} />
-                  <ResultSection title={t(lang, 'result_benefits')} content={d.benefits} />
-                  <ResultSection title={t(lang, 'result_angle')} content={d.selling_angle} />
-                  <ResultSection title={t(lang, 'result_listing_title')} content={d.listing_title} badge={t(lang, 'result_platform_ready')} />
-                  <ResultSection title={t(lang, 'result_listing_desc')} content={d.listing_description} badge={t(lang, 'result_platform_ready')} />
-                  <ResultSection title={t(lang, 'result_keywords')} content={d.keywords} />
-                  <ResultSection title={t(lang, 'result_visual')} content={d.visual_direction} />
-                  <ResultSection title={t(lang, 'result_cover')} content={d.cover_concept} />
+              {/* Product Studio CTA */}
+              <Link to={`/studio/${id}`}>
+                <div className="bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-primary/20 rounded-2xl p-6 hover:border-primary/40 transition-colors cursor-pointer group">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Layers className="w-5 h-5 text-primary" />
+                        <h3 className="font-display font-bold text-foreground text-lg">Product Studio</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Edit title, subtitle, promise, content blocks, listing copy and more — all in one place.</p>
+                    </div>
+                    <Button className="gradient-bg text-white group-hover:opacity-90 transition-opacity ml-4 shrink-0">
+                      Open Studio →
+                    </Button>
+                  </div>
+                </div>
+              </Link>
+              <>
+                <ResultSection title={t(lang, 'result_product_title')} content={d.title} />
+                <ResultSection title={t(lang, 'result_subtitle')} content={d.subtitle} />
+                <ResultSection title={t(lang, 'result_promise')} content={d.promise} />
+                <ResultSection title={t(lang, 'result_audience')} content={d.audience} />
+                <ResultSection title={t(lang, 'result_format')} content={d.format} />
+                <ResultSection title={t(lang, 'result_structure')} content={d.structure} />
+                <ResultSection title={t(lang, 'result_content')} content={d.content_draft} badge={t(lang, 'result_premium')} />
+                <ResultSection title={t(lang, 'result_benefits')} content={d.benefits} />
+                <ResultSection title={t(lang, 'result_angle')} content={d.selling_angle} />
+                <ResultSection title={t(lang, 'result_listing_title')} content={d.listing_title} badge={t(lang, 'result_platform_ready')} />
+                <ResultSection title={t(lang, 'result_listing_desc')} content={d.listing_description} badge={t(lang, 'result_platform_ready')} />
+                <ResultSection title={t(lang, 'result_keywords')} content={d.keywords} />
+                <ResultSection title={t(lang, 'result_visual')} content={d.visual_direction} />
+                <ResultSection title={t(lang, 'result_cover')} content={d.cover_concept} />
                 </>
-              )}
-            </div>
+                </div>
             <div className="space-y-4">
               <div className="bg-card border border-border rounded-xl p-5 card-shadow">
                 <h3 className="font-semibold text-foreground text-sm mb-3">{t(lang, 'result_price')}</h3>
