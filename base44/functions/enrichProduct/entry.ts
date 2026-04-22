@@ -455,16 +455,18 @@ The sections array must follow the product structure. Write EVERY section fully.
       { id: String(Date.now() + 1), type: 'notes', heading: 'Notes', content: { title: 'Your Notes', lines: 12 } },
     ];
 
-    // Save after stage 1
+    // ── SAVE after Stage 1 — user sees content immediately ────────────────
     await base44.asServiceRole.entities.Product.update(productId, {
-      generated_data: { ...phase1, content_draft: contentDraft, product_blocks: productBlocks },
+      generated_data: { ...phase1, content_draft: contentDraft, product_blocks: productBlocks, _progress: 'Building sales copy & platform guide...' },
     });
+    console.log(`[enrichProduct] Stage 1 saved — ${sections.length} sections. Starting Stage 2+3 in parallel.`);
 
-    // ── STAGE 2: SALES PACKAGE (listing + SEO) ────────────────────────────
-    console.log(`[enrichProduct] Stage 2: sales package for ${platform}`);
+    // ── STAGES 2 + 3: RUN IN PARALLEL ─────────────────────────────────────
+    const [salesResult, guideResult] = await Promise.all([
 
-    const salesResult = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a world-class conversion copywriter for ${platform} digital products. Write complete, ready-to-paste sales copy.
+      // STAGE 2: Sales package
+      base44.integrations.Core.InvokeLLM({
+        prompt: `You are a world-class conversion copywriter for ${platform} digital products. Write complete, ready-to-paste sales copy.
 
 PRODUCT: "${phase1.title}"
 TYPE: ${productType} | NICHE: ${niche} | TONE: ${tone} | PLATFORM: ${platform}
@@ -488,12 +490,10 @@ Lines 13-15: What's included — format, size, instant download
 Lines 16-18: Social proof signal + urgency CTA
 
 KEYWORDS: 15 buyer-intent search phrases (mix of broad, mid-tail, and long-tail)
-
 PLATFORM CTA: Most compelling action phrase for ${platform} buyers
-
 SEO META DESCRIPTION (150-160 chars): Include primary keyword + benefit
 
-Return ONLY valid JSON with all fields populated:
+Return ONLY valid JSON:
 {
   "listing_title": "...",
   "listing_description": "...",
@@ -501,46 +501,37 @@ Return ONLY valid JSON with all fields populated:
   "platform_cta": "...",
   "seo_meta_description": "..."
 }`,
-      model: 'gemini_3_flash',
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          listing_title: { type: 'string' },
-          listing_description: { type: 'string' },
-          keywords: { type: 'array', items: { type: 'string' } },
-          platform_cta: { type: 'string' },
-          seo_meta_description: { type: 'string' },
+        model: 'gemini_3_flash',
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            listing_title: { type: 'string' },
+            listing_description: { type: 'string' },
+            keywords: { type: 'array', items: { type: 'string' } },
+            platform_cta: { type: 'string' },
+            seo_meta_description: { type: 'string' },
+          }
         }
-      }
-    });
+      }),
 
-    // ── STAGE 3: PLATFORM GUIDE ────────────────────────────────────────────
-    console.log(`[enrichProduct] Stage 3: platform guide for ${platform}`);
-
-    const guideResult = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an expert in selling digital products on ${platform}. Write a complete, practical launch guide.
+      // STAGE 3: Platform guide
+      base44.integrations.Core.InvokeLLM({
+        prompt: `You are an expert in selling digital products on ${platform}. Write a complete, practical launch guide.
 
 PRODUCT: "${phase1.title}" (${productType} for ${niche})
 PRICE: $${phase1.price_min}–$${phase1.price_max}
-PLATFORM: ${platform}
-PLATFORM CONTEXT: ${platContext}
+PLATFORM: ${platform} — ${platContext}
 AUDIENCE: ${phase1.audience}
 
-Write ALL sections fully. No placeholders. No vague advice. Specific, actionable, platform-specific content only.
+Write ALL sections fully. No placeholders. Specific, actionable, platform-specific content only.
 
-WHY_THIS_PLATFORM (150-200 words): Why ${platform} is the right home for this product. Specific buyer behavior, search habits, and purchasing patterns on ${platform}.
-
-PLATFORM_AUDIENCE (100-150 words): Who shops on ${platform} for products like this. Demographics, motivations, what they search, what they buy.
-
-PRICING_STRATEGY (150-200 words): Specific pricing advice for this product on ${platform}. Launch price, evergreen price, bundle pricing, discounting strategy with reasoning.
-
-THUMBNAIL_GUIDANCE (150-200 words): Exactly what the cover/thumbnail should look like. Colors, text placement, font style, imagery, what to include and avoid. Platform-specific size requirements.
-
-LAUNCH_PLAN (200-250 words): A specific 30-day launch sequence. What to do on launch day, week 1, weeks 2-4, and month 2. Include promotion tactics specific to ${platform}.
-
-PRO_TIPS: Array of 6 specific, actionable tips for succeeding with this type of product on ${platform}. Not generic advice.
-
-MISTAKES_TO_AVOID: Array of 5 specific mistakes sellers make with this product type on ${platform} and how to avoid each.
+WHY_THIS_PLATFORM (150 words): Why ${platform} is right for this product — buyer behavior, search habits, purchasing patterns.
+PLATFORM_AUDIENCE (100 words): Who shops on ${platform} for this — demographics, motivations, what they search.
+PRICING_STRATEGY (150 words): Launch price, evergreen price, bundle pricing, discounting strategy.
+THUMBNAIL_GUIDANCE (150 words): Exact cover/thumbnail spec — colors, text, font, imagery, platform size requirements.
+LAUNCH_PLAN (200 words): Specific 30-day launch sequence — launch day, week 1, weeks 2-4, month 2.
+PRO_TIPS: 6 specific actionable tips for this product type on ${platform}.
+MISTAKES_TO_AVOID: 5 specific mistakes + how to avoid each.
 
 Return ONLY valid JSON:
 {
@@ -549,23 +540,25 @@ Return ONLY valid JSON:
   "pricing_strategy": "...",
   "thumbnail_guidance": "...",
   "launch_plan": "...",
-  "pro_tips": ["tip 1", "tip 2", "tip 3", "tip 4", "tip 5", "tip 6"],
-  "mistakes_to_avoid": ["mistake 1", "mistake 2", "mistake 3", "mistake 4", "mistake 5"]
+  "pro_tips": ["tip 1","tip 2","tip 3","tip 4","tip 5","tip 6"],
+  "mistakes_to_avoid": ["mistake 1","mistake 2","mistake 3","mistake 4","mistake 5"]
 }`,
-      model: 'gemini_3_flash',
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          why_this_platform: { type: 'string' },
-          platform_audience: { type: 'string' },
-          pricing_strategy: { type: 'string' },
-          thumbnail_guidance: { type: 'string' },
-          launch_plan: { type: 'string' },
-          pro_tips: { type: 'array', items: { type: 'string' } },
-          mistakes_to_avoid: { type: 'array', items: { type: 'string' } },
+        model: 'gemini_3_flash',
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            why_this_platform: { type: 'string' },
+            platform_audience: { type: 'string' },
+            pricing_strategy: { type: 'string' },
+            thumbnail_guidance: { type: 'string' },
+            launch_plan: { type: 'string' },
+            pro_tips: { type: 'array', items: { type: 'string' } },
+            mistakes_to_avoid: { type: 'array', items: { type: 'string' } },
+          }
         }
-      }
-    });
+      }),
+
+    ]);
 
     // Build listing block
     const listingBlock = {
@@ -616,6 +609,7 @@ Return ONLY valid JSON:
       platform_guidance: guideResult,
       // Blocks
       product_blocks: finalBlocks,
+      _progress: null,
     };
 
     await base44.asServiceRole.entities.Product.update(productId, {

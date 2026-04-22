@@ -16,6 +16,14 @@ import AIAssistant from '@/components/product/AIAssistant';
 import AICoverGenerator from '@/components/product/AICoverGenerator';
 import PlatformPublishGuide from '@/components/product/PlatformPublishGuide';
 
+function getProgressLabel(product) {
+  const progress = product.generated_data?._progress;
+  const hasBlocks = (product.generated_data?.product_blocks || []).length > 2;
+  if (progress) return progress;
+  if (hasBlocks) return 'Building sales copy & platform guide...';
+  return 'Generating product content...';
+}
+
 export default function ProductResult() {
   const { id } = useParams();
   const { lang } = useLang();
@@ -101,10 +109,10 @@ export default function ProductResult() {
                 </div>
                 <div>
                   <p className={`font-bold text-sm ${product.status === 'ready' ? 'text-green-800' : 'text-orange-800'}`}>
-                    {product.status === 'ready' ? t(lang, 'result_ready_title') : 'Enriching your product...'}
+                    {product.status === 'ready' ? t(lang, 'result_ready_title') : getProgressLabel(product)}
                   </p>
                   <p className={`text-xs ${product.status === 'ready' ? 'text-green-600' : 'text-orange-600'}`}>
-                    {product.status === 'ready' ? t(lang, 'result_ready_sub') : 'Generating listing copy, keywords & platform guide. This page updates automatically.'}
+                    {product.status === 'ready' ? t(lang, 'result_ready_sub') : 'This page updates automatically — no need to refresh.'}
                   </p>
                 </div>
               </div>

@@ -47,7 +47,7 @@ export default function Create() {
     const tone = formData.tone || getDefaultTone(formData.productType);
 
     const phase1 = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are an elite digital product designer creating a premium sellable digital product for ${platform}.
+      prompt: `You are an elite digital product designer. Create a premium sellable digital product blueprint for ${platform}.
 
 PRODUCT BRIEF:
 - Type: ${formData.productType}
@@ -55,47 +55,29 @@ PRODUCT BRIEF:
 - Tone: ${tone}
 - Core Idea: ${formData.idea}
 - Platform: ${platform}
+- Content style: ${nicheGuide.style} / ${nicheGuide.language}
 
-NICHE CONTEXT:
-- Content style: ${nicheGuide.style}
-- Language approach: ${nicheGuide.language}
-- Use real examples from: ${nicheGuide.examples}
+PREDEFINED STRUCTURE: ${structureTemplate.map((s, i) => `${i + 1}. ${s}`).join(', ')}
 
-PREDEFINED STRUCTURE (use exactly these section names — fill them with niche-specific content):
-${structureTemplate.map((s, i) => `${i + 1}. ${s}`).join('\n')}
-
-QUALITY RULES:
-✓ Title must be specific, benefit-driven, and audience-targeted (50-70 chars)
-✓ Subtitle must state who it's for + what outcome they get (max 100 chars)
-✓ All content must be niche-specific — no generic AI filler
-✓ Use ${tone} tone consistently throughout
-✓ Promise must be measurable and concrete
-
-Return ONLY valid JSON:
+Return ONLY valid JSON (every field required, no empty values):
 {
-  "title": "Specific product title — benefit + audience signal",
-  "subtitle": "One punchy line: [audience] + [core benefit] (max 100 chars)",
-  "promise": "The specific measurable transformation this product delivers",
-  "audience": "3-sentence vivid buyer profile: their pain, aspiration, daily context",
-  "format": "Exact format: page count, what's included, how it's delivered",
+  "title": "Specific benefit-driven title (50-70 chars)",
+  "subtitle": "[audience] + [core benefit] (max 100 chars)",
+  "promise": "Specific measurable transformation",
+  "audience": "Vivid 2-sentence buyer profile: pain + aspiration",
+  "format": "Format description: page count, what's included",
   "structure": ${JSON.stringify(structureTemplate)},
-  "benefits": [
-    "Specific outcome benefit 1 — starts with a verb",
-    "Specific outcome benefit 2",
-    "Specific outcome benefit 3",
-    "Specific outcome benefit 4",
-    "Specific outcome benefit 5"
-  ],
-  "selling_angle": "The single most compelling reason to buy this over alternatives",
+  "benefits": ["Verb-led benefit 1","Verb-led benefit 2","Verb-led benefit 3","Verb-led benefit 4","Verb-led benefit 5"],
+  "selling_angle": "Most compelling reason to buy over alternatives",
   "price_min": 17,
   "price_max": 37,
-  "price_rationale": "Pricing justified by comparable ${platform} products and value delivered",
-  "buyer_profile": "Vivid 2-sentence persona: who they are, why they need this NOW",
-  "cta": "Action-oriented CTA that creates urgency and speaks to buyer desire",
-  "visual_direction": "Specific visual identity: 2 hex colors, typography style, mood",
-  "cover_concept": "Cover mockup: layout, text, visual elements, color placement"
+  "price_rationale": "Pricing rationale for ${platform}",
+  "buyer_profile": "Vivid persona: who they are, why they need this NOW",
+  "cta": "Urgency-driven CTA phrase",
+  "visual_direction": "2 hex colors, typography style, mood",
+  "cover_concept": "Cover layout, text, visual elements, color placement"
 }`,
-      model: 'claude_sonnet_4_6',
+      model: 'gemini_3_flash',
       response_json_schema: {
         type: 'object',
         properties: {
