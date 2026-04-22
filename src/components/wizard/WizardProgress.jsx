@@ -1,10 +1,13 @@
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
 
-export default function WizardProgress({ currentStep }) {
+const DEFAULT_STEPS = ['Product Type', 'Niche', 'Tone', 'Describe & Generate'];
+
+export default function WizardProgress({ currentStep, totalSteps }) {
   const { lang } = useLang();
-  const steps = t(lang, 'wizard_step_labels');
-  const total = steps.length;
+  const stepsFromI18n = t(lang, 'wizard_step_labels');
+  const steps = (Array.isArray(stepsFromI18n) && stepsFromI18n.length === 4) ? stepsFromI18n : DEFAULT_STEPS;
+  const total = totalSteps || steps.length;
 
   return (
     <div className="w-full mb-10">
