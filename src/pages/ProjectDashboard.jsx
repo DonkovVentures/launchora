@@ -146,7 +146,12 @@ export default function ProjectDashboard() {
 
   const handleDelete = async (id) => {
     if (!confirm('Delete this product?')) return;
-    await base44.entities.Product.delete(id);
+    setProducts(prev => prev.filter(p => p.id !== id));
+    try {
+      await base44.entities.Product.delete(id);
+    } catch (e) {
+      // Already deleted or not found — ignore
+    }
   };
 
   const platforms = useMemo(() => {
