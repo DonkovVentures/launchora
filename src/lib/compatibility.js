@@ -34,19 +34,22 @@ export const defaultToneByType = {
 
 // ── NICHES ───────────────────────────────────────────────────────────────────
 // Product types that best fit each niche (for sorting/highlighting in UI)
+// NOTE: type names must exactly match StepProductType names
 export const typeFitByNiche = {
-  'Productivity':  ['Planner', 'Checklist', 'Tracker', 'Workbook'],
-  'Fitness':       ['Planner', 'Tracker', 'Journal', 'Worksheet'],
-  'Self-care':     ['Journal', 'Planner', 'Workbook'],
-  'Business':      ['Workbook', 'Mini Ebook', 'Prompt Pack', 'Template Pack'],
-  'Budgeting':     ['Planner', 'Tracker', 'Checklist', 'Workbook'],
-  'Moms':          ['Planner', 'Checklist', 'Journal'],
-  'Students':      ['Worksheet', 'Workbook', 'Planner', 'Checklist'],
-  'Freelancers':   ['Prompt Pack', 'Workbook', 'Template Pack', 'Mini Ebook'],
-  'Coaches':       ['Workbook', 'Prompt Pack', 'Mini Ebook'],
-  'Creators':      ['Prompt Pack', 'Template Pack', 'Mini Ebook'],
-  'Wellness':      ['Journal', 'Planner', 'Workbook'],
-  'Organization':  ['Planner', 'Checklist', 'Tracker'],
+  'Productivity':   ['Planner', 'Checklist', 'Tracker', 'Workbook'],
+  'Fitness':        ['Planner', 'Tracker', 'Journal', 'Worksheet'],
+  'Self-care':      ['Journal', 'Planner', 'Workbook'],
+  'Business':       ['Workbook', 'Mini eBook', 'Prompt Pack', 'Template Pack'],
+  'Budgeting':      ['Planner', 'Tracker', 'Checklist', 'Workbook'],
+  'Moms':           ['Planner', 'Checklist', 'Journal', 'Printable Bundle'],
+  'Students':       ['Worksheet', 'Workbook', 'Planner', 'Checklist'],
+  'Freelancers':    ['Prompt Pack', 'Workbook', 'Template Pack', 'Mini eBook'],
+  'Coaches':        ['Workbook', 'Prompt Pack', 'Mini eBook', 'Lead Magnet'],
+  'Creators':       ['Prompt Pack', 'Template Pack', 'Mini eBook', 'Social Media Pack'],
+  'Wellness':       ['Journal', 'Planner', 'Workbook'],
+  'Organization':   ['Planner', 'Checklist', 'Tracker', 'Printable Bundle'],
+  'Real Estate':    ['Template Pack', 'Checklist', 'Workbook', 'Lead Magnet'],
+  'Social Media':   ['Social Media Pack', 'Prompt Pack', 'Template Pack'],
 };
 
 // Niche-specific content guidance injected into prompts
@@ -63,6 +66,8 @@ export const nicheContentGuide = {
   'Creators':      { style: 'content & audience building', language: 'creative, strategic, growth-minded', examples: 'content calendars, engagement strategies, brand voice docs' },
   'Wellness':      { style: 'holistic and calm', language: 'gentle, mindful, body-positive', examples: 'sleep logs, breathwork, gratitude journaling' },
   'Organization':  { style: 'structured systems', language: 'clear, logical, space-saving', examples: 'home organization, digital filing, declutter checklists' },
+  'Real Estate':   { style: 'professional and authoritative', language: 'clear, numbers-driven, trust-building', examples: 'buyer checklists, seller guides, investment trackers, contract templates' },
+  'Social Media':  { style: 'trend-aware and visual', language: 'punchy, engaging, platform-native', examples: 'content calendars, caption templates, hashtag strategies, engagement prompts' },
 };
 
 // ── PRODUCT STRUCTURE TEMPLATES ──────────────────────────────────────────────
