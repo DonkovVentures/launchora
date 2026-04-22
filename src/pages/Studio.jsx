@@ -3,12 +3,12 @@ import { useParams, Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Eye, EyeOff, Copy, Check } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import StudioSidebar from '@/components/studio/StudioSidebar';
 import BlockEditor from '@/components/studio/BlockEditor';
 import ProductPreview from '@/components/studio/ProductPreview';
 import StylePanel from '@/components/studio/StylePanel';
-import { exportBlocksPDF } from '@/lib/exportBlocks';
+import ZipExportModal from '@/components/studio/ZipExportModal';
 
 const STYLE_PRESETS = {
   minimal: { bg: '#ffffff', text: '#1a1a1a', accent: '#ea580c', font: 'sans', heading: '#111111' },
@@ -33,6 +33,7 @@ export default function Studio() {
   const [style, setStyle] = useState('minimal');
   const [showStylePanel, setShowStylePanel] = useState(false);
   const [copiedListing, setCopiedListing] = useState(false);
+  const [showZipModal, setShowZipModal] = useState(false);
 
   useEffect(() => {
     base44.entities.Product.list().then(results => {
@@ -155,8 +156,8 @@ export default function Studio() {
             {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             {showPreview ? 'Edit' : 'Preview'}
           </Button>
-          <Button size="sm" onClick={() => exportBlocksPDF(blocks, product, preset)} className="gradient-bg text-white h-8 gap-1.5">
-            <Download className="w-3.5 h-3.5" /> Export PDF
+          <Button size="sm" onClick={() => setShowZipModal(true)} className="gradient-bg text-white h-8 gap-1.5">
+            <Download className="w-3.5 h-3.5" /> Download ZIP
           </Button>
         </div>
       </div>
@@ -198,6 +199,16 @@ export default function Studio() {
           />
         )}
       </div>
+
+      <AnimatePresence>
+        {showZipModal && (
+          <ZipExportModal
+            product={product}
+            style={style}
+            onClose={() => setShowZipModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
