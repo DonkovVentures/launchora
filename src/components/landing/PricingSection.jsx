@@ -1,12 +1,34 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Sparkles, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
+import { base44 } from '@/api/base44Client';
+import { useState } from 'react';
 
 export default function PricingSection() {
   const { lang } = useLang();
+  const [checkoutLoading, setCheckoutLoading] = useState(null);
+
+  const handleCheckout = async (planKey) => {
+    if (window.self !== window.top) {
+      alert('Checkout works only from the published app. Please open it in a new tab.');
+      return;
+    }
+    setCheckoutLoading(planKey);
+    try {
+      const res = await base44.functions.invoke('createCheckout', {
+        plan: planKey,
+        successUrl: window.location.origin + '/dashboard',
+        cancelUrl: window.location.href,
+      });
+      if (res.data?.url) window.location.href = res.data.url;
+    } catch (e) {
+      alert('Checkout error: ' + e.message);
+    }
+    setCheckoutLoading(null);
+  };
 
   const plans = [
     {
@@ -79,9 +101,14 @@ export default function PricingSection() {
                 <Button
                   className={`w-full font-semibold rounded-xl ${plan.popular ? 'gradient-bg text-white hover:opacity-90' : 'border-border hover:bg-muted/50'}`}
                   variant={plan.popular ? 'default' : 'outline'}
-                  disabled
+                  onClick={() => handleCheckout(plan.name.toLowerCase())}
+                  disabled={checkoutLoading === plan.name.toLowerCase()}
                 >
-                  Coming Soon
+                  {checkoutLoading === plan.name.toLowerCase() ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    t(lang, plan.ctaKey)
+                  )}
                 </Button>
               )}
             </motion.div>
