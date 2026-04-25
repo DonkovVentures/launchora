@@ -179,7 +179,7 @@ Return ONLY valid JSON (every field required, no empty values):
   };
 
   const stepComponents = [
-    <StepProductType value={formData.productType} onChange={update('productType')} />,
+    <StepProductType value={formData.productType} onChange={update('productType')} niche={formData.niche} />,
     <StepNiche value={formData.niche} onChange={update('niche')} productType={formData.productType} />,
     <StepTone value={formData.tone} onChange={update('tone')} productType={formData.productType} />,
     <StepIdeaAndGenerate data={formData} onIdeaChange={update('idea')} onGenerate={handleGenerate} loading={loading} />,

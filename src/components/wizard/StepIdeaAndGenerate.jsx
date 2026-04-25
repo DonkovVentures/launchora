@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Lightbulb, ChevronRight } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
 import { evaluateCombination, getDefaultPlatform } from '@/lib/compatibility';
 
 const placeholders = {
@@ -11,17 +13,21 @@ const placeholders = {
   'Workbook':      'e.g. A mindset workbook for freelancers struggling with imposter syndrome and pricing their work',
   'Journal':       'e.g. A morning journal for entrepreneurs to set intentions and reflect on daily wins',
   'Prompt Pack':   'e.g. A ChatGPT prompt pack for coaches to create client onboarding materials 10x faster',
-  'Mini Ebook':    'e.g. A guide teaching Etsy sellers how to write product descriptions that convert',
+  'Mini eBook':    'e.g. A guide teaching Etsy sellers how to write product descriptions that convert',
   'Template Pack': 'e.g. A pack of 5 Canva client proposal templates for freelance designers',
 };
 
 export default function StepIdeaAndGenerate({ data, onIdeaChange, onGenerate, loading }) {
   const { lang } = useLang();
+  const [sharpening, setSharpening] = useState(false);
+  const [sharpSuggestions, setSharpSuggestions] = useState([]);
+
   const { score, suggestions } = evaluateCombination({ productType: data.productType, niche: data.niche, tone: data.tone });
   const platform = getDefaultPlatform(data.productType);
   const placeholder = placeholders[data.productType] || 'Describe your product idea in a few sentences...';
   const charCount = (data.idea || '').length;
   const isReady = charCount >= 15;
+  const isVague = charCount > 0 && charCount < 60;
 
   const scoreConfig = {
     strong:     { label: 'Great combination!', color: 'text-green-700', bg: 'bg-green-50 border-green-200' },
@@ -29,6 +35,51 @@ export default function StepIdeaAndGenerate({ data, onIdeaChange, onGenerate, lo
     weak:       { label: 'Weak match', color: 'text-red-700', bg: 'bg-red-50 border-red-200' },
   };
   const cfg = scoreConfig[score] || scoreConfig.acceptable;
+
+  const handleSharpenIdea = async () => {
+    if (!data.idea.trim()) return;
+    setSharpening(true);
+    setSharpSuggestions([]);
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are a digital product naming expert. The user has a vague product idea and needs 3 sharper, more specific versions.
+
+USER'S IDEA: "${data.idea}"
+PRODUCT TYPE: ${data.productType || 'digital product'}
+NICHE: ${data.niche || 'general'}
+PLATFORM: ${platform}
+
+Turn their vague idea into 3 specific, sellable product concepts. Each should:
+- Name a specific audience (who exactly)
+- Address a specific pain point or goal
+- Imply a concrete outcome or transformation
+- Be 10-15 words max — punchy and clear
+
+BAD: "fitness planner"
+GOOD: "30-Day Home Workout Planner for Busy Beginners Who Hate the Gym"
+
+Return ONLY valid JSON:
+{
+  "suggestions": [
+    "suggestion 1",
+    "suggestion 2",
+    "suggestion 3"
+  ]
+}`,
+        model: 'gemini_3_flash',
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            suggestions: { type: 'array', items: { type: 'string' } }
+          }
+        }
+      });
+      setSharpSuggestions(result.suggestions || []);
+    } catch (e) {
+      console.error('[IdeaSharpener] Failed:', e);
+    }
+    setSharpening(false);
+  };
 
   return (
     <div>
@@ -39,7 +90,7 @@ export default function StepIdeaAndGenerate({ data, onIdeaChange, onGenerate, lo
         Give us a short description — the AI will handle the rest.
       </p>
 
-      {/* Summary */}
+      {/* Combination summary */}
       <div className={`border rounded-xl p-4 mb-5 ${cfg.bg}`}>
         <div className="flex flex-wrap items-center gap-2 mb-2">
           <span className={`font-semibold text-sm ${cfg.color}`}>{cfg.label}</span>
@@ -55,21 +106,56 @@ export default function StepIdeaAndGenerate({ data, onIdeaChange, onGenerate, lo
       </div>
 
       {/* Idea input */}
-      <div className="mb-6">
+      <div className="mb-2">
         <textarea
           className="w-full px-4 py-3 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary resize-none"
-          rows={5}
+          rows={4}
           placeholder={placeholder}
           value={data.idea}
-          onChange={e => onIdeaChange(e.target.value)}
+          onChange={e => { onIdeaChange(e.target.value); setSharpSuggestions([]); }}
         />
-        <div className="flex justify-between items-center mt-1.5">
+        <div className="flex justify-between items-center mt-1.5 mb-3">
           <p className="text-xs text-muted-foreground">
             {charCount < 15 ? `${15 - charCount} more characters needed` : '✓ Ready to generate'}
           </p>
           <span className={`text-xs ${charCount >= 15 ? 'text-green-600' : 'text-muted-foreground'}`}>{charCount} chars</span>
         </div>
       </div>
+
+      {/* Idea Sharpener */}
+      {charCount > 0 && (
+        <div className="mb-5">
+          <button
+            onClick={handleSharpenIdea}
+            disabled={sharpening}
+            className="flex items-center gap-2 text-xs font-semibold text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
+          >
+            {sharpening
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <Lightbulb className="w-3.5 h-3.5" />
+            }
+            {sharpening ? 'Generating sharper ideas...' : 'Sharpen my idea with AI →'}
+          </button>
+
+          {sharpSuggestions.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">3 sharper versions of your idea:</p>
+              {sharpSuggestions.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => { onIdeaChange(s); setSharpSuggestions([]); }}
+                  className="w-full flex items-center gap-3 text-left px-4 py-3 rounded-xl border border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/40 transition-all group"
+                >
+                  <span className="w-5 h-5 flex-shrink-0 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+                  <span className="text-sm text-foreground font-medium flex-1">{s}</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                </button>
+              ))}
+              <p className="text-[10px] text-muted-foreground">Click any suggestion to use it, or keep writing your own.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Generate button */}
       <Button
