@@ -43,7 +43,7 @@ function BlockItem({ block, isActive, onSelect, onDelete, onMoveUp, onMoveDown, 
   );
 }
 
-export default function StudioSidebar({ blocks, activeBlock, onSelectBlock, onBlocksChange, product }) {
+export default function StudioSidebar({ blocks, activeBlock, onSelectBlock, onBlocksChange, product, draft }) {
   const [showAddMenu, setShowAddMenu] = useState(false);
 
   const addBlock = (type) => {
@@ -73,17 +73,17 @@ export default function StudioSidebar({ blocks, activeBlock, onSelectBlock, onBl
     onBlocksChange(newBlocks);
   };
 
-  const d = product?.generated_data || {};
+  const ma = draft?.marketing_assets || product?.marketing_assets || {};
 
   return (
     <div className="w-64 border-r border-border bg-card flex flex-col flex-shrink-0 overflow-hidden">
       {/* Product meta */}
       <div className="p-4 border-b border-border">
         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide mb-2">Product Info</p>
-        <p className="text-xs text-foreground font-medium">{product?.product_type}</p>
+        <p className="text-xs text-foreground font-medium truncate">{draft?.title || product?.product_type}</p>
         <p className="text-xs text-muted-foreground">{product?.platform} · {product?.niche}</p>
-        {d.price_min && (
-          <p className="text-xs font-bold text-primary mt-1">${d.price_min}–${d.price_max}</p>
+        {(ma.price_min != null) && (
+          <p className="text-xs font-bold text-primary mt-1">${ma.price_min}–${ma.price_max}</p>
         )}
       </div>
 

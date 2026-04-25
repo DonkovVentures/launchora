@@ -46,7 +46,7 @@ const PLANS = [
 
 const FREE_EXPORT_KEY = 'launchora_free_zip_used';
 
-export default function ZipExportModal({ product, style, onClose }) {
+export default function ZipExportModal({ product, style, onClose, onExported }) {
   const [loading, setLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [freeUsed, setFreeUsed] = useState(false);
@@ -126,6 +126,9 @@ export default function ZipExportModal({ product, style, onClose }) {
         localStorage.setItem(FREE_EXPORT_KEY, 'true');
         setFreeUsed(true);
       }
+
+      // Notify parent that a fresh export was completed (clears stale banner)
+      onExported?.();
 
     } catch (e) {
       console.error('[ZipExport] Exception:', e);
