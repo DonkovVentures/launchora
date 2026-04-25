@@ -42,12 +42,8 @@ export default function Studio() {
       if (p) {
         setProduct(p);
         const norm = normalizeProduct(p);
-        // pages comes from structured product.pages or legacy product_blocks
-        if (norm.pages.length > 0) {
-          setBlocks(norm.pages);
-        } else {
-          setBlocks(buildBlocksFromData(p));
-        }
+        // normalizeProduct always returns pages (falls back sections → content_draft → stub)
+        setBlocks(norm.pages);
         setStyle(norm.visualStyle.preset || 'minimal');
       }
       setLoading(false);
@@ -101,8 +97,9 @@ export default function Studio() {
   };
 
   const copyListing = async () => {
-    const d = product?.generated_data || {};
-    const text = `LISTING TITLE:\n${d.listing_title || ''}\n\nDESCRIPTION:\n${d.listing_description || ''}\n\nKEYWORDS:\n${(d.keywords || []).join(', ')}\n\nPRICE: $${d.price_min}–$${d.price_max}`;
+    const norm = normalizeProduct(product);
+    const ma = norm.marketingAssets;
+    const text = `LISTING TITLE:\n${ma.listing_title}\n\nDESCRIPTION:\n${ma.listing_description}\n\nKEYWORDS:\n${ma.keywords.join(', ')}\n\nPRICE: $${ma.price_min}–$${ma.price_max}`;
     await navigator.clipboard.writeText(text);
     setCopiedListing(true);
     setTimeout(() => setCopiedListing(false), 2500);
@@ -127,7 +124,7 @@ export default function Studio() {
     );
   }
 
-  const d = product.generated_data || {};
+  const norm = normalizeProduct(product);
   const preset = STYLE_PRESETS[style] || STYLE_PRESETS.minimal;
 
   return (
@@ -142,7 +139,7 @@ export default function Studio() {
           </Link>
           <div className="w-px h-5 bg-border" />
           <div>
-            <p className="font-semibold text-sm text-foreground leading-none">{d.title || product.title}</p>
+            <p className="font-semibold text-sm text-foreground leading-none">{norm.title || 'Untitled'}</p>
             <p className="text-xs text-muted-foreground mt-0.5">{product.product_type} · {product.platform}</p>
           </div>
           {product.status !== 'ready' && (
@@ -230,46 +227,4 @@ export default function Studio() {
       </AnimatePresence>
     </div>
   );
-}
-
-// Build blocks from flat generated_data when no blocks exist yet
-function buildBlocksFromData(product) {
-  const d = product.generated_data || {};
-  const blocks = [];
-  let id = 1;
-  const mk = (type, content, heading) => ({ id: String(id++), type, content, heading });
-
-  blocks.push(mk('cover', { title: d.title || product.title, subtitle: d.subtitle, promise: d.promise, audience: d.audience }, 'Cover'));
-
-  if (d.structure && d.structure.length > 0) {
-    blocks.push(mk('toc', { items: d.structure }, 'Table of Contents'));
-  }
-
-  if (d.content_draft) {
-    // Split content into sections
-    const sections = d.content_draft.split(/\n\n+/).filter(s => s.trim().length > 50);
-    sections.forEach((section, i) => {
-      const lines = section.trim().split('\n');
-      const heading = lines[0].replace(/^#+\s*/, '').substring(0, 60) || `Section ${i + 1}`;
-      const body = lines.slice(1).join('\n').trim() || section;
-      blocks.push(mk('section', { heading, body }, heading));
-    });
-  }
-
-  if (d.benefits && d.benefits.length > 0) {
-    blocks.push(mk('checklist', { title: 'Key Benefits', items: d.benefits }, 'Key Benefits'));
-  }
-
-  if (d.keywords && d.keywords.length > 0) {
-    blocks.push(mk('listing', {
-      listing_title: d.listing_title,
-      listing_description: d.listing_description,
-      keywords: d.keywords,
-      price_min: d.price_min,
-      price_max: d.price_max,
-      cta: d.cta,
-    }, `${product.platform} Listing`));
-  }
-
-  return blocks;
 }

@@ -65,7 +65,6 @@ export default function LaunchAssistant() {
   );
 
   const norm = normalizeProduct(product);
-  const d = product.generated_data || {};
   const pg = norm.platformGuides;
   const ma = norm.marketingAssets;
   const toggle = (i) => setChecked(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
@@ -86,7 +85,7 @@ export default function LaunchAssistant() {
                 <div>
                   <p className="text-white/70 text-xs uppercase tracking-wider font-semibold mb-1">{t(lang, 'launch_assistant')}</p>
                   <h1 className="font-display text-2xl font-bold">{product.platform} {t(lang, 'launch_plan')}</h1>
-                  <p className="text-white/70 text-sm mt-1">{d.title}</p>
+                  <p className="text-white/70 text-sm mt-1">{norm.title}</p>
                 </div>
               </div>
               <div className="bg-white/15 rounded-xl p-4">

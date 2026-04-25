@@ -80,7 +80,6 @@ export default function ProductResult() {
   }
 
   const norm = normalizeProduct(product);
-  const d = product.generated_data || {};
 
   const testZipExport = async () => {
     setZipLoading(true);
@@ -115,8 +114,8 @@ export default function ProductResult() {
                   <span className="text-xs gradient-bg text-white px-3 py-1 rounded-full font-semibold">{product.product_type}</span>
                   <span className="text-xs bg-muted text-muted-foreground px-3 py-1 rounded-full">{product.platform}</span>
                 </div>
-                <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">{d.title || product.title}</h1>
-                <p className="text-muted-foreground">{d.subtitle}</p>
+                <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1">{norm.title}</h1>
+                <p className="text-muted-foreground">{norm.subtitle}</p>
               </div>
             </div>
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
