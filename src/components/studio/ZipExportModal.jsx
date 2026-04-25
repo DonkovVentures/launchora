@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Sparkles, Download, X, Loader2, Lock } from 'lucide-react';
+import { CheckCircle2, Sparkles, Download, X, Loader2, Lock, AlertCircle, Bug } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const PLANS = [
@@ -10,7 +10,7 @@ const PLANS = [
     name: 'Free',
     price: '$0',
     period: '',
-    features: ['1 ZIP export total', 'PDF + TXT files', 'All templates'],
+    features: ['1 ZIP export total', 'TXT + content files', 'All templates'],
     cta: 'Download Free (1×)',
     popular: false,
     isFree: true,
@@ -50,6 +50,16 @@ export default function ZipExportModal({ product, style, onClose }) {
   const [loading, setLoading] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [freeUsed, setFreeUsed] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+
+  // Debug state
+  const [debugStatus, setDebugStatus] = useState('idle');
+  const [debugLastResponse, setDebugLastResponse] = useState(null);
+  const [debugLastError, setDebugLastError] = useState(null);
+
+  // Download result state
+  const [downloadResult, setDownloadResult] = useState(null); // { fileUrl, fileName, fileSize, generatedAt }
+  const [exportError, setExportError] = useState(null);
 
   useEffect(() => {
     setFreeUsed(localStorage.getItem(FREE_EXPORT_KEY) === 'true');
@@ -57,38 +67,77 @@ export default function ZipExportModal({ product, style, onClose }) {
 
   const downloadZip = async (markFreeUsed = false) => {
     setLoading(true);
+    setExportError(null);
+    setDownloadResult(null);
+    setDebugStatus('loading');
+    setDebugLastResponse(null);
+    setDebugLastError(null);
+
+    console.log('[ZipExport] Starting ZIP export for productId:', product?.id);
+
     try {
       const res = await base44.functions.invoke('generateZip', {
         productId: product.id,
-        stylePreset: style,
+        stylePreset: style || 'minimal',
       });
-      const { zip_base64, filename } = res.data;
-      if (!zip_base64) throw new Error('No ZIP data returned');
 
-      // Decode base64 to binary
-      const binary = atob(zip_base64);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'application/zip' });
-      const url = URL.createObjectURL(blob);
+      console.log('[ZipExport] Raw response:', res);
+      setDebugLastResponse(res?.data ?? res);
+
+      const data = res?.data ?? res;
+
+      if (!data) {
+        throw new Error('Empty response from generateZip function');
+      }
+
+      if (data.success === false) {
+        const msg = data.error || 'Unknown backend error';
+        const detail = data.details || '';
+        console.error('[ZipExport] Backend error:', msg, detail);
+        setDebugLastError({ error: msg, details: detail });
+        setExportError(msg + (detail ? ` — ${detail}` : ''));
+        setDebugStatus('error');
+        setLoading(false);
+        return;
+      }
+
+      if (!data.fileUrl) {
+        const msg = 'ZIP was generated but no download URL was returned.';
+        console.error('[ZipExport]', msg, data);
+        setExportError(msg);
+        setDebugStatus('error');
+        setLoading(false);
+        return;
+      }
+
+      // Success
+      console.log('[ZipExport] fileUrl:', data.fileUrl);
+      setDownloadResult(data);
+      setDebugStatus('success');
+
+      // Trigger download automatically
       const a = document.createElement('a');
-      a.href = url;
-      a.download = filename || 'product_launchora.zip';
+      a.href = data.fileUrl;
+      a.target = '_blank';
+      a.download = data.fileName || 'product_launchora.zip';
       a.click();
-      URL.revokeObjectURL(url);
 
       if (markFreeUsed) {
         localStorage.setItem(FREE_EXPORT_KEY, 'true');
         setFreeUsed(true);
       }
+
     } catch (e) {
-      alert('Error generating ZIP: ' + e.message);
+      console.error('[ZipExport] Exception:', e);
+      setDebugLastError({ error: e.message, stack: e.stack });
+      setExportError(e.message || 'Unexpected error');
+      setDebugStatus('error');
     }
+
     setLoading(false);
   };
 
   const handleCheckout = async (planKey) => {
-    // Check if in iframe
     if (window.self !== window.top) {
       alert('Checkout only works from the published app. Please open the app in a new tab.');
       return;
@@ -122,7 +171,7 @@ export default function ZipExportModal({ product, style, onClose }) {
               <Download className="w-5 h-5 text-primary" /> Download Your Product
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Choose a plan to export your ZIP package (PDF + Listing + Content + Platform Guide)
+              Choose a plan to export your ZIP package (Listing + Content + Platform Guide)
             </p>
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -136,9 +185,7 @@ export default function ZipExportModal({ product, style, onClose }) {
             <div
               key={plan.key}
               className={`relative border rounded-xl p-4 flex flex-col ${
-                plan.popular
-                  ? 'border-primary shadow-md shadow-primary/10'
-                  : 'border-border'
+                plan.popular ? 'border-primary shadow-md shadow-primary/10' : 'border-border'
               }`}
             >
               {plan.popular && (
@@ -197,6 +244,73 @@ export default function ZipExportModal({ product, style, onClose }) {
               )}
             </div>
           ))}
+        </div>
+
+        {/* Error banner */}
+        {exportError && (
+          <div className="mx-6 mb-4 flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="font-semibold">Export failed</div>
+              <div className="text-xs mt-0.5 text-red-600">{exportError}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Success + manual download button */}
+        {downloadResult?.fileUrl && (
+          <div className="mx-6 mb-4 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-4 py-3 text-sm">
+            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold">ZIP ready!</div>
+              <div className="text-xs text-green-600">{downloadResult.fileName} · {Math.round(downloadResult.fileSize / 1024)} KB</div>
+            </div>
+            <a
+              href={downloadResult.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-green-800 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" /> Download
+            </a>
+          </div>
+        )}
+
+        {/* Debug panel */}
+        <div className="mx-6 mb-5">
+          <button
+            onClick={() => setShowDebug(v => !v)}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Bug className="w-3.5 h-3.5" />
+            {showDebug ? 'Hide' : 'Show'} debug panel
+          </button>
+
+          {showDebug && (
+            <div className="mt-2 bg-slate-950 text-slate-300 rounded-xl p-4 text-xs font-mono space-y-2 border border-slate-800">
+              <div><span className="text-slate-500">productId:</span> {product?.id ?? 'N/A'}</div>
+              <div><span className="text-slate-500">status:</span>{' '}
+                <span className={
+                  debugStatus === 'success' ? 'text-green-400' :
+                  debugStatus === 'error' ? 'text-red-400' :
+                  debugStatus === 'loading' ? 'text-yellow-400' :
+                  'text-slate-400'
+                }>{debugStatus}</span>
+              </div>
+              <div>
+                <span className="text-slate-500">last response:</span>
+                <pre className="mt-1 text-[10px] text-slate-400 whitespace-pre-wrap break-all max-h-32 overflow-auto">
+                  {debugLastResponse ? JSON.stringify(debugLastResponse, null, 2) : 'none'}
+                </pre>
+              </div>
+              <div>
+                <span className="text-slate-500">last error:</span>
+                <pre className="mt-1 text-[10px] text-red-400 whitespace-pre-wrap break-all max-h-32 overflow-auto">
+                  {debugLastError ? JSON.stringify(debugLastError, null, 2) : 'none'}
+                </pre>
+              </div>
+            </div>
+          )}
         </div>
 
         <p className="text-center text-xs text-muted-foreground pb-5">
