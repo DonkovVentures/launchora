@@ -1,242 +1,553 @@
 import { jsPDF } from 'jspdf';
+import { normalizeProduct } from '@/lib/normalizeProduct';
 
-const BRAND_ORANGE = [234, 88, 12];
-const DARK = [30, 20, 10];
-const MUTED = [120, 100, 80];
-const LIGHT_BG = [253, 249, 244];
+// ── Design Tokens ─────────────────────────────────────────────────────────────
+const PALETTE = {
+  minimal:  { accent: [234, 88, 12],   bg: [253, 249, 244], dark: [26, 20, 10],   muted: [120, 100, 80],  light: [255, 241, 228] },
+  premium:  { accent: [201, 169, 110],  bg: [15, 15, 15],   dark: [232, 224, 212], muted: [150, 140, 120], light: [40, 36, 28] },
+  feminine: { accent: [212, 98, 138],   bg: [255, 245, 247], dark: [74, 48, 64],   muted: [160, 120, 140], light: [255, 225, 235] },
+  business: { accent: [37, 99, 235],    bg: [248, 250, 252], dark: [30, 41, 59],   muted: [100, 116, 139], light: [219, 234, 254] },
+  elegant:  { accent: [139, 105, 20],   bg: [250, 248, 245], dark: [44, 36, 23],   muted: [130, 110, 70],  light: [240, 230, 200] },
+  modern:   { accent: [22, 163, 74],    bg: [240, 253, 244], dark: [20, 83, 45],   muted: [74, 130, 100],  light: [187, 247, 208] },
+  pastel:   { accent: [251, 146, 60],   bg: [254, 249, 240], dark: [120, 113, 108], muted: [168, 162, 158], light: [255, 228, 196] },
+  bold:     { accent: [245, 158, 11],   bg: [24, 24, 27],   dark: [212, 212, 216], muted: [113, 113, 122], light: [63, 63, 70] },
+};
 const WHITE = [255, 255, 255];
+const PAGE_W = 210;
+const PAGE_H = 297;
+const MARGIN = 16;
+const CONTENT_W = PAGE_W - MARGIN * 2;
+const FOOTER_H = 12;
+const CONTENT_TOP = 22;
+const CONTENT_BOTTOM = PAGE_H - FOOTER_H - 6;
 
-function addPageHeader(doc, pageNum) {
-  // Top bar
-  doc.setFillColor(...BRAND_ORANGE);
-  doc.rect(0, 0, 210, 10, 'F');
-
-  // Brand name
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.setTextColor(...WHITE);
-  doc.text('LAUNCHORA', 14, 6.5);
-  doc.text(`Page ${pageNum}`, 196, 6.5, { align: 'right' });
-}
-
-function addSection(doc, title, content, y, pageNum) {
-  const margin = 14;
-  const maxWidth = 182;
-
-  // Check if we need a new page
-  if (y > 260) {
-    doc.addPage();
-    pageNum++;
-    addPageHeader(doc, pageNum);
-    y = 22;
+// ── Page Manager ──────────────────────────────────────────────────────────────
+class PageManager {
+  constructor(doc, palette, productTitle) {
+    this.doc = doc;
+    this.palette = palette;
+    this.title = productTitle;
+    this.pageNum = 0;
+    this.y = CONTENT_TOP;
   }
 
-  // Section label pill
-  doc.setFillColor(253, 237, 220);
-  doc.roundedRect(margin, y, maxWidth, 7, 1.5, 1.5, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor(...BRAND_ORANGE);
-  doc.text(title.toUpperCase(), margin + 4, y + 4.8);
-  y += 10;
-
-  // Content
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
-  doc.setTextColor(...DARK);
-
-  if (Array.isArray(content)) {
-    content.forEach((item, i) => {
-      const lines = doc.splitTextToSize(`• ${item}`, maxWidth - 4);
-      lines.forEach(line => {
-        if (y > 270) { doc.addPage(); pageNum++; addPageHeader(doc, pageNum); y = 22; }
-        doc.text(line, margin + 4, y);
-        y += 5.5;
-      });
-      y += 1;
-    });
-  } else if (content) {
-    const lines = doc.splitTextToSize(String(content), maxWidth - 4);
-    lines.forEach(line => {
-      if (y > 270) { doc.addPage(); pageNum++; addPageHeader(doc, pageNum); y = 22; }
-      doc.text(line, margin + 4, y);
-      y += 5.5;
-    });
+  newPage() {
+    if (this.pageNum > 0) this.doc.addPage();
+    this.pageNum++;
+    this._drawPageBackground();
+    this._drawHeader();
+    this._drawFooter();
+    this.y = CONTENT_TOP;
   }
 
-  y += 6;
-  return { y, pageNum };
+  ensureSpace(needed = 20) {
+    if (this.y + needed > CONTENT_BOTTOM) {
+      this.newPage();
+    }
+  }
+
+  _drawPageBackground() {
+    const { bg } = this.palette;
+    this.doc.setFillColor(...bg);
+    this.doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
+  }
+
+  _drawHeader() {
+    const { accent } = this.palette;
+    this.doc.setFillColor(...accent);
+    this.doc.rect(0, 0, PAGE_W, 14, 'F');
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(6.5);
+    this.doc.setTextColor(...WHITE);
+    this.doc.text('LAUNCHORA', MARGIN, 9);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.text(this.title.toUpperCase().slice(0, 50), PAGE_W / 2, 9, { align: 'center' });
+  }
+
+  _drawFooter() {
+    const { muted, accent } = this.palette;
+    const footerY = PAGE_H - FOOTER_H + 4;
+    // thin divider line
+    this.doc.setDrawColor(...accent);
+    this.doc.setLineWidth(0.3);
+    this.doc.line(MARGIN, PAGE_H - FOOTER_H, PAGE_W - MARGIN, PAGE_H - FOOTER_H);
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...muted);
+    this.doc.text(this.title, MARGIN, footerY);
+    this.doc.text(`${this.pageNum}`, PAGE_W - MARGIN, footerY, { align: 'right' });
+  }
+
+  // ── Drawing helpers ────────────────────────────────────────────────────────
+
+  heading1(text) {
+    this.ensureSpace(20);
+    const { dark, accent } = this.palette;
+    // accent left bar
+    this.doc.setFillColor(...accent);
+    this.doc.rect(MARGIN, this.y - 1, 3, 10, 'F');
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(16);
+    this.doc.setTextColor(...dark);
+    this.doc.text(text, MARGIN + 6, this.y + 7);
+    this.y += 16;
+    this._divider();
+  }
+
+  heading2(text) {
+    this.ensureSpace(16);
+    const { dark } = this.palette;
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(12);
+    this.doc.setTextColor(...dark);
+    this.doc.text(text, MARGIN, this.y + 8);
+    this.y += 13;
+  }
+
+  label(text) {
+    this.ensureSpace(10);
+    const { accent, light } = this.palette;
+    this.doc.setFillColor(...light);
+    this.doc.roundedRect(MARGIN, this.y, CONTENT_W, 7, 1, 1, 'F');
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.setFontSize(7);
+    this.doc.setTextColor(...accent);
+    this.doc.text(text.toUpperCase(), MARGIN + 4, this.y + 5);
+    this.y += 10;
+  }
+
+  body(text, indent = 0) {
+    if (!text?.trim()) return;
+    const { dark } = this.palette;
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(9.5);
+    this.doc.setTextColor(...dark);
+    const lines = this.doc.splitTextToSize(String(text).trim(), CONTENT_W - indent - 4);
+    for (const line of lines) {
+      this.ensureSpace(6);
+      this.doc.text(line, MARGIN + indent, this.y);
+      this.y += 5.5;
+    }
+    this.y += 3;
+  }
+
+  bulletList(items, opts = {}) {
+    if (!items?.length) return;
+    const { dark } = this.palette;
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(9.5);
+    this.doc.setTextColor(...dark);
+    for (const item of items) {
+      const text = typeof item === 'string' ? item : (item.title || item.heading || String(item));
+      const lines = this.doc.splitTextToSize(text, CONTENT_W - 12);
+      this.ensureSpace(6);
+      this.doc.text(opts.numbered ? '' : '•', MARGIN + 4, this.y);
+      this.doc.text(lines[0], MARGIN + 9, this.y);
+      this.y += 5.5;
+      for (let i = 1; i < lines.length; i++) {
+        this.ensureSpace(6);
+        this.doc.text(lines[i], MARGIN + 9, this.y);
+        this.y += 5.5;
+      }
+      this.y += 1;
+    }
+    this.y += 3;
+  }
+
+  checkboxList(items) {
+    if (!items?.length) return;
+    const { dark, accent } = this.palette;
+    this.doc.setFont('helvetica', 'normal');
+    this.doc.setFontSize(9.5);
+    for (const item of items) {
+      this.ensureSpace(8);
+      // draw checkbox square
+      this.doc.setDrawColor(...accent);
+      this.doc.setLineWidth(0.5);
+      this.doc.rect(MARGIN + 4, this.y - 4, 4, 4);
+      this.doc.setTextColor(...dark);
+      const lines = this.doc.splitTextToSize(String(item), CONTENT_W - 14);
+      this.doc.text(lines[0], MARGIN + 10, this.y);
+      this.y += 5.5;
+      for (let i = 1; i < lines.length; i++) {
+        this.ensureSpace(6);
+        this.doc.text(lines[i], MARGIN + 10, this.y);
+        this.y += 5.5;
+      }
+      this.y += 1;
+    }
+    this.y += 3;
+  }
+
+  answerLines(count = 3, label = '') {
+    if (label) {
+      this.ensureSpace(8);
+      const { muted } = this.palette;
+      this.doc.setFont('helvetica', 'italic');
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(...muted);
+      this.doc.text(label, MARGIN + 4, this.y);
+      this.y += 6;
+    }
+    const { muted } = this.palette;
+    this.doc.setDrawColor(...muted);
+    this.doc.setLineWidth(0.3);
+    for (let i = 0; i < count; i++) {
+      this.ensureSpace(8);
+      this.doc.line(MARGIN + 4, this.y, MARGIN + CONTENT_W - 4, this.y);
+      this.y += 7;
+    }
+    this.y += 4;
+  }
+
+  spacer(h = 6) { this.y += h; }
+
+  _divider() {
+    const { accent } = this.palette;
+    this.doc.setDrawColor(...accent);
+    this.doc.setLineWidth(0.4);
+    this.doc.line(MARGIN, this.y - 2, MARGIN + CONTENT_W, this.y - 2);
+    this.y += 4;
+  }
+
+  infoBox(lines, opts = {}) {
+    if (!lines?.length) return;
+    const { light, dark, accent } = this.palette;
+    const lineH = 5.5;
+    const padding = 5;
+    const totalH = lines.length * lineH + padding * 2;
+    this.ensureSpace(totalH + 4);
+    const boxY = this.y;
+    this.doc.setFillColor(...(opts.bg || light));
+    this.doc.roundedRect(MARGIN, boxY, CONTENT_W, totalH, 2, 2, 'F');
+    if (opts.border) {
+      this.doc.setDrawColor(...accent);
+      this.doc.setLineWidth(0.5);
+      this.doc.roundedRect(MARGIN, boxY, CONTENT_W, totalH, 2, 2, 'S');
+    }
+    this.doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+    this.doc.setFontSize(9.5);
+    this.doc.setTextColor(...dark);
+    let ly = boxY + padding + 4;
+    for (const line of lines) {
+      this.doc.text(String(line), MARGIN + padding, ly);
+      ly += lineH;
+    }
+    this.y = boxY + totalH + 6;
+  }
 }
 
-export function exportProductPDF(product) {
-  const d = product.generated_data || {};
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  let pageNum = 1;
+// ── Page Builders ─────────────────────────────────────────────────────────────
 
-  // ── COVER PAGE ──────────────────────────────────────────────
+function buildCoverPage(doc, norm, product, palette) {
+  const { accent, bg, dark, muted, light } = palette;
+
   // Full background
-  doc.setFillColor(...LIGHT_BG);
-  doc.rect(0, 0, 210, 297, 'F');
+  doc.setFillColor(...bg);
+  doc.rect(0, 0, PAGE_W, PAGE_H, 'F');
 
-  // Top accent bar
-  doc.setFillColor(...BRAND_ORANGE);
-  doc.rect(0, 0, 210, 56, 'F');
+  // Top hero block
+  doc.setFillColor(...accent);
+  doc.rect(0, 0, PAGE_W, 80, 'F');
 
   // Brand
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(...WHITE);
-  doc.text('LAUNCHORA', 14, 20);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.setTextColor(255, 200, 150);
-  doc.text('DONKOV VENTURES', 14, 26);
-
-  // Product type badge
-  doc.setFillColor(255, 255, 255, 0.25);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...WHITE);
-  doc.text(`${product.product_type}  ·  ${product.platform}`, 14, 40);
-
-  // Title
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.setTextColor(...WHITE);
-  const titleLines = doc.splitTextToSize(d.title || product.title || 'Product Report', 180);
-  doc.text(titleLines, 14, 50);
-
-  // Subtitle card
-  const subtitleY = 66 + (titleLines.length - 1) * 10;
-  doc.setFillColor(...WHITE);
-  doc.roundedRect(14, subtitleY, 182, 22, 3, 3, 'F');
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(10);
-  doc.setTextColor(...MUTED);
-  const subtitleLines = doc.splitTextToSize(d.subtitle || '', 170);
-  doc.text(subtitleLines, 23, subtitleY + 9);
-
-  // Promise section
-  const promiseY = subtitleY + 32;
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...BRAND_ORANGE);
-  doc.text('THE PROMISE', 14, promiseY);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.setTextColor(...DARK);
-  const promiseLines = doc.splitTextToSize(d.promise || '', 182);
-  doc.text(promiseLines, 14, promiseY + 6);
-
-  // Price box
-  doc.setFillColor(...BRAND_ORANGE);
-  doc.roundedRect(14, 240, 80, 28, 3, 3, 'F');
-  doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...WHITE);
-  doc.text('SUGGESTED PRICE', 22, 250);
-  doc.setFontSize(22);
-  doc.text(`$${d.price_min}–$${d.price_max}`, 22, 262);
-
-  // CTA box
-  doc.setFillColor(253, 237, 220);
-  doc.roundedRect(104, 240, 92, 28, 3, 3, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(...BRAND_ORANGE);
-  doc.text('CALL TO ACTION', 112, 250);
+  doc.text('LAUNCHORA', MARGIN, 14);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(...DARK);
-  const ctaLines = doc.splitTextToSize(d.cta || '', 78);
-  doc.text(ctaLines, 112, 258);
+  doc.setFontSize(6.5);
+  doc.setTextColor(255, 220, 180);
+  doc.text('DONKOV VENTURES', MARGIN, 20);
 
-  // Footer
+  // Type + Platform badge line
+  const badgeText = [norm.product_type, product.platform, product.niche].filter(Boolean).join('  ·  ');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 220, 180);
+  doc.text(badgeText.toUpperCase(), MARGIN, 32);
+
+  // Product Title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(24);
+  doc.setTextColor(...WHITE);
+  const titleLines = doc.splitTextToSize(norm.title || 'Untitled Product', CONTENT_W);
+  doc.text(titleLines, MARGIN, 46);
+
+  // Subtitle card
+  const cardY = 88;
+  doc.setFillColor(...WHITE);
+  doc.roundedRect(MARGIN, cardY, CONTENT_W, 22, 3, 3, 'F');
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10.5);
+  doc.setTextColor(...dark);
+  const subLines = doc.splitTextToSize(norm.subtitle || norm.promise || '', CONTENT_W - 12);
+  doc.text(subLines.slice(0, 2), MARGIN + 6, cardY + 10);
+
+  // PROMISE
+  let infoY = cardY + 30;
+  if (norm.promise) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...accent);
+    doc.text('THE PROMISE', MARGIN, infoY);
+    infoY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...dark);
+    const promLines = doc.splitTextToSize(norm.promise, CONTENT_W);
+    doc.text(promLines.slice(0, 3), MARGIN, infoY);
+    infoY += promLines.slice(0, 3).length * 5.5 + 8;
+  }
+
+  // FOR WHO
+  if (norm.targetAudience) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...accent);
+    doc.text('FOR', MARGIN, infoY);
+    infoY += 5;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(...dark);
+    const audLines = doc.splitTextToSize(norm.targetAudience, CONTENT_W);
+    doc.text(audLines.slice(0, 2), MARGIN, infoY);
+    infoY += audLines.slice(0, 2).length * 5.5 + 10;
+  }
+
+  // Price + CTA boxes at bottom
+  const boxY = 240;
+  const ma = norm.marketingAssets || {};
+  if (ma.price_min) {
+    doc.setFillColor(...accent);
+    doc.roundedRect(MARGIN, boxY, 85, 30, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(...WHITE);
+    doc.text('SUGGESTED PRICE', MARGIN + 5, boxY + 10);
+    doc.setFontSize(20);
+    doc.text(`$${ma.price_min}–$${ma.price_max}`, MARGIN + 5, boxY + 23);
+  }
+
+  if (ma.cta) {
+    doc.setFillColor(...light);
+    doc.roundedRect(PAGE_W - MARGIN - 97, boxY, 97, 30, 3, 3, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...accent);
+    doc.text('CALL TO ACTION', PAGE_W - MARGIN - 92, boxY + 10);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...dark);
+    const ctaLines = doc.splitTextToSize(ma.cta, 84);
+    doc.text(ctaLines.slice(0, 2), PAGE_W - MARGIN - 92, boxY + 19);
+  }
+
+  // Footer line
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.setTextColor(...MUTED);
-  doc.text(`Generated by Launchora · ${new Date().toLocaleDateString()}`, 14, 290);
+  doc.setTextColor(...muted);
+  doc.text(`Generated by Launchora · ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, MARGIN, PAGE_H - 8);
+}
 
-  // ── PAGE 2: PRODUCT DETAILS ───────────────────────────────
-  doc.addPage();
-  pageNum = 2;
-  addPageHeader(doc, pageNum);
+function buildIntroPage(pm, norm) {
+  pm.newPage();
+  pm.heading1('Welcome');
 
-  doc.setFillColor(...LIGHT_BG);
-  doc.rect(0, 10, 210, 287, 'F');
+  pm.body(`This is your complete digital product, created and structured to help you deliver real results to your customers.`);
+  pm.spacer(4);
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...DARK);
-  doc.text('Product Details', 14, 22);
-  let y = 30;
+  if (norm.targetAudience) {
+    pm.label('Who This Is For');
+    pm.body(norm.targetAudience);
+  }
 
-  let state = { y, pageNum };
-  state = addSection(doc, 'Target Audience', d.audience, state.y, state.pageNum);
-  state = addSection(doc, 'Format', d.format, state.y, state.pageNum);
-  state = addSection(doc, 'Selling Angle', d.selling_angle, state.y, state.pageNum);
-  state = addSection(doc, 'Buyer Profile', d.buyer_profile, state.y, state.pageNum);
-  state = addSection(doc, 'Benefits', d.benefits, state.y, state.pageNum);
+  if (norm.promise) {
+    pm.label('What You Can Expect');
+    pm.body(norm.promise);
+  }
 
-  // ── PAGE 3: PRODUCT STRUCTURE ─────────────────────────────
-  doc.addPage();
-  pageNum = state.pageNum + 1;
-  addPageHeader(doc, pageNum);
+  if (norm.problemSolved) {
+    pm.label('The Problem We Solve');
+    pm.body(norm.problemSolved);
+  }
 
-  doc.setFillColor(...LIGHT_BG);
-  doc.rect(0, 10, 210, 287, 'F');
+  if (norm.buyerProfile) {
+    pm.label('Your Buyer Profile');
+    pm.body(norm.buyerProfile);
+  }
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...DARK);
-  doc.text('Product Structure', 14, 22);
-  state = { y: 30, pageNum };
+  // Table of Contents
+  pm.spacer(6);
+  pm.heading2('Contents at a Glance');
 
-  state = addSection(doc, 'Structure', d.structure, state.y, state.pageNum);
-  state = addSection(doc, 'Content Draft', d.content_draft, state.y, state.pageNum);
+  const tocItems = norm.pages
+    .filter(b => b.type !== 'listing')
+    .map(b => b.heading || b.content?.title || b.type)
+    .filter(Boolean);
 
-  // ── PAGE 4: LISTING & MARKETING ──────────────────────────
-  doc.addPage();
-  pageNum = state.pageNum + 1;
-  addPageHeader(doc, pageNum);
+  if (tocItems.length > 0) {
+    pm.bulletList(tocItems);
+  } else if (norm.sections.length > 0) {
+    pm.bulletList(norm.sections.map(s => s.title || s.heading || ''));
+  }
+}
 
-  doc.setFillColor(...LIGHT_BG);
-  doc.rect(0, 10, 210, 287, 'F');
+function buildContentPages(pm, norm) {
+  const blocks = norm.pages.length > 0 ? norm.pages : null;
+  const sections = norm.sections.length > 0 ? norm.sections : null;
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...DARK);
-  doc.text('Listing & Marketing', 14, 22);
-  state = { y: 30, pageNum };
+  if (blocks) {
+    for (const block of blocks) {
+      const type = block.type;
+      const content = block.content || {};
 
-  state = addSection(doc, 'Listing Title', d.listing_title, state.y, state.pageNum);
-  state = addSection(doc, 'Listing Description', d.listing_description, state.y, state.pageNum);
-  state = addSection(doc, 'Keywords', d.keywords, state.y, state.pageNum);
-  state = addSection(doc, 'Visual Direction', d.visual_direction, state.y, state.pageNum);
-  state = addSection(doc, 'Cover Concept', d.cover_concept, state.y, state.pageNum);
+      // Skip listing blocks — those go in marketing, not product PDF
+      if (type === 'listing') continue;
 
-  // ── PAGE 5: PLATFORM GUIDANCE ────────────────────────────
-  const pg = d.platform_guidance || {};
-  doc.addPage();
-  pageNum = state.pageNum + 1;
-  addPageHeader(doc, pageNum);
+      pm.newPage();
 
-  doc.setFillColor(...LIGHT_BG);
-  doc.rect(0, 10, 210, 287, 'F');
+      if (type === 'cover') {
+        pm.heading1(content.title || norm.title);
+        if (content.subtitle) pm.body(content.subtitle);
+        if (content.promise) { pm.label('Promise'); pm.body(content.promise); }
+        if (content.audience) { pm.label('For'); pm.body(content.audience); }
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...DARK);
-  doc.text(`Platform Guide: ${product.platform}`, 14, 22);
-  state = { y: 30, pageNum };
+      } else if (type === 'toc') {
+        pm.heading1(block.heading || 'Table of Contents');
+        const items = content.items || [];
+        pm.bulletList(items);
 
-  state = addSection(doc, 'Why This Platform', pg.why_this_platform, state.y, state.pageNum);
-  state = addSection(doc, 'Pricing Strategy', pg.pricing_strategy, state.y, state.pageNum);
-  state = addSection(doc, 'Publishing Steps', pg.publishing_steps, state.y, state.pageNum);
-  state = addSection(doc, 'Pro Tips', pg.pro_tips, state.y, state.pageNum);
-  state = addSection(doc, 'Mistakes to Avoid', pg.mistakes_to_avoid, state.y, state.pageNum);
+      } else if (type === 'section') {
+        const title = block.heading || content.heading || 'Section';
+        pm.heading1(title);
+        pm.body(content.body || block.body || '');
 
-  // Save
-  const filename = `${(d.title || 'product').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-launchora.pdf`;
+      } else if (type === 'checklist') {
+        pm.heading1(block.heading || content.title || 'Checklist');
+        const items = content.items || [];
+        pm.checkboxList(items);
+
+      } else if (type === 'worksheet') {
+        pm.heading1(block.heading || content.title || 'Worksheet');
+        if (content.instructions) pm.body(content.instructions);
+        pm.spacer(4);
+        const questions = content.questions || [];
+        for (const q of questions) {
+          pm.label(q);
+          pm.answerLines(3);
+        }
+
+      } else if (type === 'prompt') {
+        pm.heading1(block.heading || content.title || 'Prompts');
+        if (content.intro) pm.body(content.intro);
+        pm.spacer(4);
+        const prompts = content.prompts || [];
+        for (const p of prompts) {
+          pm.label(p);
+          pm.answerLines(2);
+        }
+
+      } else if (type === 'notes') {
+        pm.heading1(block.heading || content.title || 'Notes');
+        pm.body('Use this space to capture your thoughts, ideas, and reflections.');
+        pm.spacer(6);
+        const lineCount = content.lines || 12;
+        pm.answerLines(lineCount);
+
+      } else {
+        // Generic fallback
+        const heading = block.heading || block.type || 'Section';
+        pm.heading1(heading);
+        if (content.body) pm.body(content.body);
+        else if (typeof block.body === 'string') pm.body(block.body);
+      }
+    }
+  } else if (sections) {
+    // Render plain sections
+    for (const section of sections) {
+      pm.newPage();
+      pm.heading1(section.title || section.heading || 'Section');
+      pm.body(section.body || '');
+    }
+  }
+
+  // Standalone checklist_items if no checklist block found
+  const hasChecklistBlock = blocks?.some(b => b.type === 'checklist');
+  if (!hasChecklistBlock && norm.checklistItems?.length > 0) {
+    pm.newPage();
+    pm.heading1('Key Takeaways');
+    pm.checkboxList(norm.checklistItems);
+  }
+}
+
+function buildFinalPage(pm, norm) {
+  pm.newPage();
+  pm.heading1('You\'re Ready to Go');
+
+  pm.body(`Congratulations on completing ${norm.title}. You now have everything you need to take the next step.`);
+  pm.spacer(6);
+
+  pm.label('Summary');
+  pm.body(norm.promise || norm.subtitle || `${norm.title} is your complete guide to achieving your goals.`);
+  pm.spacer(4);
+
+  pm.label('Next Steps');
+  const nextSteps = [
+    'Review everything you\'ve worked through in this product.',
+    'Identify the one action you can take in the next 24 hours.',
+    'Apply consistently — small steps create big results.',
+    'Reach out if you have questions or want support.',
+  ];
+  pm.bulletList(nextSteps);
+  pm.spacer(8);
+
+  // Closing quote box
+  const closing = norm.promise
+    ? `"${norm.promise}"`
+    : `"The best time to start was yesterday. The second best time is right now."`;
+
+  pm.infoBox(
+    pm.doc.splitTextToSize(closing, CONTENT_W - 12),
+    { border: true }
+  );
+
+  pm.spacer(6);
+  pm.body(`Thank you for choosing ${norm.title}. We wish you every success.`);
+
+  // Branding sign-off
+  pm.spacer(10);
+  pm.doc.setFont('helvetica', 'bold');
+  pm.doc.setFontSize(8);
+  pm.doc.setTextColor(...pm.palette.accent);
+  pm.doc.text('POWERED BY LAUNCHORA', MARGIN, pm.y);
+  pm.doc.setFont('helvetica', 'normal');
+  pm.doc.setFontSize(7.5);
+  pm.doc.setTextColor(...pm.palette.muted);
+  pm.doc.text('launchora.com', MARGIN, pm.y + 6);
+}
+
+// ── Main Export Function ──────────────────────────────────────────────────────
+
+export function exportProductPDF(product) {
+  const norm = normalizeProduct(product);
+  const styleKey = norm.visualStyle?.preset || product.visual_style?.preset || 'minimal';
+  const palette = PALETTE[styleKey] || PALETTE.minimal;
+
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  // ── Cover Page (no page manager — fully custom layout) ──────────────────
+  buildCoverPage(doc, norm, product, palette);
+
+  // ── Remaining pages via PageManager ────────────────────────────────────
+  const pm = new PageManager(doc, palette, norm.title);
+  pm.doc = doc; // attach doc reference to pm
+
+  buildIntroPage(pm, norm);
+  buildContentPages(pm, norm);
+  buildFinalPage(pm, norm);
+
+  // ── Save ────────────────────────────────────────────────────────────────
+  const filename = `${(norm.title || 'product').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-launchora.pdf`;
   doc.save(filename);
 }

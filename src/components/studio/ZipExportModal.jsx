@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Sparkles, Download, X, Loader2, Lock, AlertCircle, Bug } from 'lucide-react';
+import { CheckCircle2, Sparkles, Download, X, Loader2, Lock, AlertCircle, Bug, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { exportProductPDF } from '@/lib/exportPDF';
 
 const PLANS = [
   {
@@ -51,6 +52,7 @@ export default function ZipExportModal({ product, style, onClose, onExported }) 
   const [checkoutLoading, setCheckoutLoading] = useState(null);
   const [freeUsed, setFreeUsed] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  const [pdfWarning, setPdfWarning] = useState(null);
 
   // Debug state
   const [debugStatus, setDebugStatus] = useState('idle');
@@ -115,12 +117,21 @@ export default function ZipExportModal({ product, style, onClose, onExported }) 
       setDownloadResult(data);
       setDebugStatus('success');
 
-      // Trigger download automatically
+      // Trigger ZIP download automatically
       const a = document.createElement('a');
       a.href = data.fileUrl;
       a.target = '_blank';
       a.download = data.fileName || 'product_launchora.zip';
       a.click();
+
+      // Also generate the PDF client-side (graceful — won't break if it fails)
+      try {
+        exportProductPDF(product);
+        setPdfWarning(null);
+      } catch (pdfErr) {
+        console.warn('[ZipExport] PDF generation failed (non-critical):', pdfErr.message);
+        setPdfWarning('PDF could not be generated, but your ZIP downloaded successfully.');
+      }
 
       if (markFreeUsed) {
         localStorage.setItem(FREE_EXPORT_KEY, 'true');
@@ -260,22 +271,45 @@ export default function ZipExportModal({ product, style, onClose, onExported }) 
           </div>
         )}
 
-        {/* Success + manual download button */}
+        {/* Success + manual download buttons */}
         {downloadResult?.fileUrl && (
-          <div className="mx-6 mb-4 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-4 py-3 text-sm">
-            <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            <div className="flex-1">
-              <div className="font-semibold">ZIP ready!</div>
-              <div className="text-xs text-green-600">{downloadResult.fileName} · {Math.round(downloadResult.fileSize / 1024)} KB</div>
+          <div className="mx-6 mb-4 space-y-2">
+            <div className="flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 rounded-xl px-4 py-3 text-sm">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="font-semibold">Launch Kit ready! 🎉</div>
+                <div className="text-xs text-green-600">{downloadResult.fileName} · {Math.round(downloadResult.fileSize / 1024)} KB</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={downloadResult.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-green-800 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" /> ZIP
+                </a>
+                <button
+                  onClick={() => {
+                    try {
+                      exportProductPDF(product);
+                      setPdfWarning(null);
+                    } catch (e) {
+                      setPdfWarning('PDF generation failed: ' + e.message);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-orange-700 transition-colors"
+                >
+                  <FileText className="w-3.5 h-3.5" /> PDF
+                </button>
+              </div>
             </div>
-            <a
-              href={downloadResult.fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1.5 bg-green-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-green-800 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" /> Download
-            </a>
+            {pdfWarning && (
+              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-lg px-3 py-2 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {pdfWarning}
+              </div>
+            )}
           </div>
         )}
 
