@@ -73,6 +73,7 @@ function buildZip(files) {
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
+  let body = {};
 
   try {
     const user = await base44.auth.me();
@@ -80,13 +81,19 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json();
+    body = await req.json();
     const { productId } = body;
     console.log('[generateZip] productId:', productId);
 
     if (!productId) {
       return Response.json({ success: false, error: 'productId is required' }, { status: 400 });
     }
+
+    // Mark export as in-progress
+    await base44.asServiceRole.entities.Product.update(productId, {
+      export_status: 'generating',
+      export_error: null,
+    });
 
     // Fetch the product record
     const product = await base44.asServiceRole.entities.Product.get(productId);
@@ -181,10 +188,10 @@ Deno.serve(async (req) => {
 
     // Persist export metadata back to structured fields
     await base44.asServiceRole.entities.Product.update(productId, {
-      export_status: 'done',
+      export_status: 'ready',
       last_exported_at: new Date().toISOString(),
       export_error: null,
-      export_files: [{ name: fileName, url: uploadResult.file_url, type: 'zip' }],
+      export_files: [{ name: fileName, url: uploadResult.file_url, type: 'zip', generated_at: new Date().toISOString(), size: zipBytes.length }],
     });
 
     return Response.json({
@@ -195,6 +202,13 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[generateZip] error:', error.message);
+    // Mark export as failed with a readable message
+    try {
+      await base44.asServiceRole.entities.Product.update(body?.productId, {
+        export_status: 'failed',
+        export_error: error.message || 'Unknown error during ZIP generation',
+      });
+    } catch (_) { /* best-effort */ }
     return Response.json({ success: false, error: error.message, details: error.stack || '' }, { status: 500 });
   }
 });

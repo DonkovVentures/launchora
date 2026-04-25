@@ -14,6 +14,8 @@ import StylePanel from '@/components/studio/StylePanel';
 import ZipExportModal from '@/components/studio/ZipExportModal';
 import MetaEditor from '@/components/studio/MetaEditor';
 import { normalizeProduct } from '@/lib/normalizeProduct';
+import { getExportStatus, EXPORT_STATUS } from '@/lib/exportStatus';
+import ExportStatusBadge from '@/components/studio/ExportStatusBadge';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const AUTOSAVE_DELAY = 800;
@@ -122,8 +124,8 @@ export default function Studio() {
   const [saveStatus, setSaveStatus] = useState(SaveStatus.IDLE);
   const [saveError, setSaveError] = useState(null);
 
-  // Stale export warning: shown when content is edited after last export
-  const [exportIsStale, setExportIsStale] = useState(false);
+  // Export status (mirrors the entity field, kept in sync)
+  const [exportStatus, setExportStatus] = useState(EXPORT_STATUS.NOT_GENERATED);
 
   // Refs
   const autosaveTimer = useRef(null);
@@ -182,6 +184,7 @@ export default function Studio() {
         generated_data: p.generated_data || {},
       });
       setStyle(norm.visualStyle.preset || 'minimal');
+      setExportStatus(getExportStatus(p));
     }
 
     // Always update blocks (use existing blocks if we already have them, to
@@ -216,15 +219,16 @@ export default function Studio() {
 
     const payload = buildUpdatePayload(currentDraft, currentBlocks, currentStyle);
 
-    // Mark export as stale if there was a previous export and content changed
-    if (product?.last_exported_at) {
+    // Mark export as stale if there was a previous ready/stale export and content changed
+    const currentExportStatus = getExportStatus(product);
+    if (product?.last_exported_at && (currentExportStatus === EXPORT_STATUS.READY || currentExportStatus === EXPORT_STATUS.STALE)) {
       payload.export_status = 'stale';
-      setExportIsStale(true);
     }
 
     try {
       const updated = await base44.entities.Product.update(id, payload);
       setProduct(updated);
+      setExportStatus(getExportStatus(updated));
       lastSavedPayloadRef.current = payload;
       setSaveStatus(SaveStatus.SAVED);
       // Reset to idle after 2.5s
@@ -362,6 +366,7 @@ export default function Studio() {
           {product.status !== 'ready' && (
             <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full animate-pulse">Generating...</span>
           )}
+          <ExportStatusBadge status={exportStatus} short />
         </div>
 
         <div className="flex items-center gap-2">
@@ -408,7 +413,7 @@ export default function Studio() {
 
       {/* ── Stale Export Warning ── */}
       <AnimatePresence>
-        {exportIsStale && (
+        {exportStatus === EXPORT_STATUS.STALE && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -418,14 +423,29 @@ export default function Studio() {
             <div className="flex items-center gap-3 bg-amber-50 border-b border-amber-200 px-4 py-2.5 text-amber-800">
               <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-500" />
               <p className="text-xs font-medium flex-1">
-                Your product has changed since the last export. Regenerate your ZIP to include the latest edits.
+                This product was edited after the last export. Regenerate the ZIP to include the latest changes.
               </p>
               <button
-                onClick={() => setExportIsStale(false)}
-                className="text-amber-600 hover:text-amber-800 text-xs underline"
+                onClick={handleExportClick}
+                className="text-amber-700 hover:text-amber-900 text-xs font-semibold underline"
               >
-                Dismiss
+                Regenerate now
               </button>
+            </div>
+          </motion.div>
+        )}
+        {exportStatus === EXPORT_STATUS.FAILED && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-3 bg-red-50 border-b border-red-200 px-4 py-2.5 text-red-800">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0 text-red-500" />
+              <p className="text-xs font-medium flex-1">
+                Last export failed: {product?.export_error || 'Unknown error'}. Try exporting again.
+              </p>
             </div>
           </motion.div>
         )}
@@ -505,7 +525,7 @@ export default function Studio() {
             product={product}
             style={style}
             onClose={() => setShowZipModal(false)}
-            onExported={() => setExportIsStale(false)}
+            onExported={() => setExportStatus(EXPORT_STATUS.READY)}
           />
         )}
       </AnimatePresence>

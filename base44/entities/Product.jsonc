@@ -262,12 +262,14 @@
     "export_status": {
       "type": "string",
       "enum": [
-        "idle",
-        "exporting",
-        "done",
-        "error"
+        "not_generated",
+        "generating",
+        "ready",
+        "stale",
+        "failed"
       ],
-      "default": "idle"
+      "default": "not_generated",
+      "description": "Lifecycle state of the ZIP export"
     },
     "export_files": {
       "type": "array",
@@ -283,6 +285,13 @@
           },
           "type": {
             "type": "string"
+          },
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "size": {
+            "type": "number"
           }
         }
       }

@@ -10,6 +10,8 @@ import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
 import { copyListingToClipboard } from '@/lib/exportProduct';
 import { normalizeProduct } from '@/lib/normalizeProduct';
+import { getExportStatus, EXPORT_STATUS, EXPORT_STATUS_CONFIG } from '@/lib/exportStatus';
+import ExportStatusBadge from '@/components/studio/ExportStatusBadge';
 import AIContentAnalyzer from '@/components/product/AIContentAnalyzer';
 import AIABTesting from '@/components/product/AIABTesting';
 import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
@@ -153,6 +155,44 @@ export default function ProductResult() {
               </div>
             </div>
           </motion.div>
+
+          {/* ── Export Status Panel ── */}
+          {(() => {
+            const expStatus = getExportStatus(product);
+            const expCfg = EXPORT_STATUS_CONFIG[expStatus];
+            const files = product.export_files || [];
+            const isStale = expStatus === EXPORT_STATUS.STALE;
+            const hasPriorExport = files.length > 0;
+
+            if (expStatus === EXPORT_STATUS.NOT_GENERATED) return null;
+
+            return (
+              <div className={`mb-6 rounded-2xl border p-4 ${isStale ? 'bg-amber-50 border-amber-200' : expStatus === EXPORT_STATUS.FAILED ? 'bg-red-50 border-red-200' : expStatus === EXPORT_STATUS.GENERATING ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}`}>
+                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                  <ExportStatusBadge status={expStatus} />
+                  {isStale && <span className="text-xs text-amber-700 font-medium">This product was edited after the last export. Regenerate the ZIP to include the latest changes.</span>}
+                  {expStatus === EXPORT_STATUS.FAILED && <span className="text-xs text-red-700">{product.export_error || 'Export failed'}</span>}
+                </div>
+                {hasPriorExport && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {files.map((f, i) => (
+                      <a
+                        key={i}
+                        href={f.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${isStale ? 'bg-amber-200 text-amber-800 hover:bg-amber-300' : 'bg-green-600 text-white hover:bg-green-700'}`}
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        {f.name || 'Download ZIP'}
+                        {isStale && <span className="opacity-70 font-normal">(outdated)</span>}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-4">
