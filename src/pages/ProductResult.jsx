@@ -4,7 +4,7 @@ import { base44 } from '@/api/base44Client';
 import Navbar from '@/components/layout/Navbar';
 import LaunchChecklist from '@/components/product/LaunchChecklist';
 import { Button } from '@/components/ui/button';
-import { Copy, Plus, Rocket, CheckCircle2, Share2, Layers } from 'lucide-react';
+import { Copy, Plus, Rocket, CheckCircle2, Share2, Layers, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
@@ -30,6 +30,8 @@ export default function ProductResult() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [zipLoading, setZipLoading] = useState(false);
+  const [zipResult, setZipResult] = useState(null);
 
   const isGenerating = new URLSearchParams(window.location.search).get('generating') === 'true';
 
@@ -76,6 +78,21 @@ export default function ProductResult() {
   }
 
   const d = product.generated_data || {};
+
+  const testZipExport = async () => {
+    setZipLoading(true);
+    setZipResult(null);
+    console.log('[TestZIP] productId:', id);
+    try {
+      const res = await base44.functions.invoke('generateZip', { productId: id });
+      console.log('[TestZIP] response:', res);
+      setZipResult(res?.data ?? res);
+    } catch (e) {
+      console.error('[TestZIP] error:', e);
+      setZipResult({ success: false, error: e.message });
+    }
+    setZipLoading(false);
+  };
 
   const copyAllListing = async () => {
     await copyListingToClipboard(product);
@@ -189,6 +206,29 @@ export default function ProductResult() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ── ZIP TEST PANEL ── */}
+        <div className="mt-10 border border-dashed border-orange-300 bg-orange-50 rounded-2xl p-5">
+          <p className="text-xs font-semibold text-orange-700 mb-3 uppercase tracking-wide">🧪 ZIP Export Debug</p>
+          <Button size="sm" onClick={testZipExport} disabled={zipLoading} className="gradient-bg text-white font-semibold">
+            {zipLoading ? <><div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Generating...</> : <><Download className="w-3.5 h-3.5 mr-1.5" />Test ZIP Export</>}
+          </Button>
+          {zipResult && (
+            <div className="mt-3 space-y-2">
+              <pre className="bg-slate-950 text-slate-300 text-xs rounded-xl p-3 overflow-auto max-h-40 whitespace-pre-wrap">
+                {JSON.stringify(zipResult, null, 2)}
+              </pre>
+              {zipResult.fileUrl ? (
+                <a href={zipResult.fileUrl} target="_blank" rel="noreferrer"
+                   className="inline-flex items-center gap-1.5 bg-green-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors">
+                  <Download className="w-3.5 h-3.5" /> Download ZIP
+                </a>
+              ) : (
+                <p className="text-xs text-red-600 font-medium">❌ No fileUrl in response</p>
+              )}
+            </div>
+          )}
         </div>
       </main>
       <AIAssistant product={product} />
