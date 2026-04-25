@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// Inline version of buildStructuredUpdate (no local imports in functions)
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function buildStructuredUpdate(phase1, contentResult, salesResult, guideResult, productBlocks) {
   return {
     title: phase1.title,
@@ -28,14 +28,23 @@ function buildStructuredUpdate(phase1, contentResult, salesResult, guideResult, 
       cover_concept: phase1.cover_concept,
       visual_direction: phase1.visual_direction,
     },
-    generation_status: 'done',
-    generation_progress: null,
   };
 }
 
-// ── DEEP CONTENT BLUEPRINTS ────────────────────────────────────────────────
-// Each type gets a full structural prescription — AI fills it, doesn't invent it.
+async function updateProgress(base44, productId, generationStatus, progressPatch) {
+  try {
+    const product = await base44.asServiceRole.entities.Product.get(productId);
+    const current = product.generationProgress || {};
+    await base44.asServiceRole.entities.Product.update(productId, {
+      generationStatus,
+      generationProgress: { ...current, ...progressPatch },
+    });
+  } catch (e) {
+    console.error('[enrichProduct] updateProgress failed:', e.message);
+  }
+}
 
+// ── DEEP CONTENT BLUEPRINTS ────────────────────────────────────────────────
 const contentBlueprint = {
   'Workbook': `You are writing a COMPLETE, PREMIUM, SELLABLE workbook. Not a draft. Not an outline. A finished product.
 
@@ -64,24 +73,21 @@ RULES:
   'Planner': `You are writing a COMPLETE, PREMIUM, SELLABLE planner. Not a template. A finished product.
 
 REQUIRED SECTIONS — write ALL fully:
-  
-HOW TO USE: 6 clear, specific instructions for maximizing this planner's value. Real tips, not generic.
+HOW TO USE: 6 clear, specific instructions for maximizing this planner's value.
 
 MONTHLY OVERVIEW PAGE:
   • Month + Year header field
   • Monthly intention (fill-in prompt)
   • Top 3 goals for the month (labeled fields)
-  • Habit tracker grid: 5 specific habits (name them based on the niche) × 31 days
+  • Habit tracker grid: 5 specific habits × 31 days
   • Monthly focus word + why
-  • Budget snapshot (if relevant to niche)
   • End-of-month reflection: What went well, what to improve
 
 WEEKLY PLANNING PAGE (write a full template):
   • Week dates header
   • This week's #1 priority
-  • Monday–Friday columns with: Top task, 3 additional tasks, Time blocks (AM/PM/Evening), Energy level 1-5
+  • Monday–Friday columns with: Top task, 3 tasks, Time blocks, Energy level 1-5
   • Weekend section: Rest + catch-up tasks
-  • Weekly theme or intention
   • End-of-week wins (3 lines)
 
 DAILY ACTION PAGE (write a full template):
@@ -90,221 +96,80 @@ DAILY ACTION PAGE (write a full template):
   • Morning ritual checklist (5 items, niche-specific)
   • Time-blocked schedule: 6am–10pm in 1-hour blocks
   • Top 3 tasks with priority labels (A/B/C)
-  • Water tracker (8 cups)
-  • Mood check-in (morning and evening)
   • Evening reflection: Win of the day, one thing to release, tomorrow's focus
 
 HABIT TRACKER PAGE:
   • 31-day grid
   • 8 habit slots with name and daily checkbox
   • Streak counter column
-  • Monthly total column
-  • Notes section
 
-BONUS: Goal Setting Page — 90-day goal map with milestones, obstacles, and accountability prompts`,
+BONUS: Goal Setting Page — 90-day goal map with milestones and accountability prompts`,
 
   'Checklist': `You are writing a COMPLETE, PREMIUM, SELLABLE checklist pack. Finished and immediately usable.
 
 REQUIRED CHECKLISTS — write ALL 4 fully with 12-15 items each:
 
-CHECKLIST 1 — PREPARATION PHASE:
-  • Title specific to the niche task
-  • Intro: What to do before you start (1 paragraph)
-  • 12-15 specific, actionable checklist items (each starts with a strong verb)
-  • Each item should have a 1-line explanation of WHY it matters
-  • Pro tip at the bottom
-
-CHECKLIST 2 — EXECUTION PHASE:
-  • Title specific to the main activity
-  • 12-15 specific steps to follow during the activity
-  • Items grouped into 2-3 logical sub-phases
-  • Common mistake to watch for after each group
-
-CHECKLIST 3 — REVIEW & CLOSE-OUT:
-  • Title for the review/wrap-up phase
-  • 10-12 items for reviewing, documenting, and following up
-  • Quality check questions (3-4 yes/no checks)
-  • Completion confirmation prompt
-
-CHECKLIST 4 — QUICK REFERENCE CARD:
-  • Top 10 most critical reminders (ultra-condensed)
-  • Format: printable card layout
-  • Emergency "what do I do if X goes wrong" answers for top 3 scenarios
+CHECKLIST 1 — PREPARATION PHASE: 12-15 specific actionable items, each with 1-line explanation.
+CHECKLIST 2 — EXECUTION PHASE: 12-15 steps grouped into 2-3 sub-phases.
+CHECKLIST 3 — REVIEW & CLOSE-OUT: 10-12 items with quality check questions.
+CHECKLIST 4 — QUICK REFERENCE CARD: Top 10 critical reminders in printable card format.
 
 BONUS: Troubleshooting Guide — 5 common problems with step-by-step solutions`,
 
   'Tracker': `You are writing a COMPLETE, PREMIUM, SELLABLE tracker. Every page must be filled out and ready to use.
 
-REQUIRED TRACKING PAGES — write ALL fully:
+REQUIRED TRACKING PAGES:
+DAILY LOG PAGE: 6-8 specific metric fields, target vs actual columns, mood/energy, daily win.
+WEEKLY SUMMARY PAGE: 7-day totals, best day, trend indicators, consistency score.
+MONTHLY PROGRESS PAGE: Monthly totals, personal bests, milestones, month-over-month comparison.
+PROGRESS VISUALIZATION PAGE: Chart template with labeled axes specific to niche metrics.
 
-DAILY LOG PAGE:
-  • Date + Day field
-  • 6-8 specific metric fields (name them for the niche — not generic)
-  • Each metric: label, unit of measurement, target vs actual columns
-  • Notes field (for context)
-  • Mood/energy rating 1-10
-  • Daily win (1 line)
-  • One thing to improve tomorrow
-
-WEEKLY SUMMARY PAGE:
-  • Week number + date range
-  • 7-day totals table for each metric (rows = metrics, columns = days)
-  • Weekly average for each metric
-  • Best day highlight
-  • Trend indicator (up / stable / down) per metric
-  • Biggest win this week
-  • Biggest obstacle and how I handled it
-  • Consistency score (% of days on track)
-  • Next week's focus
-
-MONTHLY PROGRESS PAGE:
-  • Month + Year
-  • Monthly totals for all metrics
-  • Personal best this month (per metric)
-  • Milestone reached? (yes/no + which one)
-  • Streak record
-  • Month-over-month comparison (this month vs last)
-  • Monthly reflection: 3 wins, 1 lesson, 1 commitment for next month
-
-PROGRESS VISUALIZATION PAGE:
-  • Blank chart template with labeled axes (specific to niche metrics)
-  • Instructions for plotting the main metric over 12 weeks
-  • Trend analysis guide (how to read your progress)
-  • Space for written analysis
-
-BONUS: Habit & Streak Tracker — 90-day grid for 5 core habits with streak counter and milestone rewards`,
+BONUS: Habit & Streak Tracker — 90-day grid for 5 core habits with milestone rewards`,
 
   'Journal': `You are writing a COMPLETE, PREMIUM, SELLABLE guided journal. Every page must have real, deep prompts.
 
-REQUIRED JOURNAL SECTIONS — write ALL fully:
-
-MORNING INTENTION PAGES (write 2 full example pages):
-  • Date + Day
-  • Gratitude prompt: "Today I am grateful for... (3 specific things)"
-  • Intention: "My intention for today is..."
-  • One word to embody today:
-  • Morning energy check (1-10) + what's affecting it
-  • Today's non-negotiable:
-  • What would make today a 10/10:
-  • Morning affirmation (niche-specific, write it out)
-
-MIDDAY CHECK-IN PAGES (write 2 full example pages):
-  • Time of check-in
-  • Energy level now vs morning:
-  • Am I on track with my intention? (yes/no + reflection)
-  • What's working:
-  • What's draining me:
-  • One pivot I can make right now:
-  • Midday reset prompt (2-3 sentence guided reflection)
-  • Self-compassion reminder (niche-specific phrase)
-
-EVENING REFLECTION PAGES (write 2 full example pages):
-  • 3 wins today (small counts!): 1. 2. 3.
-  • One thing I'm releasing tonight:
-  • What I learned today:
-  • How I felt overall (1-10 + 1 word):
-  • Gratitude for a challenge:
-  • Tomorrow's one focus:
-  • Evening wind-down ritual (5 niche-specific steps)
-
-WEEKLY REFLECTION SPREAD (write 1 full example):
-  • Week in review: What went well, what was hard
-  • Consistency rating 1-10 + why
-  • Key lesson this week:
-  • One thing I want to do differently:
-  • Next week's focus word and why:
-  • Celebration prompt: "I am proud that I..."
+REQUIRED JOURNAL SECTIONS:
+MORNING INTENTION PAGES (2 full examples): Gratitude, intention, energy check, non-negotiable, affirmation.
+MIDDAY CHECK-IN PAGES (2 full examples): Energy update, on-track check, self-compassion reminder.
+EVENING REFLECTION PAGES (2 full examples): 3 wins, lessons, mood rating, tomorrow's focus.
+WEEKLY REFLECTION SPREAD (1 full example): Review, consistency rating, key lesson, celebration prompt.
 
 BONUS: Monthly Intention-Setting Page + Yearly Reflection Template`,
 
-  'Prompt Pack': `You are writing a COMPLETE, PREMIUM, SELLABLE AI prompt pack. Every prompt must be immediately usable and deeply specific.
+  'Prompt Pack': `You are writing a COMPLETE, PREMIUM, SELLABLE AI prompt pack. Every prompt must be immediately usable.
 
 REQUIRED PROMPT CATEGORIES — write ALL 3 with 7 prompts each:
+CATEGORY 1 — FOUNDATION PROMPTS: Each with USE CASE, THE PROMPT (with [VARIABLES]), EXAMPLE OUTPUT.
+CATEGORY 2 — DEEP-DIVE PROMPTS: Advanced use cases in the same format.
+CATEGORY 3 — POWER CHAIN PROMPTS: 2-3 step chains where output feeds into next step.
 
-CATEGORY 1 — FOUNDATION PROMPTS:
-  Brief intro: Who these prompts are for and when to use them (2-3 sentences)
-  7 prompts, each formatted as:
-    PROMPT TITLE: [name]
-    USE CASE: [when to use this]
-    THE PROMPT: [full, detailed, ready-to-paste prompt with [VARIABLES] clearly marked]
-    EXAMPLE OUTPUT: [2-3 sentences showing what good output looks like]
-
-CATEGORY 2 — DEEP-DIVE PROMPTS:
-  Brief intro: Advanced use cases (2-3 sentences)
-  7 prompts following the same format as above but for more complex tasks
-
-CATEGORY 3 — POWER CHAIN PROMPTS:
-  Brief intro: Multi-step prompt workflows (2-3 sentences)
-  7 prompts, each being a 2-3 step chain where output of Step 1 feeds into Step 2
-
-BONUS SECTION:
-  • 5 Fill-in-the-Blank prompt templates with [VARIABLE] placeholders
-  • Prompt Customization Guide: How to adapt any prompt for different audiences/contexts
-  • Troubleshooting Guide: What to do when prompts don't give good output (5 tips)`,
+BONUS: 5 Fill-in-the-Blank templates + Prompt Customization Guide + Troubleshooting Guide`,
 
   'Mini Ebook': `You are writing a COMPLETE, PREMIUM, SELLABLE mini ebook. Every chapter must be fully written.
 
-REQUIRED CHAPTERS — write ALL 4 fully:
+REQUIRED CHAPTERS:
+INTRODUCTION (600+ words): Hook, core problem, why solutions fail, what reader gains, author's promise.
+CHAPTER 1: THE CORE CONCEPT (800+ words): Main concept, why misunderstood, real example, key principle, action step.
+CHAPTER 2: THE FRAMEWORK (800+ words): 3-step framework with mistakes at each step, case study, action step.
+CHAPTER 3: IMPLEMENTATION (700+ words): 30-day plan, daily practice, troubleshooting top 3 obstacles.
+KEY TAKEAWAYS: 7 core lessons, next 24 hours actions, closing encouragement.
 
-INTRODUCTION (600+ words):
-  • Hook: A compelling opening story or scenario specific to the niche (2 paragraphs)
-  • The core problem this book solves (clearly stated)
-  • Why existing solutions fail (3 specific reasons)
-  • What the reader will learn and gain (bullet list, 5 items)
-  • How to use this book (3-4 instructions)
-  • Author's promise to the reader
+BONUS: Quick Reference Guide — 1-page cheat sheet`,
 
-CHAPTER 1: THE CORE CONCEPT (800+ words):
-  • Chapter title relevant to the niche
-  • Opening quote or principle
-  • Main concept explained (3-4 paragraphs, concrete and specific)
-  • Why most people misunderstand this
-  • Real example from the niche (3 paragraphs, specific scenario)
-  • Key principle box: "Remember this: [2-3 sentence core takeaway]"
-  • Chapter action step (specific, achievable)
+  'Template Pack': `You are writing a COMPLETE, PREMIUM, SELLABLE template pack. Every template must be fully built.
 
-CHAPTER 2: THE FRAMEWORK (800+ words):
-  • Framework name and overview
-  • Step 1: [Name] — 2-3 paragraphs explaining and illustrating
-  • Step 2: [Name] — 2-3 paragraphs
-  • Step 3: [Name] — 2-3 paragraphs
-  • Common mistake at each step + how to avoid it
-  • Case study: Someone applying this framework (specific, niche-relevant)
-  • Chapter action step
+REQUIRED TEMPLATES — write ALL 4, each with:
+1. NAME & PURPOSE: Who it's for, what problem it solves
+2. WHEN TO USE IT: Specific scenarios
+3. HOW TO USE IT: 5-step instructions
+4. THE COMPLETE TEMPLATE: All fields, labels, placeholder text — ready to copy-paste
+5. WORKED EXAMPLE: Template filled with realistic niche-specific data
+6. PRO CUSTOMIZATION TIPS: 3 adaptation ideas
+7. COMMON MISTAKES: 2-3 errors + how to avoid them
 
-CHAPTER 3: IMPLEMENTATION (700+ words):
-  • The 30-day jumpstart plan (week by week)
-  • Daily practice template (what to do each day)
-  • How to troubleshoot the top 3 obstacles
-  • Measuring progress: What to track and how
-  • Chapter action step
-
-KEY TAKEAWAYS & NEXT STEPS:
-  • 7 core lessons from the book (bulleted, specific)
-  • What to do in the next 24 hours (5 concrete actions)
-  • Resources and further learning
-  • Closing encouragement (1 paragraph, warm and specific)
-
-BONUS: Quick Reference Guide — 1-page cheat sheet with the framework, steps, and key reminders`,
-
-  'Template Pack': `You are writing a COMPLETE, PREMIUM, SELLABLE template pack. Every template must be fully built out and ready to use.
-
-REQUIRED TEMPLATES — write ALL 4 fully:
-
-For EACH template, include:
-  1. TEMPLATE NAME & PURPOSE: Who it's for, what problem it solves
-  2. WHEN TO USE IT: Specific scenarios and timing
-  3. HOW TO USE IT: Step-by-step instructions (5 steps)
-  4. THE COMPLETE TEMPLATE: All sections, fields, labels, and placeholder text — fully structured and ready to copy-paste
-  5. WORKED EXAMPLE: The template filled out with realistic, niche-specific data
-  6. PRO CUSTOMIZATION TIPS: 3 ways to adapt this template for different situations
-  7. COMMON MISTAKES: 2-3 errors people make with this type of template + how to avoid them
-
-Templates must serve DIFFERENT use cases within the niche — no overlap.
-Each template should be substantive: minimum 15 distinct fields or sections.`,
+Minimum 15 distinct fields per template. Templates must serve DIFFERENT use cases.`,
 };
 
-// ── NICHE LANGUAGE STYLE ──────────────────────────────────────────────────
 const nicheStyle = {
   'Productivity':  'action-oriented, efficiency-first. Use words like: systemize, batch, optimize, streamline, execute.',
   'Fitness':       'energetic, results-focused. Use words like: crush, build, track, progress, commit, recover, fuel.',
@@ -320,14 +185,12 @@ const nicheStyle = {
   'Organization':  'logical, systematic, calm. Use words like: categorize, clear, label, store, simplify, declutter.',
 };
 
-// ── BLOCK TYPE MAP ─────────────────────────────────────────────────────────
 const blockTypeMap = {
   'Planner': 'section', 'Checklist': 'checklist', 'Tracker': 'section',
   'Workbook': 'worksheet', 'Journal': 'worksheet', 'Prompt Pack': 'prompt',
   'Mini Ebook': 'section', 'Template Pack': 'section',
 };
 
-// ── PLATFORM GUIDE BLUEPRINT ───────────────────────────────────────────────
 const platformContext = {
   'Etsy':            'visual-first marketplace, craft/print audience, search-driven discovery, buyers want printables and planners',
   'Gumroad':         'creator economy platform, direct audience, buyers are professionals and learners seeking niche expertise',
@@ -336,36 +199,37 @@ const platformContext = {
   'Payhip':          'digital download store, versatile audience, good for niche communities and direct sales',
 };
 
-// ── VALIDATION HELPER ──────────────────────────────────────────────────────
 function validatePhase1(p1) {
   const required = ['title', 'subtitle', 'promise', 'audience', 'buyer_profile',
     'selling_angle', 'benefits', 'structure', 'price_min', 'price_max',
     'visual_direction', 'cover_concept', 'cta'];
-  const missing = required.filter(k => {
+  return required.filter(k => {
     const v = p1[k];
     if (!v) return true;
     if (Array.isArray(v) && v.length === 0) return true;
     if (typeof v === 'string' && v.trim() === '') return true;
     return false;
   });
-  return missing;
 }
 
+// ── Main Handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
+  let productId = null;
 
   try {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { productId, phase1: rawPhase1, formData, productAngle } = await req.json();
+    const { productId: pid, phase1: rawPhase1, formData, productAngle } = await req.json();
+    productId = pid;
+
     if (!productId || !rawPhase1 || !formData) {
       return Response.json({ error: 'Missing required params' }, { status: 400 });
     }
 
     const { productType, niche, tone, platform } = formData;
 
-    // Build angle context string for use in all prompts
     const angleContext = productAngle ? `
 PRODUCT ANGLE (enforce this in every word you write):
 - Exact Audience: ${productAngle.audience}
@@ -378,12 +242,25 @@ PRODUCT ANGLE (enforce this in every word you write):
 
 RULE: Every section, exercise, and sentence must be written for THIS specific audience and pain point. Generic content is not acceptable.
 ` : '';
+
     const blueprint = contentBlueprint[productType] || contentBlueprint['Workbook'];
     const langStyle = nicheStyle[niche] || 'practical, clear, actionable';
     const blockType = blockTypeMap[productType] || 'section';
     const platContext = platformContext[platform] || 'digital marketplace with buyers seeking professional resources';
 
-    // ── VALIDATE & PATCH phase1 if fields are missing ─────────────────────
+    // ── Init state machine ────────────────────────────────────────────────────
+    await base44.asServiceRole.entities.Product.update(productId, {
+      generationStatus: 'generating_blueprint',
+      generationProgress: {
+        blueprint: 'generating',
+        salesCopy: 'pending',
+        platformGuides: 'pending',
+        socialKit: 'pending',
+        launchPlan: 'pending',
+      },
+    });
+
+    // ── VALIDATE & PATCH phase1 ───────────────────────────────────────────────
     let phase1 = { ...rawPhase1 };
     const missingFields = validatePhase1(phase1);
     if (missingFields.length > 0) {
@@ -415,15 +292,15 @@ For benefits: array of 5 strings. For structure: array of section names. For pri
       phase1 = { ...phase1, ...patch };
     }
 
-    // Ensure price fields are valid numbers
     phase1.price_min = Number(phase1.price_min) || 17;
     phase1.price_max = Number(phase1.price_max) || 37;
 
-    // ── STAGE 1: DEEP CONTENT GENERATION ──────────────────────────────────
-    console.log(`[enrichProduct] Stage 1: deep content for ${productType} / ${niche}`);
-
-    const contentResult = await base44.integrations.Core.InvokeLLM({
-      prompt: `${blueprint}
+    // ── STAGE 1: BLUEPRINT (DEEP CONTENT) — CRITICAL ─────────────────────────
+    console.log(`[enrichProduct] Stage 1: blueprint for ${productType} / ${niche}`);
+    let contentResult;
+    try {
+      contentResult = await base44.integrations.Core.InvokeLLM({
+        prompt: `${blueprint}
 
 ═══════════════════════════════════════
 PRODUCT CONTEXT (use throughout — make every word specific to this):
@@ -444,7 +321,6 @@ ABSOLUTE RULES:
 3. Be deeply specific to "${niche}" — content must not be reusable for other niches
 4. Maintain "${tone}" tone throughout — every sentence
 5. Write as if this is the FINAL PRODUCT the customer downloads and uses immediately
-6. Include actual worksheet fields, actual prompts, actual templates — not descriptions of them
 
 Return JSON with these fields:
 {
@@ -455,24 +331,38 @@ Return JSON with these fields:
       "body": "Complete written content for this section (minimum 200 words, fully written out)"
     }
   ]
-}
-
-The sections array must follow the product structure. Write EVERY section fully.`,
-      model: 'claude_sonnet_4_6',
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          content_draft: { type: 'string' },
-          sections: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: { title: { type: 'string' }, body: { type: 'string' } }
+}`,
+        model: 'claude_sonnet_4_6',
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            content_draft: { type: 'string' },
+            sections: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { title: { type: 'string' }, body: { type: 'string' } }
+              }
             }
           }
         }
-      }
-    });
+      });
+    } catch (blueprintError) {
+      console.error('[enrichProduct] BLUEPRINT FAILED:', blueprintError.message);
+      await base44.asServiceRole.entities.Product.update(productId, {
+        generationStatus: 'generation_failed',
+        generationProgress: {
+          blueprint: 'failed',
+          salesCopy: 'pending',
+          platformGuides: 'pending',
+          socialKit: 'pending',
+          launchPlan: 'pending',
+        },
+        generation_status: 'error',
+        generation_progress: 'Blueprint generation failed. Please retry.',
+      });
+      return Response.json({ error: 'Blueprint generation failed', details: blueprintError.message }, { status: 500 });
+    }
 
     const sections = contentResult.sections || [];
     const contentDraft = contentResult.content_draft || sections.map(s => `## ${s.title}\n\n${s.body}`).join('\n\n');
@@ -495,7 +385,6 @@ The sections array must follow the product structure. Write EVERY section fully.
     }));
 
     const tocItems = sections.map(s => s.title).filter(Boolean);
-
     const productBlocks = [
       { id: '1', type: 'cover', heading: 'Cover', content: { title: phase1.title, subtitle: phase1.subtitle, promise: phase1.promise, audience: phase1.audience } },
       { id: '2', type: 'toc', heading: 'Contents', content: { items: tocItems } },
@@ -503,22 +392,39 @@ The sections array must follow the product structure. Write EVERY section fully.
       { id: String(Date.now() + 1), type: 'notes', heading: 'Notes', content: { title: 'Your Notes', lines: 12 } },
     ];
 
-    // ── SAVE after Stage 1 — user sees content immediately ────────────────
+    // ── Save after blueprint — product is usable now ──────────────────────────
     await base44.asServiceRole.entities.Product.update(productId, {
+      title: phase1.title,
+      subtitle: phase1.subtitle,
+      promise: phase1.promise,
+      target_audience: phase1.audience,
+      buyer_profile: phase1.buyer_profile,
+      checklist_items: phase1.benefits || [],
       sections,
       pages: productBlocks,
+      status: 'ready',
+      generationStatus: 'blueprint_ready',
+      generationProgress: {
+        blueprint: 'done',
+        salesCopy: 'generating',
+        platformGuides: 'generating',
+        socialKit: 'pending',
+        launchPlan: 'pending',
+      },
       generation_status: 'generating',
-      generation_progress: 'Building sales copy & platform guide...',
-      generated_data: { ...phase1, content_draft: contentDraft, product_blocks: productBlocks, _progress: 'Building sales copy & platform guide...' },
+      generation_progress: 'Blueprint ready! Building sales copy & platform guide...',
+      generated_data: { ...phase1, content_draft: contentDraft, product_blocks: productBlocks },
+      ...(productAngle ? { product_angle: productAngle } : {}),
     });
-    console.log(`[enrichProduct] Stage 1 saved — ${sections.length} sections. Starting Stage 2+3 in parallel.`);
 
-    // ── STAGES 2 + 3: RUN IN PARALLEL ─────────────────────────────────────
-    const [salesResult, guideResult] = await Promise.all([
+    console.log(`[enrichProduct] Blueprint saved — ${sections.length} sections. Starting secondary phases.`);
 
-      // STAGE 2: Sales package
-      base44.integrations.Core.InvokeLLM({
-        prompt: `You are a world-class conversion copywriter for ${platform} digital products. Write complete, ready-to-paste sales copy.
+    // ── STAGES 2 + 3: SALES COPY & PLATFORM GUIDES (parallel, non-critical) ──
+    let salesResult = {};
+    let guideResult = {};
+
+    const salesCopyPromise = base44.integrations.Core.InvokeLLM({
+      prompt: `You are a world-class conversion copywriter for ${platform} digital products. Write complete, ready-to-paste sales copy.
 
 PRODUCT: "${phase1.title}"
 TYPE: ${productType} | NICHE: ${niche} | TONE: ${tone} | PLATFORM: ${platform}
@@ -531,45 +437,36 @@ PLATFORM CONTEXT: ${platContext}
 ${angleContext}
 
 Write ALL fields. No field may be empty.
-
 LISTING TITLE (max 140 chars): Front-load the #1 buyer keyword. Include type + benefit + audience signal.
-
-LISTING DESCRIPTION (200-250 words, structured):
-Line 1: Bold hook — name the exact pain or desire
-Lines 2-4: Problem agitation — what they've tried, why it hasn't worked
-Lines 5-7: Product reveal — what this IS and DOES in concrete terms
-Lines 8-12: Benefits (5 items starting with ✓) — specific outcomes, not features
-Lines 13-15: What's included — format, size, instant download
-Lines 16-18: Social proof signal + urgency CTA
-
-KEYWORDS: 15 buyer-intent search phrases (mix of broad, mid-tail, and long-tail)
-PLATFORM CTA: Most compelling action phrase for ${platform} buyers
-SEO META DESCRIPTION (150-160 chars): Include primary keyword + benefit
+LISTING DESCRIPTION (200-250 words): Hook, problem agitation, product reveal, 5 benefits (✓), what's included, CTA.
+KEYWORDS: 15 buyer-intent search phrases.
+PLATFORM CTA: Most compelling action phrase.
+SEO META DESCRIPTION (150-160 chars): Primary keyword + benefit.
 
 Return ONLY valid JSON:
 {
   "listing_title": "...",
   "listing_description": "...",
-  "keywords": ["...", "..."],
+  "keywords": ["..."],
   "platform_cta": "...",
   "seo_meta_description": "..."
 }`,
-        model: 'gemini_3_flash',
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            listing_title: { type: 'string' },
-            listing_description: { type: 'string' },
-            keywords: { type: 'array', items: { type: 'string' } },
-            platform_cta: { type: 'string' },
-            seo_meta_description: { type: 'string' },
-          }
+      model: 'gemini_3_flash',
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          listing_title: { type: 'string' },
+          listing_description: { type: 'string' },
+          keywords: { type: 'array', items: { type: 'string' } },
+          platform_cta: { type: 'string' },
+          seo_meta_description: { type: 'string' },
         }
-      }),
+      }
+    }).then(r => { salesResult = r; return { ok: true }; })
+      .catch(e => { console.error('[enrichProduct] salesCopy failed:', e.message); return { ok: false, error: e.message }; });
 
-      // STAGE 3: Platform guide
-      base44.integrations.Core.InvokeLLM({
-        prompt: `You are an expert in selling digital products on ${platform}. Write a complete, practical launch guide.
+    const platformGuidePromise = base44.integrations.Core.InvokeLLM({
+      prompt: `You are an expert in selling digital products on ${platform}. Write a complete, practical launch guide.
 
 PRODUCT: "${phase1.title}" (${productType} for ${niche})
 PRICE: $${phase1.price_min}–$${phase1.price_max}
@@ -578,12 +475,12 @@ AUDIENCE: ${phase1.audience}
 
 Write ALL sections fully. No placeholders. Specific, actionable, platform-specific content only.
 
-WHY_THIS_PLATFORM (150 words): Why ${platform} is right for this product — buyer behavior, search habits, purchasing patterns.
-PLATFORM_AUDIENCE (100 words): Who shops on ${platform} for this — demographics, motivations, what they search.
+WHY_THIS_PLATFORM (150 words): Why ${platform} is right for this product.
+PLATFORM_AUDIENCE (100 words): Who shops on ${platform} for this.
 PRICING_STRATEGY (150 words): Launch price, evergreen price, bundle pricing, discounting strategy.
-THUMBNAIL_GUIDANCE (150 words): Exact cover/thumbnail spec — colors, text, font, imagery, platform size requirements.
-LAUNCH_PLAN (200 words): Specific 30-day launch sequence — launch day, week 1, weeks 2-4, month 2.
-PRO_TIPS: 6 specific actionable tips for this product type on ${platform}.
+THUMBNAIL_GUIDANCE (150 words): Exact cover/thumbnail spec.
+LAUNCH_PLAN (200 words): Specific 30-day launch sequence.
+PRO_TIPS: 6 specific actionable tips.
 MISTAKES_TO_AVOID: 5 specific mistakes + how to avoid each.
 
 Return ONLY valid JSON:
@@ -596,24 +493,103 @@ Return ONLY valid JSON:
   "pro_tips": ["tip 1","tip 2","tip 3","tip 4","tip 5","tip 6"],
   "mistakes_to_avoid": ["mistake 1","mistake 2","mistake 3","mistake 4","mistake 5"]
 }`,
-        model: 'gemini_3_flash',
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            why_this_platform: { type: 'string' },
-            platform_audience: { type: 'string' },
-            pricing_strategy: { type: 'string' },
-            thumbnail_guidance: { type: 'string' },
-            launch_plan: { type: 'string' },
-            pro_tips: { type: 'array', items: { type: 'string' } },
-            mistakes_to_avoid: { type: 'array', items: { type: 'string' } },
-          }
+      model: 'gemini_3_flash',
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          why_this_platform: { type: 'string' },
+          platform_audience: { type: 'string' },
+          pricing_strategy: { type: 'string' },
+          thumbnail_guidance: { type: 'string' },
+          launch_plan: { type: 'string' },
+          pro_tips: { type: 'array', items: { type: 'string' } },
+          mistakes_to_avoid: { type: 'array', items: { type: 'string' } },
         }
-      }),
+      }
+    }).then(r => { guideResult = r; return { ok: true }; })
+      .catch(e => { console.error('[enrichProduct] platformGuides failed:', e.message); return { ok: false, error: e.message }; });
 
-    ]);
+    const [salesStatus, guideStatus] = await Promise.all([salesCopyPromise, platformGuidePromise]);
 
-    // Build listing block
+    // Update progress for stages 2+3
+    const progressUpdate = {
+      salesCopy: salesStatus.ok ? 'done' : 'failed',
+      platformGuides: guideStatus.ok ? 'done' : 'failed',
+    };
+    await updateProgress(base44, productId, 'generating_assets', progressUpdate);
+
+    // ── STAGE 4+5: SOCIAL KIT & LAUNCH PLAN (parallel, non-critical) ─────────
+    await updateProgress(base44, productId, 'generating_assets', {
+      socialKit: 'generating',
+      launchPlan: 'generating',
+    });
+
+    let socialKitResult = {};
+    let launchPlanResult = {};
+
+    const socialKitPromise = base44.integrations.Core.InvokeLLM({
+      prompt: `You are a social media strategist. Create a complete social media kit for a digital product launch.
+
+PRODUCT: "${phase1.title}" (${productType} for ${niche} on ${platform})
+AUDIENCE: ${phase1.audience}
+PROMISE: ${phase1.promise}
+PRICE: $${phase1.price_min}–$${phase1.price_max}
+${angleContext}
+
+Generate:
+1. INSTAGRAM_CAPTIONS: 5 caption variations (hook + value + CTA + hashtags)
+2. CONTENT_CALENDAR: 7-day post schedule with platform, content type, and key message
+3. VIDEO_SCRIPTS: 3 short-form video scripts (30-60 seconds) with hook, body, CTA
+
+Return ONLY valid JSON:
+{
+  "instagram_captions": ["caption1", "caption2", "caption3", "caption4", "caption5"],
+  "content_calendar": [
+    {"day": 1, "platform": "Instagram", "content_type": "Reel", "message": "..."}
+  ],
+  "video_scripts": [
+    {"title": "...", "hook": "...", "body": "...", "cta": "..."}
+  ]
+}`,
+      model: 'gemini_3_flash',
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          instagram_captions: { type: 'array', items: { type: 'string' } },
+          content_calendar: { type: 'array', items: { type: 'object' } },
+          video_scripts: { type: 'array', items: { type: 'object' } },
+        }
+      }
+    }).then(r => { socialKitResult = r; return { ok: true }; })
+      .catch(e => { console.error('[enrichProduct] socialKit failed:', e.message); return { ok: false, error: e.message }; });
+
+    const launchPlanPromise = base44.integrations.Core.InvokeLLM({
+      prompt: `You are a digital product launch strategist. Create a detailed 30-day launch plan.
+
+PRODUCT: "${phase1.title}" (${productType} for ${niche} on ${platform})
+AUDIENCE: ${phase1.audience}
+PROMISE: ${phase1.promise}
+PRICE: $${phase1.price_min}–$${phase1.price_max}
+
+Write a comprehensive, week-by-week launch plan covering:
+- Pre-launch preparation (Days 1-7)
+- Launch week activities (Days 8-14)
+- Post-launch momentum (Days 15-30)
+- Key milestones and success metrics
+- Contingency strategies if sales are slow
+
+Be specific, actionable, and platform-optimized for ${platform}.`,
+      model: 'gemini_3_flash',
+      response_json_schema: {
+        type: 'object',
+        properties: { plan: { type: 'string' } }
+      }
+    }).then(r => { launchPlanResult = r; return { ok: true }; })
+      .catch(e => { console.error('[enrichProduct] launchPlan failed:', e.message); return { ok: false, error: e.message }; });
+
+    const [socialKitStatus, launchPlanStatus] = await Promise.all([socialKitPromise, launchPlanPromise]);
+
+    // ── Build listing block ───────────────────────────────────────────────────
     const listingBlock = {
       id: String(Date.now()),
       type: 'listing',
@@ -629,13 +605,23 @@ Return ONLY valid JSON:
         cta: phase1.cta,
       }
     };
-
     const finalBlocks = [...productBlocks, listingBlock];
 
-    // ── FINAL SAVE — write to both structured fields AND legacy generated_data ──
+    // ── Compute final generationStatus ───────────────────────────────────────
+    const anySecondaryFailed = !salesStatus.ok || !guideStatus.ok || !socialKitStatus.ok || !launchPlanStatus.ok;
+    const finalGenStatus = anySecondaryFailed ? 'assets_ready' : 'completed';
+
+    const finalProgress = {
+      blueprint: 'done',
+      salesCopy: salesStatus.ok ? 'done' : 'failed',
+      platformGuides: guideStatus.ok ? 'done' : 'failed',
+      socialKit: socialKitStatus.ok ? 'done' : 'failed',
+      launchPlan: launchPlanStatus.ok ? 'done' : 'failed',
+    };
+
+    // ── FINAL SAVE ────────────────────────────────────────────────────────────
     const structuredUpdate = buildStructuredUpdate(phase1, { sections, content_draft: contentDraft }, salesResult, guideResult, finalBlocks);
 
-    // Legacy flat blob kept for backwards compat
     const legacyData = {
       title: phase1.title,
       subtitle: phase1.subtitle,
@@ -667,20 +653,29 @@ Return ONLY valid JSON:
       ...structuredUpdate,
       generated_data: legacyData,
       status: 'ready',
+      generationStatus: finalGenStatus,
+      generationProgress: finalProgress,
+      generation_status: 'done',
+      generation_progress: null,
+      social_media_kit: socialKitStatus.ok ? socialKitResult : undefined,
+      launch_plan: launchPlanStatus.ok ? (launchPlanResult.plan || '') : undefined,
       ...(productAngle ? { product_angle: productAngle } : {}),
     });
 
-    console.log(`[enrichProduct] Done — product ${productId} ready. ${sections.length} sections generated.`);
-    return Response.json({ success: true });
+    console.log(`[enrichProduct] Done — product ${productId}. Status: ${finalGenStatus}. Progress:`, JSON.stringify(finalProgress));
+    return Response.json({ success: true, generationStatus: finalGenStatus, generationProgress: finalProgress });
 
   } catch (error) {
-    console.error('[enrichProduct] Error:', error.message);
+    console.error('[enrichProduct] Fatal error:', error.message);
     try {
-      const { productId } = await req.clone().json().catch(() => ({}));
       if (productId) {
-        await base44.asServiceRole.entities.Product.update(productId, { status: 'ready' });
+        await base44.asServiceRole.entities.Product.update(productId, {
+          generationStatus: 'generation_failed',
+          generation_status: 'error',
+          generation_progress: 'Generation failed. Please retry.',
+        });
       }
-    } catch {}
+    } catch (_) {}
     return Response.json({ error: error.message }, { status: 500 });
   }
 });

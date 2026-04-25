@@ -19,9 +19,9 @@ import AIAssistant from '@/components/product/AIAssistant';
 import AICoverGenerator from '@/components/product/AICoverGenerator';
 import PlatformPublishGuide from '@/components/product/PlatformPublishGuide';
 import ProductAnglePanel from '@/components/product/ProductAnglePanel';
+import GenerationProgress from '@/components/product/GenerationProgress';
 
 function getProgressLabel(product) {
-  // Prefer structured generation_progress, fall back to legacy _progress
   const progress = product.generation_progress || product.generated_data?._progress;
   const hasBlocks = (product.pages || product.generated_data?.product_blocks || []).length > 2;
   if (progress) return progress;
@@ -156,6 +156,9 @@ export default function ProductResult() {
               </div>
             </div>
           </motion.div>
+
+          {/* ── Generation Progress ── */}
+          <GenerationProgress product={product} onRetry={() => {}} />
 
           {/* ── Export Status Panel ── */}
           {(() => {

@@ -36,29 +36,50 @@
       ],
       "default": "draft"
     },
+    "product_angle": {
+      "type": "object",
+      "description": "Strategic product angle \u2014 generated before full content to ensure specificity",
+      "properties": {
+        "audience": {
+          "type": "string"
+        },
+        "painPoint": {
+          "type": "string"
+        },
+        "transformation": {
+          "type": "string"
+        },
+        "uniqueMechanism": {
+          "type": "string"
+        },
+        "emotionalHook": {
+          "type": "string"
+        },
+        "positioning": {
+          "type": "string"
+        },
+        "finalAngle": {
+          "type": "string"
+        }
+      }
+    },
     "target_audience": {
-      "type": "string",
-      "description": "Who the product is for"
+      "type": "string"
     },
     "buyer_profile": {
-      "type": "string",
-      "description": "Vivid buyer persona"
+      "type": "string"
     },
     "problem_solved": {
-      "type": "string",
-      "description": "Core problem the product addresses"
+      "type": "string"
     },
     "promise": {
-      "type": "string",
-      "description": "Transformation or outcome promised"
+      "type": "string"
     },
-    "product_angle": {
-      "type": "string",
-      "description": "Unique selling angle"
+    "product_angle_text": {
+      "type": "string"
     },
     "sections": {
       "type": "array",
-      "description": "Structured content sections",
       "items": {
         "type": "object",
         "properties": {
@@ -73,21 +94,18 @@
     },
     "pages": {
       "type": "array",
-      "description": "Visual/editable product blocks (used in Studio)",
       "items": {
         "type": "object"
       }
     },
     "checklist_items": {
       "type": "array",
-      "description": "Key benefits or launch checklist items",
       "items": {
         "type": "string"
       }
     },
     "marketing_assets": {
       "type": "object",
-      "description": "Listing title, description, keywords, CTA, SEO meta",
       "properties": {
         "listing_title": {
           "type": "string"
@@ -123,7 +141,6 @@
     },
     "platform_guides": {
       "type": "object",
-      "description": "Platform-specific launch guidance",
       "properties": {
         "why_this_platform": {
           "type": "string"
@@ -167,12 +184,10 @@
       }
     },
     "launch_plan": {
-      "type": "string",
-      "description": "30-day launch narrative"
+      "type": "string"
     },
     "social_media_kit": {
       "type": "object",
-      "description": "Generated social content",
       "properties": {
         "content_calendar": {
           "type": "array",
@@ -196,7 +211,6 @@
     },
     "visual_style": {
       "type": "object",
-      "description": "Cover concept and style direction",
       "properties": {
         "preset": {
           "type": "string"
@@ -214,7 +228,6 @@
     },
     "quality_score": {
       "type": "object",
-      "description": "AI quality analysis scores",
       "properties": {
         "clarity": {
           "type": "number"
@@ -245,6 +258,76 @@
         }
       }
     },
+    "generationStatus": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "generating_blueprint",
+        "blueprint_ready",
+        "generating_assets",
+        "assets_ready",
+        "generation_failed",
+        "completed"
+      ],
+      "default": "idle",
+      "description": "High-level state machine status for generation pipeline"
+    },
+    "generationProgress": {
+      "type": "object",
+      "description": "Per-phase generation progress for granular tracking",
+      "properties": {
+        "blueprint": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "generating",
+            "done",
+            "failed"
+          ],
+          "default": "pending"
+        },
+        "salesCopy": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "generating",
+            "done",
+            "failed"
+          ],
+          "default": "pending"
+        },
+        "platformGuides": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "generating",
+            "done",
+            "failed"
+          ],
+          "default": "pending"
+        },
+        "socialKit": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "generating",
+            "done",
+            "failed"
+          ],
+          "default": "pending"
+        },
+        "launchPlan": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "generating",
+            "done",
+            "failed"
+          ],
+          "default": "pending"
+        }
+      }
+    },
     "generation_status": {
       "type": "string",
       "enum": [
@@ -256,8 +339,7 @@
       "default": "idle"
     },
     "generation_progress": {
-      "type": "string",
-      "description": "Human-readable progress label"
+      "type": "string"
     },
     "export_status": {
       "type": "string",
@@ -268,12 +350,10 @@
         "stale",
         "failed"
       ],
-      "default": "not_generated",
-      "description": "Lifecycle state of the ZIP export"
+      "default": "not_generated"
     },
     "export_files": {
       "type": "array",
-      "description": "Generated export file URLs",
       "items": {
         "type": "object",
         "properties": {
@@ -308,8 +388,7 @@
       "format": "date-time"
     },
     "generated_data": {
-      "type": "object",
-      "description": "Legacy: Full AI-generated product output. New products use structured fields above."
+      "type": "object"
     }
   },
   "required": [
