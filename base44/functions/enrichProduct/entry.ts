@@ -358,12 +358,26 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { productId, phase1: rawPhase1, formData } = await req.json();
+    const { productId, phase1: rawPhase1, formData, productAngle } = await req.json();
     if (!productId || !rawPhase1 || !formData) {
       return Response.json({ error: 'Missing required params' }, { status: 400 });
     }
 
     const { productType, niche, tone, platform } = formData;
+
+    // Build angle context string for use in all prompts
+    const angleContext = productAngle ? `
+PRODUCT ANGLE (enforce this in every word you write):
+- Exact Audience: ${productAngle.audience}
+- Pain Point: ${productAngle.painPoint}
+- Transformation: ${productAngle.transformation}
+- Unique Mechanism: ${productAngle.uniqueMechanism}
+- Emotional Hook: ${productAngle.emotionalHook}
+- Positioning: ${productAngle.positioning}
+- Final Angle: ${productAngle.finalAngle}
+
+RULE: Every section, exercise, and sentence must be written for THIS specific audience and pain point. Generic content is not acceptable.
+` : '';
     const blueprint = contentBlueprint[productType] || contentBlueprint['Workbook'];
     const langStyle = nicheStyle[niche] || 'practical, clear, actionable';
     const blockType = blockTypeMap[productType] || 'section';
@@ -421,6 +435,7 @@ PRODUCT CONTEXT (use throughout — make every word specific to this):
 - Tone: ${tone}
 - Language style: ${langStyle}
 - Platform: ${platform}
+${angleContext}
 ═══════════════════════════════════════
 
 ABSOLUTE RULES:
@@ -513,6 +528,7 @@ SELLING ANGLE: ${phase1.selling_angle}
 BENEFITS: ${(phase1.benefits || []).join(' | ')}
 PRICE: $${phase1.price_min}–$${phase1.price_max}
 PLATFORM CONTEXT: ${platContext}
+${angleContext}
 
 Write ALL fields. No field may be empty.
 
@@ -651,6 +667,7 @@ Return ONLY valid JSON:
       ...structuredUpdate,
       generated_data: legacyData,
       status: 'ready',
+      ...(productAngle ? { product_angle: productAngle } : {}),
     });
 
     console.log(`[enrichProduct] Done — product ${productId} ready. ${sections.length} sections generated.`);

@@ -46,8 +46,59 @@ export default function Create() {
     const nicheGuide = getNicheGuide(formData.niche);
     const tone = formData.tone || getDefaultTone(formData.productType);
 
+    // ── STEP A: Product Angle (runs first — drives everything) ──────────────
+    const productAngle = await base44.integrations.Core.InvokeLLM({
+      prompt: `You are a senior digital product strategist. Before generating any product content, you must first craft a razor-sharp product angle that makes this product impossible to ignore.
+
+PRODUCT BRIEF:
+- Type: ${formData.productType}
+- Niche: ${formData.niche}
+- Tone: ${tone}
+- Core Idea: ${formData.idea}
+- Platform: ${platform}
+
+YOUR JOB: Craft a hyper-specific product angle. Be concrete, avoid generic language.
+
+BAD example: "Fitness Planner"
+GOOD example: "30-Day Low-Stress Fitness Planner for Busy Moms Who Want to Build Consistency Without Spending Hours in the Gym"
+
+Return ONLY valid JSON:
+{
+  "audience": "Exact, vivid target audience with demographic + situation context (e.g. 'Freelance designers in their first 2 years who struggle to price their work confidently')",
+  "painPoint": "The single most painful, specific problem they face right now (not generic — name the exact frustration)",
+  "transformation": "The specific before→after transformation this product delivers (measurable where possible)",
+  "uniqueMechanism": "The specific system, method, or framework that makes this product's approach unique vs. alternatives",
+  "emotionalHook": "The core emotional driver — what they're really buying (feeling of control, freedom, confidence, etc.)",
+  "positioning": "How this is positioned vs. everything else they could buy or do instead",
+  "finalAngle": "The complete, 10-15 word product angle statement that synthesizes all of the above — specific, compelling, sellable"
+}`,
+      model: 'gemini_3_flash',
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          audience: { type: 'string' },
+          painPoint: { type: 'string' },
+          transformation: { type: 'string' },
+          uniqueMechanism: { type: 'string' },
+          emotionalHook: { type: 'string' },
+          positioning: { type: 'string' },
+          finalAngle: { type: 'string' },
+        }
+      }
+    });
+
+    // ── STEP B: Full blueprint — informed by the angle ───────────────────────
     const phase1 = await base44.integrations.Core.InvokeLLM({
       prompt: `You are an elite digital product designer. Create a premium sellable digital product blueprint for ${platform}.
+
+PRODUCT ANGLE (use this to drive EVERY field — do not deviate from this angle):
+- Target Audience: ${productAngle.audience}
+- Pain Point: ${productAngle.painPoint}
+- Transformation: ${productAngle.transformation}
+- Unique Mechanism: ${productAngle.uniqueMechanism}
+- Emotional Hook: ${productAngle.emotionalHook}
+- Positioning: ${productAngle.positioning}
+- Final Angle: ${productAngle.finalAngle}
 
 PRODUCT BRIEF:
 - Type: ${formData.productType}
@@ -59,23 +110,25 @@ PRODUCT BRIEF:
 
 PREDEFINED STRUCTURE: ${structureTemplate.map((s, i) => `${i + 1}. ${s}`).join(', ')}
 
+CRITICAL: Every field must be laser-targeted to the exact audience and pain point above. Generic = rejected.
+
 Return ONLY valid JSON (every field required, no empty values):
 {
-  "title": "Specific benefit-driven title (50-70 chars)",
-  "subtitle": "[audience] + [core benefit] (max 100 chars)",
-  "promise": "Specific measurable transformation",
-  "audience": "Vivid 2-sentence buyer profile: pain + aspiration",
+  "title": "Specific benefit-driven title based on the final angle (50-70 chars)",
+  "subtitle": "[exact audience] + [core benefit/transformation] (max 100 chars)",
+  "promise": "Specific measurable transformation from the angle",
+  "audience": "${productAngle.audience}",
   "format": "Format description: page count, what's included",
   "structure": ${JSON.stringify(structureTemplate)},
-  "benefits": ["Verb-led benefit 1","Verb-led benefit 2","Verb-led benefit 3","Verb-led benefit 4","Verb-led benefit 5"],
-  "selling_angle": "Most compelling reason to buy over alternatives",
+  "benefits": ["Verb-led benefit 1 targeting pain point","Verb-led benefit 2","Verb-led benefit 3","Verb-led benefit 4","Verb-led benefit 5"],
+  "selling_angle": "${productAngle.finalAngle}",
   "price_min": 17,
   "price_max": 37,
   "price_rationale": "Pricing rationale for ${platform}",
-  "buyer_profile": "Vivid persona: who they are, why they need this NOW",
-  "cta": "Urgency-driven CTA phrase",
-  "visual_direction": "2 hex colors, typography style, mood",
-  "cover_concept": "Cover layout, text, visual elements, color placement"
+  "buyer_profile": "Vivid persona built on: ${productAngle.audience} — why they need this NOW",
+  "cta": "Urgency-driven CTA that speaks to their emotional hook: ${productAngle.emotionalHook}",
+  "visual_direction": "2 hex colors, typography style, mood matching the product angle",
+  "cover_concept": "Cover layout built around the final angle and transformation"
 }`,
       model: 'gemini_3_flash',
       response_json_schema: {
@@ -109,6 +162,7 @@ Return ONLY valid JSON (every field required, no empty values):
       tone,
       platform,
       status: 'draft',
+      product_angle: productAngle,
       generated_data: { ...phase1, product_blocks: initialBlocks },
     });
 
@@ -119,6 +173,7 @@ Return ONLY valid JSON (every field required, no empty values):
     base44.functions.invoke('enrichProduct', {
       productId: saved.id,
       phase1,
+      productAngle,
       formData: { ...formData, tone, platform },
     }).catch(() => {});
   };

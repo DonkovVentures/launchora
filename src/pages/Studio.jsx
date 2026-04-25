@@ -13,6 +13,7 @@ import ProductPreview from '@/components/studio/ProductPreview';
 import StylePanel from '@/components/studio/StylePanel';
 import ZipExportModal from '@/components/studio/ZipExportModal';
 import MetaEditor from '@/components/studio/MetaEditor';
+import AngleEditor from '@/components/studio/AngleEditor';
 import { normalizeProduct } from '@/lib/normalizeProduct';
 import { getExportStatus, EXPORT_STATUS } from '@/lib/exportStatus';
 import ExportStatusBadge from '@/components/studio/ExportStatusBadge';
@@ -114,7 +115,7 @@ export default function Studio() {
   const [blocks, setBlocks] = useState([]);
   const [style, setStyle] = useState('minimal');
   const [activeBlock, setActiveBlock] = useState(null);
-  const [activeTab, setActiveTab] = useState('blocks'); // 'blocks' | 'meta'
+  const [activeTab, setActiveTab] = useState('blocks'); // 'blocks' | 'meta' | 'angle'
   const [showPreview, setShowPreview] = useState(false);
   const [showStylePanel, setShowStylePanel] = useState(false);
   const [showZipModal, setShowZipModal] = useState(false);
@@ -180,6 +181,7 @@ export default function Studio() {
         visual_style: p.visual_style || {},
         sections: norm.sections,
         product_type: norm.product_type,
+        product_angle: p.product_angle || null,
         // Keep generated_data for backward-compat payload building
         generated_data: p.generated_data || {},
       });
@@ -218,6 +220,9 @@ export default function Studio() {
     setSaveError(null);
 
     const payload = buildUpdatePayload(currentDraft, currentBlocks, currentStyle);
+    if (currentDraft.product_angle) {
+      payload.product_angle = currentDraft.product_angle;
+    }
 
     // Mark export as stale if there was a previous ready/stale export and content changed
     const currentExportStatus = getExportStatus(product);
@@ -473,6 +478,16 @@ export default function Studio() {
         >
           <FileEdit className="w-3 h-3" /> Product Details
         </button>
+        <button
+          onClick={() => setActiveTab('angle')}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ${
+            activeTab === 'angle'
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          🎯 Product Angle
+        </button>
       </div>
 
       {/* ── Main Layout ── */}
@@ -491,7 +506,9 @@ export default function Studio() {
 
         {/* Center panel */}
         <div className="flex-1 overflow-y-auto bg-muted/30">
-          {activeTab === 'meta' ? (
+          {activeTab === 'angle' ? (
+            <AngleEditor draft={draft} onDraftChange={setDraft} product={product} />
+          ) : activeTab === 'meta' ? (
             <MetaEditor draft={draft} onDraftChange={setDraft} />
           ) : showPreview ? (
             <ProductPreview blocks={blocks} product={product} preset={preset} />

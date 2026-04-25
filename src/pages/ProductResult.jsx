@@ -18,6 +18,7 @@ import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
 import AIAssistant from '@/components/product/AIAssistant';
 import AICoverGenerator from '@/components/product/AICoverGenerator';
 import PlatformPublishGuide from '@/components/product/PlatformPublishGuide';
+import ProductAnglePanel from '@/components/product/ProductAnglePanel';
 
 function getProgressLabel(product) {
   // Prefer structured generation_progress, fall back to legacy _progress
@@ -210,6 +211,7 @@ export default function ProductResult() {
               </Link>
             </div>
             <div className="space-y-4">
+              <ProductAnglePanel productAngle={product.product_angle} />
               <div className="bg-card border border-border rounded-xl p-5 card-shadow">
                 <h3 className="font-semibold text-foreground text-sm mb-3">{t(lang, 'result_price')}</h3>
                 <div className="text-3xl font-display font-bold gradient-text mb-1">${norm.marketingAssets.price_min}–${norm.marketingAssets.price_max}</div>
