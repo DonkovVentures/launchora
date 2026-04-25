@@ -1,5 +1,38 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// Inline version of buildStructuredUpdate (no local imports in functions)
+function buildStructuredUpdate(phase1, contentResult, salesResult, guideResult, productBlocks) {
+  return {
+    title: phase1.title,
+    subtitle: phase1.subtitle,
+    promise: phase1.promise,
+    target_audience: phase1.audience,
+    buyer_profile: phase1.buyer_profile,
+    product_angle: phase1.selling_angle,
+    sections: contentResult.sections || [],
+    pages: productBlocks,
+    checklist_items: phase1.benefits || [],
+    marketing_assets: {
+      listing_title: salesResult.listing_title,
+      listing_description: salesResult.listing_description,
+      keywords: salesResult.keywords || [],
+      platform_cta: salesResult.platform_cta,
+      seo_meta_description: salesResult.seo_meta_description,
+      price_min: phase1.price_min,
+      price_max: phase1.price_max,
+      price_rationale: phase1.price_rationale,
+      cta: phase1.cta,
+    },
+    platform_guides: guideResult,
+    visual_style: {
+      cover_concept: phase1.cover_concept,
+      visual_direction: phase1.visual_direction,
+    },
+    generation_status: 'done',
+    generation_progress: null,
+  };
+}
+
 // ── DEEP CONTENT BLUEPRINTS ────────────────────────────────────────────────
 // Each type gets a full structural prescription — AI fills it, doesn't invent it.
 
@@ -457,6 +490,10 @@ The sections array must follow the product structure. Write EVERY section fully.
 
     // ── SAVE after Stage 1 — user sees content immediately ────────────────
     await base44.asServiceRole.entities.Product.update(productId, {
+      sections,
+      pages: productBlocks,
+      generation_status: 'generating',
+      generation_progress: 'Building sales copy & platform guide...',
       generated_data: { ...phase1, content_draft: contentDraft, product_blocks: productBlocks, _progress: 'Building sales copy & platform guide...' },
     });
     console.log(`[enrichProduct] Stage 1 saved — ${sections.length} sections. Starting Stage 2+3 in parallel.`);
@@ -579,9 +616,11 @@ Return ONLY valid JSON:
 
     const finalBlocks = [...productBlocks, listingBlock];
 
-    // ── FINAL SAVE — all data at top level for easy export access ──────────
-    const finalData = {
-      // From phase1 (blueprint)
+    // ── FINAL SAVE — write to both structured fields AND legacy generated_data ──
+    const structuredUpdate = buildStructuredUpdate(phase1, { sections, content_draft: contentDraft }, salesResult, guideResult, finalBlocks);
+
+    // Legacy flat blob kept for backwards compat
+    const legacyData = {
       title: phase1.title,
       subtitle: phase1.subtitle,
       promise: phase1.promise,
@@ -597,23 +636,20 @@ Return ONLY valid JSON:
       cta: phase1.cta,
       visual_direction: phase1.visual_direction,
       cover_concept: phase1.cover_concept,
-      // From stage 1 (content)
       content_draft: contentDraft,
-      // From stage 2 (sales)
       listing_title: salesResult.listing_title,
       listing_description: salesResult.listing_description,
       keywords: salesResult.keywords,
       platform_cta: salesResult.platform_cta,
       seo_meta_description: salesResult.seo_meta_description,
-      // From stage 3 (platform guide)
       platform_guidance: guideResult,
-      // Blocks
       product_blocks: finalBlocks,
       _progress: null,
     };
 
     await base44.asServiceRole.entities.Product.update(productId, {
-      generated_data: finalData,
+      ...structuredUpdate,
+      generated_data: legacyData,
       status: 'ready',
     });
 

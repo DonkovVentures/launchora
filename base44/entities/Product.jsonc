@@ -14,10 +14,14 @@
     "niche": {
       "type": "string"
     },
-    "idea_description": {
+    "tone": {
       "type": "string"
     },
-    "tone": {
+    "language": {
+      "type": "string",
+      "default": "en"
+    },
+    "idea_description": {
       "type": "string"
     },
     "platform": {
@@ -32,9 +36,271 @@
       ],
       "default": "draft"
     },
+    "target_audience": {
+      "type": "string",
+      "description": "Who the product is for"
+    },
+    "buyer_profile": {
+      "type": "string",
+      "description": "Vivid buyer persona"
+    },
+    "problem_solved": {
+      "type": "string",
+      "description": "Core problem the product addresses"
+    },
+    "promise": {
+      "type": "string",
+      "description": "Transformation or outcome promised"
+    },
+    "product_angle": {
+      "type": "string",
+      "description": "Unique selling angle"
+    },
+    "sections": {
+      "type": "array",
+      "description": "Structured content sections",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "pages": {
+      "type": "array",
+      "description": "Visual/editable product blocks (used in Studio)",
+      "items": {
+        "type": "object"
+      }
+    },
+    "checklist_items": {
+      "type": "array",
+      "description": "Key benefits or launch checklist items",
+      "items": {
+        "type": "string"
+      }
+    },
+    "marketing_assets": {
+      "type": "object",
+      "description": "Listing title, description, keywords, CTA, SEO meta",
+      "properties": {
+        "listing_title": {
+          "type": "string"
+        },
+        "listing_description": {
+          "type": "string"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "platform_cta": {
+          "type": "string"
+        },
+        "seo_meta_description": {
+          "type": "string"
+        },
+        "price_min": {
+          "type": "number"
+        },
+        "price_max": {
+          "type": "number"
+        },
+        "price_rationale": {
+          "type": "string"
+        },
+        "cta": {
+          "type": "string"
+        }
+      }
+    },
+    "platform_guides": {
+      "type": "object",
+      "description": "Platform-specific launch guidance",
+      "properties": {
+        "why_this_platform": {
+          "type": "string"
+        },
+        "platform_audience": {
+          "type": "string"
+        },
+        "pricing_strategy": {
+          "type": "string"
+        },
+        "thumbnail_guidance": {
+          "type": "string"
+        },
+        "launch_plan": {
+          "type": "string"
+        },
+        "pro_tips": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mistakes_to_avoid": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "best_title": {
+          "type": "string"
+        },
+        "best_description": {
+          "type": "string"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "launch_plan": {
+      "type": "string",
+      "description": "30-day launch narrative"
+    },
+    "social_media_kit": {
+      "type": "object",
+      "description": "Generated social content",
+      "properties": {
+        "content_calendar": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "instagram_captions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "video_scripts": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "visual_style": {
+      "type": "object",
+      "description": "Cover concept and style direction",
+      "properties": {
+        "preset": {
+          "type": "string"
+        },
+        "cover_concept": {
+          "type": "string"
+        },
+        "visual_direction": {
+          "type": "string"
+        },
+        "cover_image_url": {
+          "type": "string"
+        }
+      }
+    },
+    "quality_score": {
+      "type": "object",
+      "description": "AI quality analysis scores",
+      "properties": {
+        "clarity": {
+          "type": "number"
+        },
+        "engagement": {
+          "type": "number"
+        },
+        "market_fit": {
+          "type": "number"
+        },
+        "overall": {
+          "type": "number"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "strengths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "improvements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "generation_status": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "generating",
+        "done",
+        "error"
+      ],
+      "default": "idle"
+    },
+    "generation_progress": {
+      "type": "string",
+      "description": "Human-readable progress label"
+    },
+    "export_status": {
+      "type": "string",
+      "enum": [
+        "idle",
+        "exporting",
+        "done",
+        "error"
+      ],
+      "default": "idle"
+    },
+    "export_files": {
+      "type": "array",
+      "description": "Generated export file URLs",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "last_exported_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "export_error": {
+      "type": "string"
+    },
+    "last_edited_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "generated_data": {
       "type": "object",
-      "description": "Full AI-generated product output"
+      "description": "Legacy: Full AI-generated product output. New products use structured fields above."
     }
   },
   "required": [

@@ -9,6 +9,7 @@ import BlockEditor from '@/components/studio/BlockEditor';
 import ProductPreview from '@/components/studio/ProductPreview';
 import StylePanel from '@/components/studio/StylePanel';
 import ZipExportModal from '@/components/studio/ZipExportModal';
+import { normalizeProduct } from '@/lib/normalizeProduct';
 
 const STYLE_PRESETS = {
   minimal: { bg: '#ffffff', text: '#1a1a1a', accent: '#ea580c', font: 'sans', heading: '#111111' },
@@ -40,13 +41,14 @@ export default function Studio() {
       const p = (results || []).find(r => r.id === id);
       if (p) {
         setProduct(p);
-        const existingBlocks = p.generated_data?.product_blocks;
-        if (existingBlocks && existingBlocks.length > 0) {
-          setBlocks(existingBlocks);
+        const norm = normalizeProduct(p);
+        // pages comes from structured product.pages or legacy product_blocks
+        if (norm.pages.length > 0) {
+          setBlocks(norm.pages);
         } else {
           setBlocks(buildBlocksFromData(p));
         }
-        if (p.generated_data?.style_preset) setStyle(p.generated_data.style_preset);
+        setStyle(norm.visualStyle.preset || 'minimal');
       }
       setLoading(false);
     });
@@ -70,12 +72,19 @@ export default function Studio() {
   const saveBlocks = async (newBlocks, newStyle) => {
     setSaving(true);
     setSaved(false);
-    const updatedData = {
-      ...product.generated_data,
-      product_blocks: newBlocks || blocks,
-      style_preset: newStyle || style,
-    };
-    await base44.entities.Product.update(id, { generated_data: updatedData });
+    const bToSave = newBlocks || blocks;
+    const sToSave = newStyle || style;
+    // Write to both structured fields and legacy generated_data
+    await base44.entities.Product.update(id, {
+      pages: bToSave,
+      visual_style: { ...((product.visual_style) || {}), preset: sToSave },
+      last_edited_at: new Date().toISOString(),
+      generated_data: {
+        ...product.generated_data,
+        product_blocks: bToSave,
+        style_preset: sToSave,
+      },
+    });
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
 import { copyListingToClipboard } from '@/lib/exportProduct';
+import { normalizeProduct } from '@/lib/normalizeProduct';
 import AIContentAnalyzer from '@/components/product/AIContentAnalyzer';
 import AIABTesting from '@/components/product/AIABTesting';
 import AIBundleSuggestions from '@/components/product/AIBundleSuggestions';
@@ -17,8 +18,9 @@ import AICoverGenerator from '@/components/product/AICoverGenerator';
 import PlatformPublishGuide from '@/components/product/PlatformPublishGuide';
 
 function getProgressLabel(product) {
-  const progress = product.generated_data?._progress;
-  const hasBlocks = (product.generated_data?.product_blocks || []).length > 2;
+  // Prefer structured generation_progress, fall back to legacy _progress
+  const progress = product.generation_progress || product.generated_data?._progress;
+  const hasBlocks = (product.pages || product.generated_data?.product_blocks || []).length > 2;
   if (progress) return progress;
   if (hasBlocks) return 'Building sales copy & platform guide...';
   return 'Generating product content...';
@@ -77,6 +79,7 @@ export default function ProductResult() {
     );
   }
 
+  const norm = normalizeProduct(product);
   const d = product.generated_data || {};
 
   const testZipExport = async () => {
@@ -170,16 +173,16 @@ export default function ProductResult() {
             <div className="space-y-4">
               <div className="bg-card border border-border rounded-xl p-5 card-shadow">
                 <h3 className="font-semibold text-foreground text-sm mb-3">{t(lang, 'result_price')}</h3>
-                <div className="text-3xl font-display font-bold gradient-text mb-1">${d.price_min}–${d.price_max}</div>
-                <p className="text-xs text-muted-foreground">{d.price_rationale}</p>
+                <div className="text-3xl font-display font-bold gradient-text mb-1">${norm.marketingAssets.price_min}–${norm.marketingAssets.price_max}</div>
+                <p className="text-xs text-muted-foreground">{norm.marketingAssets.price_rationale}</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-5 card-shadow">
                 <h3 className="font-semibold text-foreground text-sm mb-2">{t(lang, 'result_buyer')}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{d.buyer_profile}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{norm.buyerProfile}</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-5 card-shadow">
                 <h3 className="font-semibold text-foreground text-sm mb-2">{t(lang, 'result_cta_label')}</h3>
-                <p className="text-sm font-semibold text-primary">{d.cta}</p>
+                <p className="text-sm font-semibold text-primary">{norm.marketingAssets.cta}</p>
               </div>
               <PlatformPublishGuide platform={product.platform} />
               <AICoverGenerator product={product} />

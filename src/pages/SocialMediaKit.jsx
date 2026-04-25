@@ -7,6 +7,7 @@ import InstagramCaptions from '@/components/social/InstagramCaptions';
 import VideoScripts from '@/components/social/VideoScripts';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Share2 } from 'lucide-react';
+import { normalizeProduct } from '@/lib/normalizeProduct';
 import { motion } from 'framer-motion';
 
 const TABS = [
@@ -49,6 +50,7 @@ export default function SocialMediaKit() {
     );
   }
 
+  const norm = normalizeProduct(product);
   const d = product.generated_data || {};
 
   return (
@@ -68,7 +70,7 @@ export default function SocialMediaKit() {
               </div>
               <div>
                 <h1 className="font-display text-2xl font-bold text-foreground">Social Media Kit</h1>
-                <p className="text-sm text-muted-foreground">{d.title || product.title}</p>
+                <p className="text-sm text-muted-foreground">{norm.title}</p>
               </div>
             </div>
           </motion.div>

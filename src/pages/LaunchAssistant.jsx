@@ -7,6 +7,7 @@ import { Copy, Check, ArrowLeft, AlertTriangle, Rocket, CheckSquare, Square } fr
 import { motion } from 'framer-motion';
 import { useLang } from '@/lib/LanguageContext';
 import { t } from '@/lib/i18n';
+import { normalizeProduct } from '@/lib/normalizeProduct';
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false);
@@ -63,8 +64,10 @@ export default function LaunchAssistant() {
     </div>
   );
 
+  const norm = normalizeProduct(product);
   const d = product.generated_data || {};
-  const pg = d.platform_guidance || {};
+  const pg = norm.platformGuides;
+  const ma = norm.marketingAssets;
   const toggle = (i) => setChecked(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i]);
   const launchItems = t(lang, 'checklist_items');
 
@@ -100,41 +103,41 @@ export default function LaunchAssistant() {
             <Section title={t(lang, 'launch_who')}>
               <p className="text-sm text-muted-foreground leading-relaxed">{pg.platform_audience}</p>
             </Section>
-            <Section title={t(lang, 'launch_best_title', { platform: product.platform })} action={<CopyButton text={pg.best_title || d.listing_title} />}>
+            <Section title={t(lang, 'launch_best_title', { platform: product.platform })} action={<CopyButton text={pg.best_title} />}>
               <div className="bg-muted/50 rounded-lg p-4">
-                <p className="font-semibold text-foreground text-sm">{pg.best_title || d.listing_title}</p>
+                <p className="font-semibold text-foreground text-sm">{pg.best_title}</p>
               </div>
             </Section>
-            <Section title={t(lang, 'launch_best_desc', { platform: product.platform })} action={<CopyButton text={pg.best_description || d.listing_description} />}>
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{pg.best_description || d.listing_description}</p>
+            <Section title={t(lang, 'launch_best_desc', { platform: product.platform })} action={<CopyButton text={pg.best_description} />}>
+              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{pg.best_description}</p>
             </Section>
             <Section title={t(lang, 'launch_pricing')}>
-              <div className="text-3xl font-display font-bold gradient-text mb-3">${d.price_min}–${d.price_max}</div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{pg.pricing_strategy || d.price_rationale}</p>
+              <div className="text-3xl font-display font-bold gradient-text mb-3">${ma.price_min}–${ma.price_max}</div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{pg.pricing_strategy}</p>
             </Section>
             <Section title={t(lang, 'launch_tags')}>
               <div className="flex flex-wrap gap-2">
-                {(pg.tags?.length ? pg.tags : d.keywords || []).map((tag, i) => (
+                {(pg.tags || []).map((tag, i) => (
                   <span key={i} className="bg-secondary text-secondary-foreground text-xs px-3 py-1.5 rounded-full font-medium">{tag}</span>
                 ))}
               </div>
             </Section>
             <Section title={t(lang, 'launch_thumbnail')}>
-              <p className="text-sm text-muted-foreground leading-relaxed">{pg.thumbnail_guidance || d.cover_concept}</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">{pg.thumbnail_guidance}</p>
             </Section>
             {pg.launch_plan && (
               <Section title={t(lang, 'launch_steps_title', { platform: product.platform })}>
                 <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{pg.launch_plan}</p>
               </Section>
             )}
-            {pg.pro_tips?.length > 0 && (
+            {(pg.pro_tips || []).length > 0 && (
               <Section title={t(lang, 'launch_pro_tips')}>
                 <ul className="space-y-2.5">
                   {pg.pro_tips.map((tip, i) => <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground"><span className="text-primary">✦</span> {tip}</li>)}
                 </ul>
               </Section>
             )}
-            {pg.mistakes_to_avoid?.length > 0 && (
+            {(pg.mistakes_to_avoid || []).length > 0 && (
               <Section title={t(lang, 'launch_mistakes')}>
                 <ul className="space-y-2.5">
                   {pg.mistakes_to_avoid.map((m, i) => (
