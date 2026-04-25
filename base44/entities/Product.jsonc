@@ -328,6 +328,123 @@
         }
       }
     },
+    "generationTimings": {
+      "type": "object",
+      "description": "Per-step timestamps and durations for performance debugging",
+      "properties": {
+        "enrichStartedAt": {
+          "type": "string"
+        },
+        "blueprintStartedAt": {
+          "type": "string"
+        },
+        "blueprintFinishedAt": {
+          "type": "string"
+        },
+        "blueprintDurationMs": {
+          "type": "number"
+        },
+        "salesCopyStartedAt": {
+          "type": "string"
+        },
+        "salesCopyFinishedAt": {
+          "type": "string"
+        },
+        "salesCopyDurationMs": {
+          "type": "number"
+        },
+        "platformGuidesStartedAt": {
+          "type": "string"
+        },
+        "platformGuidesFinishedAt": {
+          "type": "string"
+        },
+        "platformGuidesDurationMs": {
+          "type": "number"
+        },
+        "socialKitStartedAt": {
+          "type": "string"
+        },
+        "socialKitFinishedAt": {
+          "type": "string"
+        },
+        "socialKitDurationMs": {
+          "type": "number"
+        },
+        "launchPlanStartedAt": {
+          "type": "string"
+        },
+        "launchPlanFinishedAt": {
+          "type": "string"
+        },
+        "launchPlanDurationMs": {
+          "type": "number"
+        },
+        "enrichFinishedAt": {
+          "type": "string"
+        },
+        "totalDurationMs": {
+          "type": "number"
+        },
+        "slowestStep": {
+          "type": "string"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "exportTimings": {
+      "type": "object",
+      "description": "Per-step timestamps and durations for ZIP export performance debugging",
+      "properties": {
+        "exportStartedAt": {
+          "type": "string"
+        },
+        "productFetchedAt": {
+          "type": "string"
+        },
+        "productFetchDurationMs": {
+          "type": "number"
+        },
+        "zipStartedAt": {
+          "type": "string"
+        },
+        "zipFinishedAt": {
+          "type": "string"
+        },
+        "zipBuildDurationMs": {
+          "type": "number"
+        },
+        "uploadStartedAt": {
+          "type": "string"
+        },
+        "uploadFinishedAt": {
+          "type": "string"
+        },
+        "uploadDurationMs": {
+          "type": "number"
+        },
+        "exportFinishedAt": {
+          "type": "string"
+        },
+        "totalDurationMs": {
+          "type": "number"
+        },
+        "slowestStep": {
+          "type": "string"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
     "generation_status": {
       "type": "string",
       "enum": [

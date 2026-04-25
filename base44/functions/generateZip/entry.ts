@@ -1102,6 +1102,8 @@ FOR: ${targetAudience || 'Your target audience'}
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   let productId = null;
+  const exportStart = Date.now();
+  const exportTimings = { exportStartedAt: new Date().toISOString(), errors: [] };
 
   try {
     const user = await base44.auth.me();
@@ -1113,7 +1115,7 @@ Deno.serve(async (req) => {
     productId = body.productId;
     const stylePreset = body.stylePreset || 'minimal';
 
-    console.log('[generateZip] productId:', productId, '| stylePreset:', stylePreset);
+    console.log('[generateZip] ▶ START productId:', productId, '| stylePreset:', stylePreset);
 
     if (!productId) {
       return Response.json({ success: false, error: 'productId is required' }, { status: 400 });
@@ -1123,12 +1125,18 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.Product.update(productId, {
       export_status: 'generating',
       export_error: null,
+      exportTimings,
     });
 
     // Fetch the product record
+    const fetchStart = Date.now();
     const product = await base44.asServiceRole.entities.Product.get(productId);
+    exportTimings.productFetchedAt = new Date().toISOString();
+    exportTimings.productFetchDurationMs = Date.now() - fetchStart;
+    console.log(`[generateZip] ⏱ product fetch: ${exportTimings.productFetchDurationMs}ms`);
+
     if (!product) {
-      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: 'Product not found' });
+      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: 'Product not found', exportTimings });
       return Response.json({ success: false, error: 'Product not found' }, { status: 404 });
     }
 
@@ -1159,7 +1167,7 @@ Deno.serve(async (req) => {
 
     if (validationErrors.length > 0) {
       const errMsg = 'Product content validation failed: ' + validationErrors.join('; ');
-      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: errMsg });
+      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: errMsg, exportTimings });
       return Response.json({ success: false, error: errMsg }, { status: 422 });
     }
 
@@ -1180,7 +1188,12 @@ Deno.serve(async (req) => {
 
     console.log('[generateZip] Building ZIP with', sections.length, 'sections,', keywords.length, 'keywords');
 
-    // ── Assemble all files ──────────────────────────────────────────────────
+    // ── Assemble all files (pure CPU — should be <100ms) ───────────────────
+    // ✅ No PDF generation here — PDF is client-side only (exportProductPDF).
+    // ✅ ZIP export does NOT auto-run during generation — only on explicit user click.
+    const zipBuildStart = Date.now();
+    exportTimings.zipStartedAt = new Date().toISOString();
+
     const files = [
       // 01_Product
       { name: '01_Product/Product.txt',         data: buildProductTxt(product, vars) },
@@ -1214,24 +1227,46 @@ Deno.serve(async (req) => {
       { name: 'README.txt', data: buildReadme(product, vars) },
     ];
 
-    // ── Build ZIP ───────────────────────────────────────────────────────────
     const zipBytes = buildZip(files);
-    console.log('[generateZip] ZIP built — files:', files.length, '| size:', zipBytes.length, 'bytes');
+    exportTimings.zipFinishedAt = new Date().toISOString();
+    exportTimings.zipBuildDurationMs = Date.now() - zipBuildStart;
+    console.log(`[generateZip] ⏱ ZIP build: ${exportTimings.zipBuildDurationMs}ms | files: ${files.length} | size: ${zipBytes.length} bytes`);
 
     if (!zipBytes || zipBytes.length < 100) {
       throw new Error('ZIP generation produced an invalid or empty file');
     }
 
-    // ── Upload ──────────────────────────────────────────────────────────────
+    // ── Upload (main bottleneck for export — depends on file size + network) ─
+    // ⚠️ Upload is typically 1-5s but can spike to 15s+ for large products.
+    const uploadStart = Date.now();
+    exportTimings.uploadStartedAt = new Date().toISOString();
     const safeTitle = title.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
     const fileName = `${safeTitle}_launch_kit.zip`;
 
     const zipFile = new File([zipBytes], fileName, { type: 'application/zip' });
     const uploadResult = await base44.integrations.Core.UploadFile({ file: zipFile });
-    console.log('[generateZip] upload result:', JSON.stringify(uploadResult));
+    exportTimings.uploadFinishedAt = new Date().toISOString();
+    exportTimings.uploadDurationMs = Date.now() - uploadStart;
+    console.log(`[generateZip] ⏱ upload: ${exportTimings.uploadDurationMs}ms | result:`, JSON.stringify(uploadResult));
 
     if (!uploadResult?.file_url) {
       throw new Error('File uploaded but no download URL returned: ' + JSON.stringify(uploadResult));
+    }
+
+    // ── Finalise timings ────────────────────────────────────────────────────
+    exportTimings.exportFinishedAt = new Date().toISOString();
+    exportTimings.totalDurationMs = Date.now() - exportStart;
+    const stepDurations = {
+      productFetch: exportTimings.productFetchDurationMs,
+      zipBuild: exportTimings.zipBuildDurationMs,
+      upload: exportTimings.uploadDurationMs,
+    };
+    exportTimings.slowestStep = Object.entries(stepDurations).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
+    console.log(`[generateZip] ⏱ SUMMARY — total: ${exportTimings.totalDurationMs}ms | slowest: ${exportTimings.slowestStep}`);
+    console.log(`[generateZip] Step durations:`, JSON.stringify(stepDurations));
+
+    if (exportTimings.totalDurationMs > 45000) {
+      console.warn(`[generateZip] ⚠️ Export took >45s (${exportTimings.totalDurationMs}ms). Likely bottleneck: ${exportTimings.slowestStep}`);
     }
 
     // ── Persist export metadata ─────────────────────────────────────────────
@@ -1240,6 +1275,7 @@ Deno.serve(async (req) => {
       export_status: 'ready',
       last_exported_at: now,
       export_error: null,
+      exportTimings,
       export_files: [{
         name: fileName,
         url: uploadResult.file_url,
@@ -1249,7 +1285,7 @@ Deno.serve(async (req) => {
       }],
     });
 
-    console.log('[generateZip] Done ✓ fileUrl:', uploadResult.file_url);
+    console.log('[generateZip] ✅ Done fileUrl:', uploadResult.file_url);
 
     return Response.json({
       success: true,
@@ -1257,15 +1293,19 @@ Deno.serve(async (req) => {
       fileName,
       fileSize: zipBytes.length,
       generatedAt: now,
+      timings: { totalDurationMs: exportTimings.totalDurationMs, slowestStep: exportTimings.slowestStep, stepDurations },
     });
 
   } catch (error) {
-    console.error('[generateZip] Fatal error:', error.message, error.stack);
+    console.error('[generateZip] ❌ Fatal error:', error.message, error.stack);
+    exportTimings.errors.push({ error: error.message, at: new Date().toISOString() });
+    exportTimings.totalDurationMs = Date.now() - exportStart;
     try {
       if (productId) {
         await base44.asServiceRole.entities.Product.update(productId, {
           export_status: 'failed',
           export_error: error.message || 'Unknown error during ZIP generation',
+          exportTimings,
         });
       }
     } catch (_) { /* best-effort */ }

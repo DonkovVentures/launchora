@@ -40,6 +40,8 @@ export default function Create() {
 
   const handleGenerate = async () => {
     setLoading(true);
+    const createClickedAt = Date.now();
+    console.log(`[Create] ▶ Generate clicked at ${new Date().toISOString()}`);
 
     const platform = getDefaultPlatform(formData.productType);
     const structureTemplate = getStructureTemplate(formData.productType);
@@ -47,6 +49,9 @@ export default function Create() {
     const tone = formData.tone || getDefaultTone(formData.productType);
 
     // ── STEP A: Product Angle (runs first — drives everything) ──────────────
+    // ⚠️ Sequential: productAngle blocks blueprint start. Both use gemini_3_flash (~3-8s each).
+    const angleStart = Date.now();
+    console.log(`[Create] productAngle started (${Date.now() - createClickedAt}ms since click)`);
     const productAngle = await base44.integrations.Core.InvokeLLM({
       prompt: `You are a senior digital product strategist. Before generating any product content, you must first craft a razor-sharp product angle that makes this product impossible to ignore.
 
@@ -87,7 +92,12 @@ Return ONLY valid JSON:
       }
     });
 
+    console.log(`[Create] ⏱ productAngle finished: ${Date.now() - angleStart}ms`);
+
     // ── STEP B: Full blueprint — informed by the angle ───────────────────────
+    // ⚠️ Sequential: phase1 waits for productAngle. Uses gemini_3_flash (~3-8s).
+    const blueprintStart = Date.now();
+    console.log(`[Create] phase1 blueprint started (${Date.now() - createClickedAt}ms since click)`);
     const phase1 = await base44.integrations.Core.InvokeLLM({
       prompt: `You are an elite digital product designer. Create a premium sellable digital product blueprint for ${platform}.
 
@@ -146,6 +156,8 @@ Return ONLY valid JSON (every field required, no empty values):
       }
     });
 
+    console.log(`[Create] ⏱ phase1 blueprint finished: ${Date.now() - blueprintStart}ms`);
+
     const productTitle = (phase1.title || formData.idea || 'Untitled Product').toString().trim().slice(0, 150) || 'Untitled Product';
 
     const initialBlocks = [
@@ -153,6 +165,8 @@ Return ONLY valid JSON (every field required, no empty values):
       { id: '2', type: 'toc', heading: 'Contents', content: { items: structureTemplate.map(s => s.split(' — ')[0]) } },
     ];
 
+    const dbSaveStart = Date.now();
+    console.log(`[Create] product create started (${Date.now() - createClickedAt}ms since click)`);
     const saved = await base44.entities.Product.create({
       title: productTitle,
       subtitle: phase1.subtitle,
@@ -166,7 +180,10 @@ Return ONLY valid JSON (every field required, no empty values):
       generated_data: { ...phase1, product_blocks: initialBlocks },
     });
 
+    console.log(`[Create] ⏱ product saved: ${Date.now() - dbSaveStart}ms | productId=${saved.id}`);
+    console.log(`[Create] ⏱ TOTAL frontend time before redirect: ${Date.now() - createClickedAt}ms`);
     setLoading(false);
+    console.log(`[Create] redirecting to ProductResult at ${new Date().toISOString()}`);
     navigate(`/product/${saved.id}?generating=true`);
 
     // Phases 2-3 run server-side via backend function

@@ -1,5 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// ── Timing helpers ────────────────────────────────────────────────────────────
+function now() { return Date.now(); }
+function elapsed(startMs) { return Date.now() - startMs; }
+function logStep(label, durationMs) {
+  console.log(`[enrichProduct] ⏱ ${label}: ${durationMs}ms`);
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function buildStructuredUpdate(phase1, contentResult, salesResult, guideResult, productBlocks) {
   return {
@@ -31,17 +38,35 @@ function buildStructuredUpdate(phase1, contentResult, salesResult, guideResult, 
   };
 }
 
-async function updateProgress(base44, productId, generationStatus, progressPatch) {
+// Optimised: patch only what changed — no GET before every update
+async function updateProgress(base44, productId, generationStatus, progressPatch, existingProgress) {
   try {
-    const product = await base44.asServiceRole.entities.Product.get(productId);
-    const current = product.generationProgress || {};
+    const merged = { ...(existingProgress || {}), ...progressPatch };
     await base44.asServiceRole.entities.Product.update(productId, {
       generationStatus,
-      generationProgress: { ...current, ...progressPatch },
+      generationProgress: merged,
     });
+    return merged;
   } catch (e) {
     console.error('[enrichProduct] updateProgress failed:', e.message);
+    return existingProgress || {};
   }
+}
+
+// Timeout wrapper — resolves with { ok, result } or { ok: false, timedOut: true }
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`TIMEOUT after ${ms}ms: ${label}`)), ms);
+  });
+  return Promise.race([promise, timeout])
+    .then(r => { clearTimeout(timer); return { ok: true, result: r }; })
+    .catch(e => {
+      clearTimeout(timer);
+      const timedOut = e.message?.startsWith('TIMEOUT');
+      console.warn(`[enrichProduct] ${timedOut ? '⏰ TIMEOUT' : '❌ ERROR'} — ${label}: ${e.message}`);
+      return { ok: false, timedOut, error: e.message };
+    });
 }
 
 // ── DEEP CONTENT BLUEPRINTS ────────────────────────────────────────────────
@@ -212,10 +237,17 @@ function validatePhase1(p1) {
   });
 }
 
+const STEP_TIMEOUT_MS = 45_000; // 45 seconds per AI step
+
 // ── Main Handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   let productId = null;
+  const enrichStart = now();
+  const timings = {
+    enrichStartedAt: new Date().toISOString(),
+    errors: [],
+  };
 
   try {
     const user = await base44.auth.me();
@@ -227,6 +259,8 @@ Deno.serve(async (req) => {
     if (!productId || !rawPhase1 || !formData) {
       return Response.json({ error: 'Missing required params' }, { status: 400 });
     }
+
+    console.log(`[enrichProduct] ▶ START productId=${productId}`);
 
     const { productType, niche, tone, platform } = formData;
 
@@ -249,15 +283,17 @@ RULE: Every section, exercise, and sentence must be written for THIS specific au
     const platContext = platformContext[platform] || 'digital marketplace with buyers seeking professional resources';
 
     // ── Init state machine ────────────────────────────────────────────────────
+    let currentProgress = {
+      blueprint: 'generating',
+      salesCopy: 'pending',
+      platformGuides: 'pending',
+      socialKit: 'pending',
+      launchPlan: 'pending',
+    };
     await base44.asServiceRole.entities.Product.update(productId, {
       generationStatus: 'generating_blueprint',
-      generationProgress: {
-        blueprint: 'generating',
-        salesCopy: 'pending',
-        platformGuides: 'pending',
-        socialKit: 'pending',
-        launchPlan: 'pending',
-      },
+      generationProgress: currentProgress,
+      generationTimings: { ...timings },
     });
 
     // ── VALIDATE & PATCH phase1 ───────────────────────────────────────────────
@@ -265,6 +301,7 @@ RULE: Every section, exercise, and sentence must be written for THIS specific au
     const missingFields = validatePhase1(phase1);
     if (missingFields.length > 0) {
       console.log(`[enrichProduct] phase1 missing fields: ${missingFields.join(', ')} — patching...`);
+      const patchStart = now();
       const patch = await base44.integrations.Core.InvokeLLM({
         prompt: `You are completing a sales profile for a digital product. Fill in ONLY the missing fields listed below. Be specific and niche-focused.
 
@@ -289,6 +326,7 @@ For benefits: array of 5 strings. For structure: array of section names. For pri
           }
         }
       });
+      logStep('phase1 patch', elapsed(patchStart));
       phase1 = { ...phase1, ...patch };
     }
 
@@ -296,11 +334,14 @@ For benefits: array of 5 strings. For structure: array of section names. For pri
     phase1.price_max = Number(phase1.price_max) || 37;
 
     // ── STAGE 1: BLUEPRINT (DEEP CONTENT) — CRITICAL ─────────────────────────
-    console.log(`[enrichProduct] Stage 1: blueprint for ${productType} / ${niche}`);
-    let contentResult;
-    try {
-      contentResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `${blueprint}
+    // ⚠️ BOTTLENECK IDENTIFIED: claude_sonnet_4_6 with 2000+ word output is the slowest step.
+    // This is intentional (quality) but is the primary source of delay (~30-90s depending on content type).
+    console.log(`[enrichProduct] Stage 1: blueprint for ${productType} / ${niche} (using claude_sonnet_4_6 — may take 30-90s)`);
+    timings.blueprintStartedAt = new Date().toISOString();
+    const blueprintStart = now();
+
+    const blueprintCall = base44.integrations.Core.InvokeLLM({
+      prompt: `${blueprint}
 
 ═══════════════════════════════════════
 PRODUCT CONTEXT (use throughout — make every word specific to this):
@@ -332,38 +373,49 @@ Return JSON with these fields:
     }
   ]
 }`,
-        model: 'claude_sonnet_4_6',
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            content_draft: { type: 'string' },
-            sections: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: { title: { type: 'string' }, body: { type: 'string' } }
-              }
+      model: 'claude_sonnet_4_6',
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          content_draft: { type: 'string' },
+          sections: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: { title: { type: 'string' }, body: { type: 'string' } }
             }
           }
         }
-      });
-    } catch (blueprintError) {
-      console.error('[enrichProduct] BLUEPRINT FAILED:', blueprintError.message);
+      }
+    });
+
+    const blueprintResult = await withTimeout(blueprintCall, STEP_TIMEOUT_MS, 'blueprint/claude_sonnet_4_6');
+    const blueprintDuration = elapsed(blueprintStart);
+    timings.blueprintFinishedAt = new Date().toISOString();
+    timings.blueprintDurationMs = blueprintDuration;
+    logStep('BLUEPRINT (claude_sonnet_4_6)', blueprintDuration);
+
+    if (!blueprintResult.ok) {
+      const errMsg = blueprintResult.timedOut
+        ? `Blueprint timed out after ${STEP_TIMEOUT_MS}ms`
+        : blueprintResult.error;
+      console.error('[enrichProduct] BLUEPRINT FAILED:', errMsg);
+      timings.errors.push({ step: 'blueprint', error: errMsg, at: new Date().toISOString() });
       await base44.asServiceRole.entities.Product.update(productId, {
         generationStatus: 'generation_failed',
-        generationProgress: {
-          blueprint: 'failed',
-          salesCopy: 'pending',
-          platformGuides: 'pending',
-          socialKit: 'pending',
-          launchPlan: 'pending',
-        },
+        generationProgress: { blueprint: 'failed', salesCopy: 'pending', platformGuides: 'pending', socialKit: 'pending', launchPlan: 'pending' },
         generation_status: 'error',
         generation_progress: 'Blueprint generation failed. Please retry.',
+        generationTimings: { ...timings, enrichFinishedAt: new Date().toISOString(), totalDurationMs: elapsed(enrichStart) },
       });
-      return Response.json({ error: 'Blueprint generation failed', details: blueprintError.message }, { status: 500 });
+      return Response.json({ error: 'Blueprint generation failed', details: errMsg }, { status: 500 });
     }
 
+    if (blueprintDuration > STEP_TIMEOUT_MS * 0.8) {
+      console.warn(`[enrichProduct] ⚠️ Blueprint was slow: ${blueprintDuration}ms (>36s). Consider model downgrade for this type.`);
+    }
+
+    const contentResult = blueprintResult.result;
     const sections = contentResult.sections || [];
     const contentDraft = contentResult.content_draft || sections.map(s => `## ${s.title}\n\n${s.body}`).join('\n\n');
 
@@ -392,7 +444,20 @@ Return JSON with these fields:
       { id: String(Date.now() + 1), type: 'notes', heading: 'Notes', content: { title: 'Your Notes', lines: 12 } },
     ];
 
-    // ── Save after blueprint — product is usable now ──────────────────────────
+    // ── Save after blueprint — product is usable NOW ──────────────────────────
+    console.log(`[enrichProduct] Blueprint done (${sections.length} sections). Saving & starting secondary phases in parallel.`);
+    timings.salesCopyStartedAt = new Date().toISOString();
+    timings.platformGuidesStartedAt = new Date().toISOString();
+
+    currentProgress = {
+      blueprint: 'done',
+      salesCopy: 'generating',
+      platformGuides: 'generating',
+      socialKit: 'pending',
+      launchPlan: 'pending',
+    };
+
+    const blueprintSaveStart = now();
     await base44.asServiceRole.entities.Product.update(productId, {
       title: phase1.title,
       subtitle: phase1.subtitle,
@@ -404,27 +469,24 @@ Return JSON with these fields:
       pages: productBlocks,
       status: 'ready',
       generationStatus: 'blueprint_ready',
-      generationProgress: {
-        blueprint: 'done',
-        salesCopy: 'generating',
-        platformGuides: 'generating',
-        socialKit: 'pending',
-        launchPlan: 'pending',
-      },
+      generationProgress: currentProgress,
       generation_status: 'generating',
       generation_progress: 'Blueprint ready! Building sales copy & platform guide...',
       generated_data: { ...phase1, content_draft: contentDraft, product_blocks: productBlocks },
       ...(productAngle ? { product_angle: productAngle } : {}),
+      generationTimings: { ...timings },
     });
+    logStep('blueprint save to DB', elapsed(blueprintSaveStart));
 
-    console.log(`[enrichProduct] Blueprint saved — ${sections.length} sections. Starting secondary phases.`);
+    // ── STAGES 2 + 3: SALES COPY & PLATFORM GUIDES (parallel) ────────────────
+    // ✅ These run in parallel — not a bottleneck relative to each other
+    // ⚠️ But they are awaited before stages 4+5 — sequential batches
+    const salesStart = now();
+    const guideStart = now();
 
-    // ── STAGES 2 + 3: SALES COPY & PLATFORM GUIDES (parallel, non-critical) ──
-    let salesResult = {};
-    let guideResult = {};
-
-    const salesCopyPromise = base44.integrations.Core.InvokeLLM({
-      prompt: `You are a world-class conversion copywriter for ${platform} digital products. Write complete, ready-to-paste sales copy.
+    const salesCopyPromise = withTimeout(
+      base44.integrations.Core.InvokeLLM({
+        prompt: `You are a world-class conversion copywriter for ${platform} digital products. Write complete, ready-to-paste sales copy.
 
 PRODUCT: "${phase1.title}"
 TYPE: ${productType} | NICHE: ${niche} | TONE: ${tone} | PLATFORM: ${platform}
@@ -451,22 +513,25 @@ Return ONLY valid JSON:
   "platform_cta": "...",
   "seo_meta_description": "..."
 }`,
-      model: 'gemini_3_flash',
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          listing_title: { type: 'string' },
-          listing_description: { type: 'string' },
-          keywords: { type: 'array', items: { type: 'string' } },
-          platform_cta: { type: 'string' },
-          seo_meta_description: { type: 'string' },
+        model: 'gemini_3_flash',
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            listing_title: { type: 'string' },
+            listing_description: { type: 'string' },
+            keywords: { type: 'array', items: { type: 'string' } },
+            platform_cta: { type: 'string' },
+            seo_meta_description: { type: 'string' },
+          }
         }
-      }
-    }).then(r => { salesResult = r; return { ok: true }; })
-      .catch(e => { console.error('[enrichProduct] salesCopy failed:', e.message); return { ok: false, error: e.message }; });
+      }),
+      STEP_TIMEOUT_MS,
+      'salesCopy/gemini_3_flash'
+    );
 
-    const platformGuidePromise = base44.integrations.Core.InvokeLLM({
-      prompt: `You are an expert in selling digital products on ${platform}. Write a complete, practical launch guide.
+    const platformGuidePromise = withTimeout(
+      base44.integrations.Core.InvokeLLM({
+        prompt: `You are an expert in selling digital products on ${platform}. Write a complete, practical launch guide.
 
 PRODUCT: "${phase1.title}" (${productType} for ${niche})
 PRICE: $${phase1.price_min}–$${phase1.price_max}
@@ -493,42 +558,60 @@ Return ONLY valid JSON:
   "pro_tips": ["tip 1","tip 2","tip 3","tip 4","tip 5","tip 6"],
   "mistakes_to_avoid": ["mistake 1","mistake 2","mistake 3","mistake 4","mistake 5"]
 }`,
-      model: 'gemini_3_flash',
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          why_this_platform: { type: 'string' },
-          platform_audience: { type: 'string' },
-          pricing_strategy: { type: 'string' },
-          thumbnail_guidance: { type: 'string' },
-          launch_plan: { type: 'string' },
-          pro_tips: { type: 'array', items: { type: 'string' } },
-          mistakes_to_avoid: { type: 'array', items: { type: 'string' } },
+        model: 'gemini_3_flash',
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            why_this_platform: { type: 'string' },
+            platform_audience: { type: 'string' },
+            pricing_strategy: { type: 'string' },
+            thumbnail_guidance: { type: 'string' },
+            launch_plan: { type: 'string' },
+            pro_tips: { type: 'array', items: { type: 'string' } },
+            mistakes_to_avoid: { type: 'array', items: { type: 'string' } },
+          }
         }
-      }
-    }).then(r => { guideResult = r; return { ok: true }; })
-      .catch(e => { console.error('[enrichProduct] platformGuides failed:', e.message); return { ok: false, error: e.message }; });
+      }),
+      STEP_TIMEOUT_MS,
+      'platformGuides/gemini_3_flash'
+    );
 
     const [salesStatus, guideStatus] = await Promise.all([salesCopyPromise, platformGuidePromise]);
 
-    // Update progress for stages 2+3
-    const progressUpdate = {
+    const salesResult = salesStatus.ok ? salesStatus.result : {};
+    const guideResult = guideStatus.ok ? guideStatus.result : {};
+
+    timings.salesCopyFinishedAt = new Date().toISOString();
+    timings.salesCopyDurationMs = elapsed(salesStart);
+    timings.platformGuidesFinishedAt = new Date().toISOString();
+    timings.platformGuidesDurationMs = elapsed(guideStart);
+    logStep('salesCopy (gemini_3_flash)', timings.salesCopyDurationMs);
+    logStep('platformGuides (gemini_3_flash)', timings.platformGuidesDurationMs);
+
+    if (!salesStatus.ok) timings.errors.push({ step: 'salesCopy', error: salesStatus.error, at: new Date().toISOString() });
+    if (!guideStatus.ok) timings.errors.push({ step: 'platformGuides', error: guideStatus.error, at: new Date().toISOString() });
+
+    const progressAfterStage2 = {
       salesCopy: salesStatus.ok ? 'done' : 'failed',
       platformGuides: guideStatus.ok ? 'done' : 'failed',
     };
-    await updateProgress(base44, productId, 'generating_assets', progressUpdate);
+    currentProgress = await updateProgress(base44, productId, 'generating_assets', progressAfterStage2, currentProgress);
 
-    // ── STAGE 4+5: SOCIAL KIT & LAUNCH PLAN (parallel, non-critical) ─────────
-    await updateProgress(base44, productId, 'generating_assets', {
+    // ── STAGES 4+5: SOCIAL KIT & LAUNCH PLAN (parallel, non-critical) ─────────
+    timings.socialKitStartedAt = new Date().toISOString();
+    timings.launchPlanStartedAt = new Date().toISOString();
+
+    currentProgress = await updateProgress(base44, productId, 'generating_assets', {
       socialKit: 'generating',
       launchPlan: 'generating',
-    });
+    }, currentProgress);
 
-    let socialKitResult = {};
-    let launchPlanResult = {};
+    const socialStart = now();
+    const launchStart = now();
 
-    const socialKitPromise = base44.integrations.Core.InvokeLLM({
-      prompt: `You are a social media strategist. Create a complete social media kit for a digital product launch.
+    const socialKitPromise = withTimeout(
+      base44.integrations.Core.InvokeLLM({
+        prompt: `You are a social media strategist. Create a complete social media kit for a digital product launch.
 
 PRODUCT: "${phase1.title}" (${productType} for ${niche} on ${platform})
 AUDIENCE: ${phase1.audience}
@@ -551,20 +634,23 @@ Return ONLY valid JSON:
     {"title": "...", "hook": "...", "body": "...", "cta": "..."}
   ]
 }`,
-      model: 'gemini_3_flash',
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          instagram_captions: { type: 'array', items: { type: 'string' } },
-          content_calendar: { type: 'array', items: { type: 'object' } },
-          video_scripts: { type: 'array', items: { type: 'object' } },
+        model: 'gemini_3_flash',
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            instagram_captions: { type: 'array', items: { type: 'string' } },
+            content_calendar: { type: 'array', items: { type: 'object' } },
+            video_scripts: { type: 'array', items: { type: 'object' } },
+          }
         }
-      }
-    }).then(r => { socialKitResult = r; return { ok: true }; })
-      .catch(e => { console.error('[enrichProduct] socialKit failed:', e.message); return { ok: false, error: e.message }; });
+      }),
+      STEP_TIMEOUT_MS,
+      'socialKit/gemini_3_flash'
+    );
 
-    const launchPlanPromise = base44.integrations.Core.InvokeLLM({
-      prompt: `You are a digital product launch strategist. Create a detailed 30-day launch plan.
+    const launchPlanPromise = withTimeout(
+      base44.integrations.Core.InvokeLLM({
+        prompt: `You are a digital product launch strategist. Create a detailed 30-day launch plan.
 
 PRODUCT: "${phase1.title}" (${productType} for ${niche} on ${platform})
 AUDIENCE: ${phase1.audience}
@@ -579,15 +665,30 @@ Write a comprehensive, week-by-week launch plan covering:
 - Contingency strategies if sales are slow
 
 Be specific, actionable, and platform-optimized for ${platform}.`,
-      model: 'gemini_3_flash',
-      response_json_schema: {
-        type: 'object',
-        properties: { plan: { type: 'string' } }
-      }
-    }).then(r => { launchPlanResult = r; return { ok: true }; })
-      .catch(e => { console.error('[enrichProduct] launchPlan failed:', e.message); return { ok: false, error: e.message }; });
+        model: 'gemini_3_flash',
+        response_json_schema: {
+          type: 'object',
+          properties: { plan: { type: 'string' } }
+        }
+      }),
+      STEP_TIMEOUT_MS,
+      'launchPlan/gemini_3_flash'
+    );
 
     const [socialKitStatus, launchPlanStatus] = await Promise.all([socialKitPromise, launchPlanPromise]);
+
+    const socialKitResult = socialKitStatus.ok ? socialKitStatus.result : {};
+    const launchPlanResult = launchPlanStatus.ok ? launchPlanStatus.result : {};
+
+    timings.socialKitFinishedAt = new Date().toISOString();
+    timings.socialKitDurationMs = elapsed(socialStart);
+    timings.launchPlanFinishedAt = new Date().toISOString();
+    timings.launchPlanDurationMs = elapsed(launchStart);
+    logStep('socialKit (gemini_3_flash)', timings.socialKitDurationMs);
+    logStep('launchPlan (gemini_3_flash)', timings.launchPlanDurationMs);
+
+    if (!socialKitStatus.ok) timings.errors.push({ step: 'socialKit', error: socialKitStatus.error, at: new Date().toISOString() });
+    if (!launchPlanStatus.ok) timings.errors.push({ step: 'launchPlan', error: launchPlanStatus.error, at: new Date().toISOString() });
 
     // ── Build listing block ───────────────────────────────────────────────────
     const listingBlock = {
@@ -619,6 +720,22 @@ Be specific, actionable, and platform-optimized for ${platform}.`,
       launchPlan: launchPlanStatus.ok ? 'done' : 'failed',
     };
 
+    // ── Compute slowest step ──────────────────────────────────────────────────
+    const stepDurations = {
+      blueprint: timings.blueprintDurationMs,
+      salesCopy: timings.salesCopyDurationMs,
+      platformGuides: timings.platformGuidesDurationMs,
+      socialKit: timings.socialKitDurationMs,
+      launchPlan: timings.launchPlanDurationMs,
+    };
+    const slowestStep = Object.entries(stepDurations).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
+    timings.totalDurationMs = elapsed(enrichStart);
+    timings.slowestStep = slowestStep;
+    timings.enrichFinishedAt = new Date().toISOString();
+
+    console.log(`[enrichProduct] ⏱ SUMMARY — total: ${timings.totalDurationMs}ms | slowest: ${slowestStep} (${stepDurations[slowestStep]}ms)`);
+    console.log(`[enrichProduct] Step durations:`, JSON.stringify(stepDurations));
+
     // ── FINAL SAVE ────────────────────────────────────────────────────────────
     const structuredUpdate = buildStructuredUpdate(phase1, { sections, content_draft: contentDraft }, salesResult, guideResult, finalBlocks);
 
@@ -649,6 +766,7 @@ Be specific, actionable, and platform-optimized for ${platform}.`,
       _progress: null,
     };
 
+    const finalSaveStart = now();
     await base44.asServiceRole.entities.Product.update(productId, {
       ...structuredUpdate,
       generated_data: legacyData,
@@ -660,19 +778,30 @@ Be specific, actionable, and platform-optimized for ${platform}.`,
       social_media_kit: socialKitStatus.ok ? socialKitResult : undefined,
       launch_plan: launchPlanStatus.ok ? (launchPlanResult.plan || '') : undefined,
       ...(productAngle ? { product_angle: productAngle } : {}),
+      generationTimings: { ...timings, finalSaveDurationMs: elapsed(finalSaveStart) },
+    });
+    logStep('final save to DB', elapsed(finalSaveStart));
+
+    console.log(`[enrichProduct] ✅ Done — productId=${productId} status=${finalGenStatus}`);
+    return Response.json({
+      success: true,
+      generationStatus: finalGenStatus,
+      generationProgress: finalProgress,
+      timings: { totalDurationMs: timings.totalDurationMs, slowestStep, stepDurations },
     });
 
-    console.log(`[enrichProduct] Done — product ${productId}. Status: ${finalGenStatus}. Progress:`, JSON.stringify(finalProgress));
-    return Response.json({ success: true, generationStatus: finalGenStatus, generationProgress: finalProgress });
-
   } catch (error) {
-    console.error('[enrichProduct] Fatal error:', error.message);
+    console.error('[enrichProduct] ❌ Fatal error:', error.message);
+    timings.errors.push({ step: 'fatal', error: error.message, at: new Date().toISOString() });
+    timings.totalDurationMs = elapsed(enrichStart);
+    timings.enrichFinishedAt = new Date().toISOString();
     try {
       if (productId) {
         await base44.asServiceRole.entities.Product.update(productId, {
           generationStatus: 'generation_failed',
           generation_status: 'error',
           generation_progress: 'Generation failed. Please retry.',
+          generationTimings: timings,
         });
       }
     } catch (_) {}

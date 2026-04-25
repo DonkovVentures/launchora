@@ -20,6 +20,7 @@ import AICoverGenerator from '@/components/product/AICoverGenerator';
 import PlatformPublishGuide from '@/components/product/PlatformPublishGuide';
 import ProductAnglePanel from '@/components/product/ProductAnglePanel';
 import GenerationProgress from '@/components/product/GenerationProgress';
+import GenerationDebugPanel from '@/components/product/GenerationDebugPanel';
 
 function getProgressLabel(product) {
   const progress = product.generation_progress || product.generated_data?._progress;
@@ -37,13 +38,22 @@ export default function ProductResult() {
   const [copiedAll, setCopiedAll] = useState(false);
   const [zipLoading, setZipLoading] = useState(false);
   const [zipResult, setZipResult] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [lastError, setLastError] = useState(null);
+  const [slowGeneration, setSlowGeneration] = useState(false);
+  const slowTimerRef = useState(null);
 
   const isGenerating = new URLSearchParams(window.location.search).get('generating') === 'true';
 
   useEffect(() => {
+    const mountedAt = Date.now();
+    console.log(`[ProductResult] mounted at ${new Date().toISOString()} | productId=${id}`);
     base44.entities.Product.list().then(results => {
       const found = (results || []).find(p => p.id === id);
-      if (found) setProduct(found);
+      if (found) {
+        setProduct(found);
+        console.log(`[ProductResult] initial load — status=${found.status} generationStatus=${found.generationStatus} (${Date.now() - mountedAt}ms after mount)`);
+      }
       setLoading(false);
     });
   }, [id]);
@@ -51,12 +61,32 @@ export default function ProductResult() {
   // Real-time subscription for live updates
   useEffect(() => {
     if (!id) return;
+    console.log(`[ProductResult] subscription started at ${new Date().toISOString()}`);
+
+    // Slow-generation warning after 45s
+    const slowTimer = setTimeout(() => {
+      setSlowGeneration(true);
+      console.warn('[ProductResult] ⚠️ Generation taking >45s — showing slow warning');
+    }, 45000);
+
     const unsubscribe = base44.entities.Product.subscribe((event) => {
       if (event.id === id && (event.type === 'update' || event.type === 'create')) {
+        const updateTime = new Date().toISOString();
+        console.log(`[ProductResult] subscription update — type=${event.type} status=${event.data?.status} generationStatus=${event.data?.generationStatus} at ${updateTime}`);
         setProduct(event.data);
+        setLastUpdate(updateTime);
+        // Clear slow warning if generation completed
+        if (event.data?.generationStatus === 'completed' || event.data?.generationStatus === 'assets_ready') {
+          setSlowGeneration(false);
+          clearTimeout(slowTimer);
+        }
       }
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribe();
+      clearTimeout(slowTimer);
+    };
   }, [id]);
 
   if (loading) {
@@ -156,6 +186,17 @@ export default function ProductResult() {
               </div>
             </div>
           </motion.div>
+
+          {/* ── Slow generation warning ── */}
+          {slowGeneration && product?.generationStatus !== 'completed' && product?.generationStatus !== 'assets_ready' && (
+            <div className="mb-4 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-amber-800">
+              <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin flex-shrink-0 mt-0.5" />
+              <p className="text-sm">
+                <span className="font-semibold">Generation is taking longer than expected.</span>{' '}
+                You can continue exploring the blueprint while we finish the remaining assets.
+              </p>
+            </div>
+          )}
 
           {/* ── Generation Progress ── */}
           <GenerationProgress product={product} onRetry={() => {}} />
@@ -279,6 +320,7 @@ export default function ProductResult() {
         </div>
       </main>
       <AIAssistant product={product} />
+      <GenerationDebugPanel product={product} lastUpdate={lastUpdate} lastError={lastError} />
     </div>
   );
 }
