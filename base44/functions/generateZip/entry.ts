@@ -1149,12 +1149,12 @@ Deno.serve(async (req) => {
     const buyerProfile = product.buyer_profile || d.buyer_profile || '';
     const problemSolved = product.problem_solved || d.problem_solved || '';
 
-    // ── Validate required fields ────────────────────────────────────────────
-    const validationErrors = [];
-    if (!title.trim()) validationErrors.push('Product title is missing');
-    if (!subtitle.trim() && !promise.trim()) validationErrors.push('Subtitle or promise is required');
-    if (!product.product_type?.trim()) validationErrors.push('Product type is missing');
-    if (!targetAudience.trim()) validationErrors.push('Target audience is missing');
+    // ── Validate required fields (only hard-block on missing title) ─────────
+    if (!title.trim()) {
+      const errMsg = 'Product title is missing — cannot export';
+      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: errMsg, exportTimings });
+      return Response.json({ success: false, error: errMsg }, { status: 422 });
+    }
 
     const sections = (product.sections?.length > 0)
       ? product.sections
@@ -1162,22 +1162,15 @@ Deno.serve(async (req) => {
         ? d.sections
         : (product.pages?.filter(b => b.type === 'section') || []);
 
-    const hasContent = sections.length > 0 || (product.pages?.length > 0);
-    if (!hasContent) validationErrors.push('No content sections or pages found');
-
-    if (validationErrors.length > 0) {
-      const errMsg = 'Product content validation failed: ' + validationErrors.join('; ');
-      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: errMsg, exportTimings });
-      return Response.json({ success: false, error: errMsg }, { status: 422 });
-    }
-
-    // ── Marketing assets ────────────────────────────────────────────────────
+    // ── Marketing assets (with fallbacks for partially-generated products) ──
     const ma = product.marketing_assets || {};
+    const pa = product.product_angle || {};
     const listingTitle = ma.listing_title || d.listing_title || title;
-    const listingDescription = ma.listing_description || d.listing_description || '';
-    const keywords = (ma.keywords?.length ? ma.keywords : d.keywords) || [];
-    const priceMin = ma.price_min ?? d.price_min ?? '';
-    const priceMax = ma.price_max ?? d.price_max ?? '';
+    const listingDescription = ma.listing_description || d.listing_description ||
+      `${promise || subtitle || title}\n\nBuilt for ${targetAudience || product.niche || 'professionals'} who want real results.\n\nThis ${product.product_type || 'digital product'} covers everything you need to get started and succeed.\n\n✅ Instant digital download\n✅ Professionally structured\n✅ Ready to use immediately\n\n${pa.finalAngle || ''}`;
+    const keywords = (ma.keywords?.length ? ma.keywords : d.keywords) || [product.niche, product.product_type, 'digital product', 'download'].filter(Boolean);
+    const priceMin = ma.price_min ?? d.price_min ?? 17;
+    const priceMax = ma.price_max ?? d.price_max ?? 37;
     const platform = product.platform || '';
 
     const vars = {

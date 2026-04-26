@@ -23,11 +23,13 @@ import GenerationProgress from '@/components/product/GenerationProgress';
 import GenerationDebugPanel from '@/components/product/GenerationDebugPanel';
 
 function getProgressLabel(product) {
+  const genStatus = product.generationStatus;
+  if (genStatus === 'blueprint_ready') return 'Blueprint ready! Generating launch assets in the background...';
+  if (genStatus === 'generating_assets') return 'Generating social kit & launch plan...';
+  if (genStatus === 'assets_ready') return 'Assets ready — some optional assets still generating';
   const progress = product.generation_progress || product.generated_data?._progress;
-  const hasBlocks = (product.pages || product.generated_data?.product_blocks || []).length > 2;
   if (progress) return progress;
-  if (hasBlocks) return 'Building sales copy & platform guide...';
-  return 'Generating product content...';
+  return 'Generating your product...';
 }
 
 export default function ProductResult() {
@@ -63,11 +65,11 @@ export default function ProductResult() {
     if (!id) return;
     console.log(`[ProductResult] subscription started at ${new Date().toISOString()}`);
 
-    // Slow-generation warning after 45s
+    // Slow-generation warning after 60s (longer now that blueprint is instant)
     const slowTimer = setTimeout(() => {
       setSlowGeneration(true);
-      console.warn('[ProductResult] ⚠️ Generation taking >45s — showing slow warning');
-    }, 45000);
+      console.warn('[ProductResult] ⚠️ Secondary assets taking >60s — showing slow warning');
+    }, 60000);
 
     const unsubscribe = base44.entities.Product.subscribe((event) => {
       if (event.id === id && (event.type === 'update' || event.type === 'create')) {
@@ -75,8 +77,9 @@ export default function ProductResult() {
         console.log(`[ProductResult] subscription update — type=${event.type} status=${event.data?.status} generationStatus=${event.data?.generationStatus} at ${updateTime}`);
         setProduct(event.data);
         setLastUpdate(updateTime);
-        // Clear slow warning if generation completed
-        if (event.data?.generationStatus === 'completed' || event.data?.generationStatus === 'assets_ready') {
+        // Clear slow warning once assets are ready (full or partial)
+        const gs = event.data?.generationStatus;
+        if (gs === 'completed' || gs === 'assets_ready' || gs === 'blueprint_ready') {
           setSlowGeneration(false);
           clearTimeout(slowTimer);
         }
@@ -187,13 +190,13 @@ export default function ProductResult() {
             </div>
           </motion.div>
 
-          {/* ── Slow generation warning ── */}
+          {/* ── Slow secondary assets warning ── */}
           {slowGeneration && product?.generationStatus !== 'completed' && product?.generationStatus !== 'assets_ready' && (
             <div className="mb-4 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-amber-800">
               <div className="w-5 h-5 border-2 border-amber-500 border-t-transparent rounded-full animate-spin flex-shrink-0 mt-0.5" />
               <p className="text-sm">
-                <span className="font-semibold">Generation is taking longer than expected.</span>{' '}
-                You can continue exploring the blueprint while we finish the remaining assets.
+                <span className="font-semibold">Launch assets are taking a moment.</span>{' '}
+                Your product is ready to explore — sales copy and social kit are still generating in the background.
               </p>
             </div>
           )}
