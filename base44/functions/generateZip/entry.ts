@@ -105,6 +105,535 @@ function norm(p) {
   return {title,subtitle,promise,audience,buyer,problem,type,niche,platform,tone,launchPlan,items,sections,priceMin,priceMax,keywords,listingTitle,shortDesc,longDesc,safe,pa,ma,pg,sm,igCaps,calItems,scripts};
 }
 
+// ── Template Pack builders ────────────────────────────────────────────────────
+
+// Derive 4–7 template use-cases from niche + sections + keywords
+function deriveTemplateCases(n) {
+  // Niche-specific curated template names
+  const nicheTemplates = {
+    'real estate': [
+      'Luxury Listing Presentation Cover',
+      'Editorial Property Brochure',
+      'Market Report Summary Page',
+      'Agent Bio & Credentials Page',
+      'Open House Invitation Flyer',
+      'Seller Pitch Deck Slide',
+      'Private Showing Follow-Up Card',
+    ],
+    'fitness': [
+      'Weekly Workout Program Schedule',
+      'Client Progress Tracking Sheet',
+      'Meal Plan & Macro Template',
+      'Exercise Instruction Card',
+      'Transformation Challenge Poster',
+      '30-Day Challenge Tracker',
+      'Workout Completion Certificate',
+    ],
+    'coaching': [
+      'Discovery Call Prep Sheet',
+      'Client Intake Questionnaire',
+      'Weekly Goal-Setting Template',
+      'Session Notes & Action Items',
+      'Progress Review Summary',
+      'Testimonial Request Template',
+      'Program Welcome Packet Cover',
+    ],
+    'finance': [
+      'Monthly Budget Tracker',
+      'Debt Payoff Calculator Sheet',
+      'Investment Portfolio Summary',
+      'Net Worth Snapshot Template',
+      'Bill Payment Calendar',
+      'Savings Goal Progress Tracker',
+      'Income & Expense Log',
+    ],
+    'marketing': [
+      'Content Calendar Grid',
+      'Campaign Brief Template',
+      'Social Media Audit Sheet',
+      'Competitor Analysis Table',
+      'Ad Copy Swipe File Page',
+      'Brand Voice Guide Template',
+      'Launch Timeline Planner',
+    ],
+    'social media': [
+      'Instagram Grid Planner',
+      'Content Pillar Strategy Sheet',
+      'Caption Swipe File Page',
+      'Hashtag Research Tracker',
+      'Story Highlight Cover Template',
+      'Collaboration Pitch Template',
+      'Monthly Analytics Report',
+    ],
+    'education': [
+      'Lesson Plan Template',
+      'Student Progress Report',
+      'Course Outline Builder',
+      'Quiz & Assessment Sheet',
+      'Parent Communication Letter',
+      'Classroom Rules Poster',
+      'Weekly Homework Tracker',
+    ],
+    'wedding': [
+      'Wedding Timeline Planner',
+      'Seating Chart Template',
+      'Vendor Contact Sheet',
+      'Budget Breakdown Tracker',
+      'Guest List Manager',
+      'Day-Of Emergency Checklist',
+      'Thank You Note Template',
+    ],
+    'photography': [
+      'Client Booking Questionnaire',
+      'Shot List Planner',
+      'Photo Delivery Timeline',
+      'Pricing & Package Sheet',
+      'Model Release Form',
+      'Invoice Template',
+      'Portfolio Presentation Slide',
+    ],
+    'nutrition': [
+      'Weekly Meal Plan Layout',
+      'Grocery Shopping List',
+      'Macro Tracking Log',
+      'Recipe Card Template',
+      'Hydration & Supplement Tracker',
+      'Client Food Journal',
+      'Nutrition Consultation Form',
+    ],
+  };
+
+  // Match by niche keyword (case-insensitive)
+  const nicheKey = Object.keys(nicheTemplates).find(k => n.niche.toLowerCase().includes(k));
+  if (nicheKey) return nicheTemplates[nicheKey];
+
+  // Fall back to deriving from section titles
+  if (n.sections.length >= 4) {
+    return n.sections.slice(0, 7).map(s => s.title || 'Template');
+  }
+
+  // Generic fallback using keywords
+  const kw = n.keywords.slice(0, 4);
+  return [
+    `${n.niche} Starter Template`,
+    `${kw[0] || n.niche} Workflow Sheet`,
+    `${n.niche} Planning Calendar`,
+    `${kw[1] || n.niche} Tracker Template`,
+    `${n.niche} Checklist Page`,
+    `${kw[2] || n.niche} Report Template`,
+    `${n.niche} Proposal Cover`,
+  ];
+}
+
+// Build a single rich template file
+function buildTemplateFile(useCase, index, n) {
+  const slug = useCase.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
+  const sectionBody = n.sections[index] ? (n.sections[index].body || '') : '';
+
+  // Derive layout, required assets, and CTA from use case name
+  const isPresentation = /pitch|deck|slide|presentation|cover/i.test(useCase);
+  const isTracker = /track|log|calendar|planner|sheet|budget|schedule|plan/i.test(useCase);
+  const isForm = /form|questionnaire|intake|checklist|invoice|receipt/i.test(useCase);
+  const isFlyer = /flyer|poster|card|invitation|certificate/i.test(useCase);
+  const isReport = /report|summary|analysis|audit|portfolio|profile|bio/i.test(useCase);
+
+  let layoutStructure, requiredAssets, exportFormat;
+
+  if (isPresentation) {
+    layoutStructure = `Full-bleed cover layout
+• Top 60%: Hero image or brand graphic (placeholder: [INSERT HERO IMAGE])
+• Bottom 40%: Dark overlay with title block
+• Title (H1): [INSERT MAIN HEADLINE] — large, bold, centered
+• Subtitle (H2): [INSERT TAGLINE] — smaller, lighter weight
+• Logo area: Bottom-left corner | Contact info: Bottom-right corner
+• Accent bar: 4px color bar across top (brand color)
+• Background: Deep navy (#0D1B2A) or brand dark color`;
+    requiredAssets = `• 1 hero/property image (min 1920×1080px, JPEG)
+• Logo (SVG or PNG, transparent background)
+• Brand color hex codes (primary + accent)
+• Font files if using custom typography
+• Agent/team headshot (if bio variant)`;
+    exportFormat = 'PDF (print-ready, 300 DPI) + PNG (social sharing) | Canva or Adobe InDesign';
+  } else if (isTracker) {
+    layoutStructure = `Grid/table layout optimized for data entry
+• Header row: Dark background + white text labels
+• Data rows: Alternating light/white stripes for readability
+• Column widths: Label column 30% | Data columns equal-split
+• Totals/summary row: Accent color background at bottom
+• Month/period label: Top-left header block
+• Notes section: 3-line area at bottom of each page
+• Page size: A4 or US Letter landscape`;
+    requiredAssets = `• Brand colors (2 max for clean data tables)
+• Logo (optional — top-right corner)
+• Company/creator name for footer`;
+    exportFormat = 'PDF (fillable) + Excel/Google Sheets compatible | Notion template optional';
+  } else if (isForm) {
+    layoutStructure = `Clean single-column form layout
+• Header: Title + logo + date field (top)
+• Section dividers: Thin rule lines with section labels
+• Input fields: Underline style or bordered boxes (22px height)
+• Checkboxes: Left-aligned, 16px squares
+• Multi-line fields: 3–5 lines each
+• Signature line: Bottom, with date field beside it
+• Footer: Contact info + branding`;
+    requiredAssets = `• Logo (top-right, 80×80px recommended)
+• Business name + contact details
+• Any legally required disclaimers (consult your legal advisor)`;
+    exportFormat = 'PDF (fillable form) + DOCX (editable) | Google Forms link optional';
+  } else if (isFlyer) {
+    layoutStructure = `Single-page visual-first layout
+• Top third: Bold headline in display font (min 48pt)
+• Middle section: Key details — date, time, location in scannable format
+• Visual accent: 1 strong image or graphic element
+• Info hierarchy: H1 headline → H2 subhead → body details → CTA button
+• Whitespace: 20px minimum margins all sides
+• CTA area: Contrasting color button or call-out box at bottom
+• QR code placeholder: Bottom corner (optional)`;
+    requiredAssets = `• Hero image or background texture
+• Logo or brand mark
+• Key event/offer details (date, time, address, URL)
+• QR code (generate at qr-code-generator.com)`;
+    exportFormat = 'PDF (print A5/A4) + PNG (digital sharing) + JPG (social media)';
+  } else {
+    // Report / summary / profile
+    layoutStructure = `Professional document layout with sidebar
+• Left sidebar (25% width): Brand color panel with key stats or photo
+• Main content area (75% width): White background
+• Top header: Full-width banner with title + period/date
+• Section headers: Color-accented H2 with thin rule below
+• Data callouts: Large number + label in accent boxes
+• Body text: 10–11pt serif or sans-serif, 1.5 line height
+• Page footer: Page number + logo + confidentiality note`;
+    requiredAssets = `• Brand colors + fonts
+• Logo (sidebar + footer)
+• Data/statistics to populate callout boxes
+• Profile photo (if biography variant)`;
+    exportFormat = 'PDF (professional print) + interactive PDF | PowerPoint/Keynote if slideshow variant';
+  }
+
+  const primaryHeadline = `${useCase} — Professional ${n.niche} Template`;
+  const altHeadlines = [
+    `The ${n.niche} ${useCase} That Makes You Look Like a Pro`,
+    `Ready-to-Use ${useCase} for ${n.niche} Professionals`,
+    `${useCase}: The ${n.niche} Template Built for Results`,
+    `Plug-and-Play ${useCase} — Just Add Your Details`,
+    `${n.niche} ${useCase} That Closes More Deals`,
+  ];
+
+  const ctaExamples = [
+    `Download Now → Customize in Minutes`,
+    `Get Your ${useCase} Template →`,
+    `Grab This Template — $${n.priceMin} Instant Access`,
+    `Use This Template Today →`,
+    `Start Customizing Now — It's Instant →`,
+  ];
+
+  // Section copy blocks — use stored section body if available, otherwise build from structure
+  const sectionCopy = sectionBody && sectionBody.trim().length > 50
+    ? `SECTION CONTENT (from your product):\n${sectionBody}`
+    : `SECTION BLOCKS TO CUSTOMIZE:\n\n[HEADER BLOCK]\nText: ${useCase}\nSubtext: ${n.subtitle || n.promise || `Professional ${n.niche} template`}\n\n[BODY BLOCK 1]\nLabel: ${n.keywords[0] || 'Key Detail 1'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 2]\nLabel: ${n.keywords[1] || 'Key Detail 2'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 3]\nLabel: ${n.keywords[2] || 'Key Detail 3'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[FOOTER BLOCK]\nText: ${n.title} | ${n.platform} | $${n.priceMin}\nContact: [INSERT YOUR CONTACT INFO]`;
+
+  const customizationNotes = `CUSTOMIZATION NOTES
+${hr()}
+1. COLORS: Replace all placeholder brand colors with your hex codes. Use a tool like coolors.co to find complementary shades.
+2. FONTS: Primary headline font should be display/bold weight. Body text: 10–12pt regular weight. Max 2 font families total.
+3. IMAGES: All image placeholders are set to the recommended dimensions above. Use Unsplash.com or your own photography.
+4. LOGO: Place logo in the designated area — never stretch. Maintain padding of at least 16px around the logo.
+5. CONTENT: Replace all [BRACKETED] text with your real content before publishing.
+6. BRANDING: Apply your brand colors consistently — use the same 2–3 colors throughout the entire template pack.
+7. PRINT BLEED: If printing, add 3mm bleed on all sides. Export as PDF/X-1a for professional printers.
+8. DIGITAL: For online use, export at 72–150 DPI PNG. Compress with TinyPNG before uploading.`;
+
+  return `TEMPLATE ${index + 1}: ${useCase.toUpperCase()}
+${'═'.repeat(60)}
+Part of: ${n.title}
+Type: ${n.niche} Template | Format: Editable + Export-ready
+${'═'.repeat(60)}
+
+BEST USE CASE
+${hr()}
+Use this template for: ${useCase}
+Best suited for: ${n.audience || n.niche + ' professionals'}
+When to use: ${isPresentation ? 'Client-facing presentations, pitches, and first impressions'
+  : isTracker ? 'Daily/weekly tracking, reporting, and progress monitoring'
+  : isForm ? 'Client onboarding, data collection, and official documentation'
+  : isFlyer ? 'Promotions, events, announcements, and marketing campaigns'
+  : 'Professional reports, summaries, and client-facing documents'}
+
+LAYOUT STRUCTURE
+${hr()}
+${layoutStructure}
+
+REQUIRED ASSETS BEFORE CUSTOMIZING
+${hr()}
+${requiredAssets}
+
+READY-TO-COPY HEADLINE
+${hr()}
+PRIMARY: ${primaryHeadline}
+
+5 ALTERNATIVE HEADLINES
+${hr()}
+${altHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}
+
+${sectionCopy}
+
+CTA EXAMPLES
+${hr()}
+${ctaExamples.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+
+${customizationNotes}
+
+EXPORT FORMAT RECOMMENDATION
+${hr()}
+${exportFormat}
+
+DESIGNER NOTES
+${hr()}
+• Minimum canvas size: 1080×1080px (social) | 8.5×11in (print) | 1920×1080px (presentation)
+• Color mode: RGB for digital | CMYK for print
+• Test on mobile before publishing digital versions
+• Always keep the original source file — export a copy for delivery
+
+Generated by Launchora for ${n.title} | ${new Date().toLocaleDateString()}`;
+}
+
+// Product overview for Template Packs
+function buildTemplateOverview(n, templateCases) {
+  return `PRODUCT OVERVIEW — ${n.title}
+${'═'.repeat(60)}
+TYPE: Template Pack | NICHE: ${n.niche} | PLATFORM: ${n.platform}
+PRICE: $${n.priceMin}–$${n.priceMax}
+GENERATED: ${new Date().toLocaleDateString()}
+${'═'.repeat(60)}
+
+WHAT IS THIS TEMPLATE PACK?
+${hr()}
+${n.promise || n.subtitle || `A complete collection of professional ${n.niche} templates — ready to customize and use immediately.`}
+
+FOR: ${n.audience || n.niche + ' professionals'}
+
+WHAT'S INCLUDED IN THIS PACK
+${hr()}
+${templateCases.map((t, i) => `Template ${i + 1}: ${t}`).join('\n')}
+
+Plus:
+• Copy_Bank.txt — Ready-to-paste copy blocks for every template
+• Headline_Bank.txt — 30+ headline formulas and examples
+• CTA_Bank.txt — 20+ proven calls-to-action
+• Implementation_Checklist.txt — Step-by-step setup guide
+• Buyer_Quick_Start_Guide.txt — Get started in 15 minutes
+
+WHAT MAKES THIS PACK DIFFERENT
+${hr()}
+${n.pa?.uniqueMechanism || `Every template is built specifically for ${n.niche} — not generic layouts repurposed from other industries. Each one is structured around the real workflow of ${n.audience || n.niche + ' professionals'}.`}
+
+KEY BENEFITS
+${hr()}
+${n.items.length > 0 ? n.items.map(b => '✅ ' + b).join('\n') : `✅ Save hours of design time per template\n✅ Professional quality without a designer\n✅ Fully editable — make it your own brand\n✅ Designed for ${n.niche} use cases specifically\n✅ Instant download, immediate use`}
+
+HOW TO USE THIS PACK
+${hr()}
+STEP 1: Open the template file you need (see list above)
+STEP 2: Read the Layout Structure and Required Assets sections
+STEP 3: Open your design tool (Canva, Adobe, PowerPoint, Google Slides)
+STEP 4: Replace all [BRACKETED] content with your real information
+STEP 5: Apply your brand colors and logo
+STEP 6: Export in the recommended format
+STEP 7: Deliver to your client or publish
+
+RECOMMENDED TOOLS
+${hr()}
+• Canva Pro — easiest for non-designers (canva.com)
+• Adobe InDesign — best for print-quality output
+• Adobe Illustrator — best for vector/logo work
+• PowerPoint / Keynote — great for presentations
+• Google Slides — free, shareable, collaborative
+• Figma — best for digital/UI templates
+
+${n.pa?.painPoint ? `\nWHY THIS PACK SOLVES A REAL PROBLEM\n${hr()}\n${n.pa.painPoint}` : ''}
+
+Generated by Launchora | launchora.com | ${new Date().toLocaleDateString()}`;
+}
+
+// Copy bank for Template Packs
+function buildCopyBank(n, templateCases) {
+  return `COPY BANK — ${n.title}
+${'═'.repeat(60)}
+Ready-to-paste copy blocks for every template in this pack.
+Replace [BRACKETED] text with your real information.
+${'═'.repeat(60)}
+
+GENERAL HEADER COPY
+${hr()}
+Headline: ${n.title}
+Subhead: ${n.subtitle || n.promise || `Professional ${n.niche} templates — ready to use today`}
+Tagline: ${n.pa?.finalAngle || `The ${n.niche} template pack built for real professionals`}
+CTA: Download Now → Customize in Minutes
+
+ABOUT THIS TEMPLATE
+${hr()}
+Short version (1 sentence):
+"${n.title} gives ${n.audience || n.niche + ' professionals'} professional-grade templates they can customize and use the same day."
+
+Medium version (2–3 sentences):
+"${n.promise || 'This template pack saves you hours of design work.'}
+Every template is built for ${n.niche} — not generic layouts that need heavy customization.
+Open the file, add your details, and you're done."
+
+Long version (for listings):
+${n.ma?.listing_description || `Looking for professional ${n.niche} templates that actually fit your workflow?\n\n${n.title} includes ${templateCases.length} ready-to-use templates, each built specifically for ${n.audience || n.niche + ' professionals'}.\n\nNo design experience needed. Open, customize, export, and deliver.\n\n✅ Instant download\n✅ Fully editable\n✅ Built for ${n.niche}\n✅ Professional results in minutes`}
+
+TEMPLATE-SPECIFIC COPY BLOCKS
+${hr()}
+${templateCases.map((t, i) => `TEMPLATE ${i + 1}: ${t}\n• Headline: "Professional ${t} for ${n.niche}"\n• Subhead: "Customize in minutes — no designer needed"\n• Feature: "Fully editable ${t.toLowerCase()} built for ${n.audience || n.niche}"\n`).join('\n')}
+
+SOCIAL PROOF / TESTIMONIAL PROMPTS
+${hr()}
+Ask buyers to fill in:
+"Before this template pack, I used to [pain point]. Now I [result]. It took me [time] to customize and [outcome]."
+
+Example structure for your own copy:
+"Real ${n.niche} professionals use ${n.title} to [transformation]. ${n.pa?.emotionalHook || 'The result is confidence and professional credibility.'}"
+
+OBJECTION HANDLERS
+${hr()}
+Objection: "I can design my own templates."
+Response: "You can — but this saves you [X] hours per template. At your hourly rate, this pack pays for itself the first time you use it."
+
+Objection: "I don't know how to edit templates."
+Response: "Every template comes with step-by-step customization notes. If you can use Canva or PowerPoint, you can use this pack."
+
+Objection: "Is this compatible with my software?"
+Response: "Templates work in Canva, Adobe Suite, PowerPoint, Google Slides, and more. The format recommendation is listed in each template file."
+
+Generated by Launchora | ${new Date().toLocaleDateString()}`;
+}
+
+// Headline bank
+function buildHeadlineBank(n, templateCases) {
+  const niche = n.niche;
+  const audience = n.audience || niche + ' professionals';
+  return `HEADLINE BANK — ${n.title}
+${'═'.repeat(60)}
+30+ proven headline formulas for this template pack.
+Use for listings, social media, emails, and ads.
+${'═'.repeat(60)}
+
+DIRECT BENEFIT HEADLINES
+${hr()}
+1. ${templateCases.length} Professional ${niche} Templates — Ready to Customize Today
+2. Stop Starting From Scratch: ${niche} Templates Built for Real Professionals
+3. The ${niche} Template Pack That Makes You Look Like You Have a Full Design Team
+4. Professional ${niche} Templates — Customize in Minutes, Not Hours
+5. ${n.title}: ${templateCases.length} Templates, Instant Download, Zero Design Skills Required
+
+CURIOSITY HEADLINES
+${hr()}
+6. What Do Top ${niche} Professionals Have That You Don't? (These Templates)
+7. The Secret to Looking More Professional in ${niche} — Without Hiring a Designer
+8. Why Smart ${audience} Stop Designing From Scratch
+9. The ${niche} Template Pack I Wish I Had When I Started
+10. This Is Why Some ${niche} Professionals Always Look More Polished
+
+PAIN POINT HEADLINES
+${hr()}
+11. Tired of Your ${niche} Materials Looking Unprofessional?
+12. Stop Wasting Hours Building ${niche} Documents From Scratch
+13. ${n.pa?.painPoint ? n.pa.painPoint.split('.')[0] + '?' : 'Struggling to Look Professional in ' + niche + '?'}
+14. Every Hour You Spend Designing Is an Hour You're Not Earning
+15. Your ${niche} Materials Are Costing You Clients — Here's the Fix
+
+TRANSFORMATION HEADLINES
+${hr()}
+16. From DIY to Professional: ${niche} Templates That Do the Work
+17. Look Like a ${niche} Pro in Minutes — Not Months
+18. ${n.pa?.transformation ? n.pa.transformation.split('.')[0] : 'Go From Scattered to Polished in ' + niche} — With One Download
+19. The Template Pack That Transforms How ${audience} Present Themselves
+20. Before: Hours of Design Work. After: ${n.title}.
+
+SOCIAL PROOF STYLE
+${hr()}
+21. The ${niche} Template Pack Used by Professionals on ${n.platform}
+22. Rated as a Top ${niche} Template Pack for ${new Date().getFullYear()}
+23. What ${audience} Are Downloading Right Now
+24. The Template Pack That ${niche} Professionals Keep Recommending
+25. Join Hundreds of ${audience} Who Use ${n.title}
+
+URGENCY / PRICE HEADLINES
+${hr()}
+26. $${n.priceMin} for ${templateCases.length} Professional ${niche} Templates — Limited Time
+27. Get ${templateCases.length} ${niche} Templates for Less Than the Cost of 1 Hour of Freelance Design
+28. ${n.title} — $${n.priceMin} Today. Professional Results Forever.
+29. Launch Price: $${n.priceMin}. Regular: $${n.priceMax}. Grab It Now.
+30. ${templateCases.length} Templates. $${n.priceMin}. Instant Download. What Are You Waiting For?
+
+QUESTION HEADLINES
+${hr()}
+31. What Would You Do With ${templateCases.length} Ready-Made ${niche} Templates?
+32. How Many Hours a Week Do You Spend Designing ${niche} Materials?
+33. What If You Could Look Like a Design Pro in ${niche} — Starting Today?
+
+Generated by Launchora | ${new Date().toLocaleDateString()}`;
+}
+
+// CTA bank
+function buildCTABank(n) {
+  return `CTA BANK — ${n.title}
+${'═'.repeat(60)}
+20+ proven calls-to-action for this template pack.
+Use across listings, social, emails, and ads.
+${'═'.repeat(60)}
+
+LISTING CTAs
+${hr()}
+1. Download Now → Start Customizing in Minutes
+2. Get Instant Access — $${n.priceMin}
+3. Add to Cart → Instant Digital Download
+4. Buy Now — Use Today
+5. Grab This Pack → $${n.priceMin} Instant Access
+
+SOCIAL MEDIA CTAs
+${hr()}
+6. Link in bio 🔗 → Download your templates
+7. Comment "TEMPLATES" and I'll DM you the link
+8. Save this post — then grab the pack at the link in bio
+9. Tap the link, download, customize. That's it. 🎯
+10. $${n.priceMin}. Instant download. Link in bio. 👆
+
+EMAIL CTAs
+${hr()}
+11. → [CLICK HERE TO DOWNLOAD YOUR TEMPLATES]
+12. → Grab ${n.title} for $${n.priceMin} — download starts immediately
+13. → Yes, I want professional ${n.niche} templates →
+14. → Get the templates (before the price goes up)
+15. → [INSERT LINK] — Your templates are waiting
+
+URGENCY CTAs
+${hr()}
+16. Launch price ends [DATE] → Grab it now
+17. Price goes to $${n.priceMax} after [DATE] → Download at $${n.priceMin} →
+18. Only available at this price until [DATE]
+19. Grab it before the price increases →
+20. Last chance at $${n.priceMin} — goes up tonight
+
+TRUST-BUILDING CTAs
+${hr()}
+21. Download risk-free — see what's inside
+22. Instant download — works in Canva, Adobe, PowerPoint
+23. One-time purchase — yours to keep and use forever
+24. No subscriptions. No recurring fees. Pay once, use forever.
+25. 100% digital — download immediately after purchase
+
+Generated by Launchora | ${new Date().toLocaleDateString()}`;
+}
+
+// Detect if this is a Template Pack product type
+function isTemplatePack(n) {
+  const t = (n.type || '').toLowerCase();
+  return t.includes('template') || t.includes('template pack') || t === 'templates';
+}
+
 // ── File builders ─────────────────────────────────────────────────────────────
 
 const README = (p,n) => `LAUNCHORA DIGITAL PRODUCT LAUNCH KIT
@@ -357,11 +886,34 @@ Deno.serve(async (req) => {
     currentStep = 'build_files';
     const buildStart = Date.now();
 
+    // Detect Template Pack and build its specialized 01_Product files
+    const templatePack = isTemplatePack(n);
+    const templateCases = templatePack ? deriveTemplateCases(n) : [];
+    console.log(`[generateZip] isTemplatePack=${templatePack} templateCount=${templateCases.length}`);
+
+    // 01_Product file list — switches entirely for Template Pack
+    const product01Files = templatePack
+      ? [
+          { name:'01_Product/Product_Overview.txt',             fn:()=>buildTemplateOverview(n, templateCases) },
+          ...templateCases.slice(0, 7).map((tc, i) => {
+            const slug = tc.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').slice(0, 40);
+            return { name:`01_Product/Template_${i+1}_${slug}.txt`, fn:()=>buildTemplateFile(tc, i, n) };
+          }),
+          { name:'01_Product/Copy_Bank.txt',                    fn:()=>buildCopyBank(n, templateCases) },
+          { name:'01_Product/Headline_Bank.txt',                fn:()=>buildHeadlineBank(n, templateCases) },
+          { name:'01_Product/CTA_Bank.txt',                     fn:()=>buildCTABank(n) },
+          { name:'01_Product/Implementation_Checklist.txt',     fn:()=>IMPL_CHECKLIST(product,n) },
+          { name:'01_Product/Buyer_Quick_Start_Guide.txt',      fn:()=>QUICK_START(product,n) },
+        ]
+      : [
+          { name:'01_Product/Product_Content.txt',              fn:()=>PRODUCT_TXT(product,n) },
+          { name:'01_Product/Product_Content.html',             fn:()=>PRODUCT_HTML(product,n) },
+          { name:'01_Product/Buyer_Quick_Start_Guide.txt',      fn:()=>QUICK_START(product,n) },
+          { name:'01_Product/Implementation_Checklist.txt',     fn:()=>IMPL_CHECKLIST(product,n) },
+        ];
+
     const fileDefs = [
-      { name:'01_Product/Product_Content.txt',           fn:()=>PRODUCT_TXT(product,n) },
-      { name:'01_Product/Product_Content.html',           fn:()=>PRODUCT_HTML(product,n) },
-      { name:'01_Product/Buyer_Quick_Start_Guide.txt',   fn:()=>QUICK_START(product,n) },
-      { name:'01_Product/Implementation_Checklist.txt',  fn:()=>IMPL_CHECKLIST(product,n) },
+      ...product01Files,
       { name:'02_Sales_Page/Platform_Listing_Primary.txt',fn:()=>PRIMARY_LISTING(product,n) },
       { name:'02_Sales_Page/Gumroad_Listing.txt',         fn:()=>GUMROAD(product,n) },
       { name:'02_Sales_Page/Etsy_Listing.txt',            fn:()=>ETSY(product,n) },

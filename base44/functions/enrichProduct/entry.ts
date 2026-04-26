@@ -27,7 +27,31 @@ function withTimeout(promise, ms, label) {
 // Each expands ONE section with a small, focused prompt — max ~300 words output.
 async function expandSection(base44, sec, context) {
   const { productType, niche, tone, audience, promise: productPromise } = context;
-  const prompt = `You are writing content for a premium digital ${productType} in the ${niche} niche.
+  const isTemplate = (productType || '').toLowerCase().includes('template');
+
+  const prompt = isTemplate
+    ? `You are a professional ${niche} designer creating a ready-to-use template specification document.
+The buyer is purchasing a Template Pack for ${niche}. They need ACTUAL template files, not advice.
+
+Template name: "${sec.title}"
+Niche: ${niche}. Audience: ${audience}. Tone: ${tone}.
+
+Write a detailed template specification that includes:
+1. BEST USE CASE — one sentence on when to use this template
+2. LAYOUT STRUCTURE — describe the visual layout (sections, columns, header/footer, hierarchy)
+3. COPY BLOCKS — write the actual ready-to-customize copy for each section (use [BRACKETS] for buyer to replace)
+4. HEADLINE OPTIONS — 3 ready-to-use headline variations
+5. CTA — 2 call-to-action options
+6. CUSTOMIZATION TIPS — 3 specific tips for this template
+
+Rules:
+- Max 350 words
+- Write ACTUAL copy and layout specs — not advice about templates
+- Use [BRACKETS] for buyer-specific fields (e.g. [YOUR NAME], [INSERT PRICE], [ADD LOGO HERE])
+- Be specific to ${niche} — not generic
+
+Return ONLY valid JSON: {"body": "...template specification..."}`
+    : `You are writing content for a premium digital ${productType} in the ${niche} niche.
 Tone: ${tone}. Target audience: ${audience}. Product promise: ${productPromise}.
 
 Expand this section with useful, specific, actionable content:
