@@ -1,1460 +1,333 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// ── Lightweight ZIP builder (no compression, stored mode) ────────────────────
+// ── ZIP builder ───────────────────────────────────────────────────────────────
 function buildZip(files) {
   const enc = new TextEncoder();
-  const toBytes = (d) => typeof d === 'string' ? enc.encode(d) : new Uint8Array(d);
-
-  const crcTable = (() => {
-    const t = new Uint32Array(256);
-    for (let i = 0; i < 256; i++) {
-      let c = i;
-      for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-      t[i] = c;
-    }
-    return t;
-  })();
-
-  const crc32 = (data) => {
-    let crc = 0xFFFFFFFF;
-    for (let i = 0; i < data.length; i++) crc = crcTable[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
-    return (crc ^ 0xFFFFFFFF) >>> 0;
-  };
-
-  const u16 = (n) => { const b = new Uint8Array(2); new DataView(b.buffer).setUint16(0, n, true); return b; };
-  const u32 = (n) => { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b; };
-  const concat = (...arrays) => {
-    const total = arrays.reduce((s, a) => s + a.length, 0);
-    const out = new Uint8Array(total);
-    let off = 0;
-    for (const a of arrays) { out.set(a, off); off += a.length; }
-    return out;
-  };
-
-  const entries = [];
-  let offset = 0;
-  const now = new Date();
-  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
-  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
-
-  for (const { name, data } of files) {
-    const nameBytes = enc.encode(name);
-    const fileData = toBytes(data);
-    const crc = crc32(fileData);
-    const localHeader = concat(
-      new Uint8Array([0x50, 0x4B, 0x03, 0x04]),
-      u16(20), u16(0), u16(0),
-      u16(dosTime), u16(dosDate),
-      u32(crc), u32(fileData.length), u32(fileData.length),
-      u16(nameBytes.length), u16(0), nameBytes,
-    );
-    entries.push({ nameBytes, crc, size: fileData.length, offset, dosTime, dosDate, localHeader, fileData });
-    offset += localHeader.length + fileData.length;
-  }
-
-  const cdParts = entries.map(e => concat(
-    new Uint8Array([0x50, 0x4B, 0x01, 0x02]),
-    u16(20), u16(20), u16(0), u16(0),
-    u16(e.dosTime), u16(e.dosDate),
-    u32(e.crc), u32(e.size), u32(e.size),
-    u16(e.nameBytes.length), u16(0), u16(0), u16(0), u16(0),
-    u32(0), u32(e.offset), e.nameBytes,
-  ));
-
-  const centralDir = concat(...cdParts);
-  const eocd = concat(
-    new Uint8Array([0x50, 0x4B, 0x05, 0x06]),
-    u16(0), u16(0),
-    u16(entries.length), u16(entries.length),
-    u32(centralDir.length), u32(offset), u16(0),
-  );
-
-  return concat(...entries.flatMap(e => [e.localHeader, e.fileData]), centralDir, eocd);
+  const toBytes = d => typeof d === 'string' ? enc.encode(d) : new Uint8Array(d);
+  const crcTable = (() => { const t = new Uint32Array(256); for (let i=0;i<256;i++){let c=i;for(let j=0;j<8;j++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[i]=c;}return t; })();
+  const crc32 = d => { let c=0xFFFFFFFF; for(let i=0;i<d.length;i++)c=crcTable[(c^d[i])&0xFF]^(c>>>8); return(c^0xFFFFFFFF)>>>0; };
+  const u16 = n => { const b=new Uint8Array(2); new DataView(b.buffer).setUint16(0,n,true); return b; };
+  const u32 = n => { const b=new Uint8Array(4); new DataView(b.buffer).setUint32(0,n,true); return b; };
+  const cat = (...a) => { const t=a.reduce((s,x)=>s+x.length,0),o=new Uint8Array(t); let p=0; for(const x of a){o.set(x,p);p+=x.length;} return o; };
+  const entries=[]; let off=0;
+  const now=new Date(), dd=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate(), dt=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1);
+  for(const{name,data}of files){const nb=enc.encode(name),fd=toBytes(data),cr=crc32(fd),lh=cat(new Uint8Array([0x50,0x4B,0x03,0x04]),u16(20),u16(0),u16(0),u16(dt),u16(dd),u32(cr),u32(fd.length),u32(fd.length),u16(nb.length),u16(0),nb);entries.push({nb,cr,sz:fd.length,off,dt,dd,lh,fd});off+=lh.length+fd.length;}
+  const cd=cat(...entries.map(e=>cat(new Uint8Array([0x50,0x4B,0x01,0x02]),u16(20),u16(20),u16(0),u16(0),u16(e.dt),u16(e.dd),u32(e.cr),u32(e.sz),u32(e.sz),u16(e.nb.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(e.off),e.nb)));
+  const eocd=cat(new Uint8Array([0x50,0x4B,0x05,0x06]),u16(0),u16(0),u16(entries.length),u16(entries.length),u32(cd.length),u32(off),u16(0));
+  return cat(...entries.flatMap(e=>[e.lh,e.fd]),cd,eocd);
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-const hr = (char = '─', len = 60) => char.repeat(len);
-const section = (title, body) => `${title}\n${hr()}\n${body}`;
+const hr = (c='─',n=60) => c.repeat(n);
 
-// ── Content Generators ────────────────────────────────────────────────────────
+function safeFile(name, fn, warnings) {
+  try { const d=fn(); if(!d||!String(d).trim()) throw new Error('empty'); return {name,data:d}; }
+  catch(e) { warnings.push(`Skipped ${name}: ${e.message}`); return null; }
+}
 
-function buildReadme(p, { title, subtitle, promise, priceMin, priceMax }) {
-  return `╔══════════════════════════════════════════════════════════╗
-║          LAUNCHORA DIGITAL PRODUCT LAUNCH KIT            ║
-╚══════════════════════════════════════════════════════════╝
+// ── Normalizer ────────────────────────────────────────────────────────────────
+function norm(p) {
+  const d=p.generated_data||{}, ma=p.marketing_assets||{}, pa=p.product_angle||{}, pg=p.platform_guides||{}, sm=p.social_media_kit||{};
+  const title=String(p.title||d.title||'Untitled Product');
+  const subtitle=String(p.subtitle||d.subtitle||'');
+  const promise=String(p.promise||d.promise||'');
+  const audience=String(p.target_audience||d.audience||d.target_audience||'');
+  const buyer=String(p.buyer_profile||d.buyer_profile||'');
+  const problem=String(p.problem_solved||d.problem_solved||'');
+  const type=String(p.product_type||d.product_type||'Digital Product');
+  const niche=String(p.niche||'General');
+  const platform=String(p.platform||'Gumroad');
+  const tone=String(p.tone||'Professional');
+  const launchPlan=String(p.launch_plan||d.launch_plan||'');
+  const items=Array.isArray(p.checklist_items)?p.checklist_items:(Array.isArray(d.benefits)?d.benefits:[]);
+  const pages=Array.isArray(p.pages)?p.pages:(Array.isArray(d.product_blocks)?d.product_blocks:[]);
+  const sections=Array.isArray(p.sections)&&p.sections.length>0?p.sections:Array.isArray(d.sections)&&d.sections.length>0?d.sections:pages.filter(b=>b?.type==='section').map(b=>({title:b.heading||b.content?.title||'',body:b.content?.body||''}));
+  const priceMin=Number(ma.price_min??d.price_min??17)||17;
+  const priceMax=Number(ma.price_max??d.price_max??37)||37;
+  const keywords=Array.isArray(ma.keywords)&&ma.keywords.length>0?ma.keywords:Array.isArray(d.keywords)&&d.keywords.length>0?d.keywords:[niche,type,'digital product','download'].filter(Boolean);
+  const listingTitle=String(ma.listing_title||d.listing_title||title);
+  const shortDesc=String(ma.seo_meta_description||d.seo_meta_description||`${promise||subtitle||title}. Built for ${audience||niche}.`);
+  const longDesc=String(ma.listing_description||d.listing_description||`${promise||subtitle||title}\n\nBuilt for ${audience||niche}.\n\nThis ${type} gives you everything you need to get results fast.\n\n✅ Instant digital download\n✅ Professionally structured\n✅ Ready to use immediately\n\n${pa.finalAngle||''}`);
+  const safe=title.replace(/[^a-z0-9]/gi,'_').slice(0,40)||'Launchora_Product';
+  const igCaps=Array.isArray(sm.instagram_captions)&&sm.instagram_captions.length>0?sm.instagram_captions:[];
+  const calItems=Array.isArray(sm.content_calendar)&&sm.content_calendar.length>0?sm.content_calendar:[];
+  const scripts=Array.isArray(sm.video_scripts)&&sm.video_scripts.length>0?sm.video_scripts:[];
+  return {title,subtitle,promise,audience,buyer,problem,type,niche,platform,tone,launchPlan,items,sections,priceMin,priceMax,keywords,listingTitle,shortDesc,longDesc,safe,pa,ma,pg,sm,igCaps,calItems,scripts};
+}
 
-PRODUCT: ${title}
-${subtitle ? `SUBTITLE: ${subtitle}` : ''}
-${promise ? `PROMISE: ${promise}` : ''}
+// ── File builders ─────────────────────────────────────────────────────────────
 
-TYPE:      ${p.product_type || 'Digital Product'}
-PLATFORM:  ${p.platform || 'Multi-Platform'}
-NICHE:     ${p.niche || 'General'}
-PRICE:     $${priceMin}–$${priceMax}
-
-GENERATED: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-POWERED BY: Launchora (launchora.com)
-
-${hr('═')}
-WHAT'S INSIDE THIS ZIP
-${hr('═')}
-
+const README = (p,n) => `LAUNCHORA DIGITAL PRODUCT LAUNCH KIT
+${'═'.repeat(60)}
+PRODUCT: ${n.title}
+TYPE: ${n.type} | PLATFORM: ${n.platform} | PRICE: $${n.priceMin}–$${n.priceMax}
+GENERATED: ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}
+${'═'.repeat(60)}
+WHAT'S IN YOUR LAUNCH KIT
+${'═'.repeat(60)}
 📁 01_Product/
-   • Product.txt          — Full product metadata, positioning & buyer profile
-   • Product_Content.html — Complete product content as a styled HTML page
+   Product_Content.txt / .html — Full product content
+   Buyer_Quick_Start_Guide.txt — What buyers do first
+   Implementation_Checklist.txt — Action checklist
 
 📁 02_Sales_Page/
-   • Gumroad_Listing.txt      — Optimised title + description for Gumroad
-   • Etsy_Listing.txt         — Ready-to-paste Etsy listing copy
-   • Payhip_Listing.txt       — Payhip product description
-   • Shopify_Listing.txt      — Shopify store copy
-   • Product_Description.txt  — Universal long-form product description
-   • Pricing_Strategy.txt     — Recommended pricing rationale & strategy
+   Platform_Listing_Primary.txt — Ready-to-paste listing
+   Gumroad / Etsy / Payhip / Creative_Market listings
+   Product_Description_Short/Long.txt
+   Pricing_Strategy.txt | SEO_Keywords.txt
 
 📁 03_Social_Media/
-   • Instagram_Captions.txt   — 5 caption variations with hooks
-   • LinkedIn_Posts.txt       — 3 professional LinkedIn posts
-   • TikTok_Video_Ideas.txt   — 5 short-form video concepts & scripts
-   • Hashtags.txt             — Platform-specific hashtag sets
+   Hooks.txt | Instagram_Captions.txt | LinkedIn_Posts.txt
+   TikTok_Reel_Ideas.txt | Carousel_Post_Outlines.txt
+   Hashtag_Groups.txt | 7_Day_Posting_Calendar.txt
 
 📁 04_Email_Launch/
-   • Email_1_Announcement.txt     — Launch announcement email
-   • Email_2_Educational_Value.txt — Value-based nurture email
-   • Email_3_Final_Push.txt       — Urgency / closing email
+   Emails 1–5: Announcement → Value → Problem → Offer → Last Call
 
 📁 05_Launch_Plan/
-   • 7_Day_Launch_Plan.txt        — Day-by-day launch roadmap
-   • Launch_Checklist.txt         — Pre-launch checklist
-   • Platform_Recommendation.txt  — Why this platform, tips & best practices
+   7_Day_Launch_Plan.txt | Launch_Checklist.txt
+   Platform_Recommendation.txt | Launch_Readiness_Report.txt
 
-README.txt — You are here!
-
-${hr()}
-HOW TO USE
-${hr()}
-
-1. Start with 01_Product/ to review your product positioning.
-2. Pick the right Sales Page copy from 02_Sales_Page/ for your platform.
-3. Schedule your social posts using 03_Social_Media/.
-4. Send the 04_Email_Launch/ sequence to your list on Days 1, 3, and 6.
-5. Follow the 05_Launch_Plan/ day-by-day for a structured rollout.
+📁 06_Bonus/
+   Customer_Avatar.txt | FAQ.txt | Upsell_Ideas.txt | Next_Product_Ideas.txt
+${'═'.repeat(60)}
+SUGGESTED FIRST STEPS
+${'═'.repeat(60)}
+1. Open 01_Product/Product_Content.html in your browser — review your content
+2. Copy your listing from 02_Sales_Page/Platform_Listing_Primary.txt → paste into your store
+3. Schedule 03_Social_Media/7_Day_Posting_Calendar.txt posts for launch week
+4. Send 04_Email_Launch/Email_1_Announcement.txt to your list on launch day
+5. Follow 05_Launch_Plan/7_Day_Launch_Plan.txt day by day
 
 Good luck with your launch! 🚀
 `;
-}
-
-function buildProductTxt(p, { title, subtitle, promise, targetAudience, buyerProfile, problemSolved, priceMin, priceMax, keywords }) {
-  const ma = p.marketing_assets || {};
-  return `${section('PRODUCT OVERVIEW', '')}
-
-TITLE:           ${title}
-SUBTITLE:        ${subtitle || '—'}
-PROMISE:         ${promise || '—'}
-TYPE:            ${p.product_type || '—'}
-PLATFORM:        ${p.platform || '—'}
-NICHE:           ${p.niche || '—'}
-TONE:            ${p.tone || '—'}
-LANGUAGE:        ${p.language || 'English'}
-PRICE RANGE:     $${priceMin} – $${priceMax}
-
-${hr()}
-TARGET AUDIENCE
-${hr()}
-${targetAudience || '—'}
-
-${hr()}
-BUYER PROFILE
-${hr()}
-${buyerProfile || '—'}
-
-${hr()}
-PROBLEM THIS SOLVES
-${hr()}
-${problemSolved || '—'}
-
-${hr()}
-TRANSFORMATION / OUTCOME PROMISED
-${hr()}
-${promise || '—'}
-
-${hr()}
-UNIQUE ANGLE
-${hr()}
-${p.product_angle || ma.platform_cta || '—'}
-
-${hr()}
-SEO KEYWORDS
-${hr()}
-${keywords.length ? keywords.join(', ') : '—'}
-
-${hr()}
-SEO META DESCRIPTION
-${hr()}
-${ma.seo_meta_description || '—'}
-
-${hr()}
-CALL TO ACTION
-${hr()}
-${ma.cta || ma.platform_cta || '—'}
-`;
-}
-
-function buildProductHtml(p, { title, subtitle, promise, targetAudience, sections, priceMin, priceMax, keywords }) {
-  const accentColor = '#ea580c';
-  const sectionsHtml = sections.map(s => `
-    <section style="margin-bottom: 2.5rem;">
-      <h2 style="font-size:1.4rem;font-weight:700;color:#1a1a1a;border-left:4px solid ${accentColor};padding-left:0.75rem;margin-bottom:0.75rem;">${s.title || s.heading || ''}</h2>
-      <div style="font-size:1rem;line-height:1.8;color:#374151;white-space:pre-wrap;">${s.body || s.content?.body || ''}</div>
-    </section>`).join('\n');
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${title}</title>
-  <style>
-    body { font-family: 'Georgia', serif; max-width: 780px; margin: 0 auto; padding: 2rem 1.5rem; background: #fafaf9; color: #1a1a1a; }
-    h1 { font-size: 2.4rem; font-weight: 800; color: #111; margin-bottom: 0.5rem; }
-    .subtitle { font-size: 1.2rem; color: #6b7280; margin-bottom: 1.5rem; font-style: italic; }
-    .promise-box { background: linear-gradient(135deg,#fff7ed,#ffedd5); border: 2px solid ${accentColor}; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
-    .promise-box p { margin: 0; font-size: 1.05rem; font-weight: 600; color: #9a3412; }
-    .meta-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; }
-    .badge { background: #f3f4f6; border-radius: 999px; padding: 0.25rem 0.75rem; font-size: 0.8rem; color: #374151; font-family: sans-serif; }
-    .price-badge { background: ${accentColor}; color: white; border-radius: 999px; padding: 0.25rem 0.75rem; font-size: 0.85rem; font-weight: 700; font-family: sans-serif; }
-    .audience { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 2rem; font-family: sans-serif; font-size: 0.9rem; color: #166534; }
-    .keywords { font-family: sans-serif; font-size: 0.8rem; color: #6b7280; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
-    .footer { text-align: center; font-family: sans-serif; font-size: 0.75rem; color: #9ca3af; margin-top: 3rem; padding-top: 1rem; border-top: 1px solid #e5e7eb; }
-    hr { border: none; border-top: 1px solid #e5e7eb; margin: 2rem 0; }
-  </style>
-</head>
-<body>
-  <h1>${title}</h1>
-  ${subtitle ? `<p class="subtitle">${subtitle}</p>` : ''}
-  ${promise ? `<div class="promise-box"><p>✦ ${promise}</p></div>` : ''}
-  <div class="meta-row">
-    ${p.product_type ? `<span class="badge">${p.product_type}</span>` : ''}
-    ${p.platform ? `<span class="badge">${p.platform}</span>` : ''}
-    ${p.niche ? `<span class="badge">${p.niche}</span>` : ''}
-    ${priceMin ? `<span class="price-badge">$${priceMin}–$${priceMax}</span>` : ''}
-  </div>
-  ${targetAudience ? `<div class="audience"><strong>For:</strong> ${targetAudience}</div>` : ''}
-  <hr />
-  ${sectionsHtml}
-  ${keywords.length ? `<div class="keywords"><strong>Keywords:</strong> ${keywords.join(' · ')}</div>` : ''}
-  <div class="footer">Generated by Launchora · ${new Date().getFullYear()}</div>
-</body>
-</html>`;
-}
 
-function buildGumroadListing(p, { title, subtitle, promise, targetAudience, priceMin, priceMax, listingDescription, keywords }) {
-  return `GUMROAD LISTING
-${hr()}
+const PRODUCT_TXT = (p,n) => {
+  const secs=n.sections.map((s,i)=>`${hr()}\n${i+1}. ${s.title||s.heading||'Section '+(i+1)}\n${hr()}\n${s.body||s.content?.body||''}`).join('\n\n');
+  return `${n.title}\n${'═'.repeat(60)}\n${n.subtitle||''}\nTYPE: ${n.type} | NICHE: ${n.niche} | PLATFORM: ${n.platform} | PRICE: $${n.priceMin}–$${n.priceMax}\n\nPROMISE\n${hr()}\n${n.promise||n.subtitle||''}\n\nFOR: ${n.audience||n.niche}\n\n${n.items.length>0?'KEY BENEFITS\n'+hr()+'\n'+n.items.map(b=>'✅ '+b).join('\n')+'\n\n':''}\n${'═'.repeat(60)}\nCONTENT\n${'═'.repeat(60)}\n\n${secs||'(Sections pending)'}\n\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
+};
 
-PRODUCT TITLE (max 80 chars):
-${title}${subtitle ? ' — ' + subtitle : ''}
+const PRODUCT_HTML = (p,n) => {
+  const a='#ea580c';
+  const secsHtml=n.sections.map((s,i)=>`<section style="margin-bottom:2.5rem;padding-bottom:2rem;border-bottom:1px solid #f3f4f6"><h2 style="font-size:1.25rem;font-weight:700;color:#111;padding-left:.75rem;border-left:4px solid ${a};margin-bottom:.75rem">${i+1}. ${s.title||s.heading||'Section '+(i+1)}</h2><div style="font-size:1rem;line-height:1.8;color:#374151;white-space:pre-wrap">${s.body||s.content?.body||'<em style="color:#9ca3af">Content pending</em>'}</div></section>`).join('');
+  const bens=n.items.length>0?`<ul style="list-style:none;padding:0;margin-bottom:2rem">${n.items.map(b=>`<li style="padding:.35rem 0;color:#166534">✅ ${b}</li>`).join('')}</ul>`:'';
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>${n.title}</title><style>body{font-family:Georgia,serif;max-width:780px;margin:0 auto;padding:2rem 1.5rem;background:#fafaf9;color:#1a1a1a}h1{font-size:2.1rem;font-weight:800;color:#111;margin-bottom:.5rem}.sub{font-size:1.1rem;color:#6b7280;font-style:italic;margin-bottom:1.5rem}.promise{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:2px solid ${a};border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem}.promise p{margin:0;font-size:1rem;font-weight:600;color:#9a3412}.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem;font-family:sans-serif}.badge{background:#f3f4f6;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;color:#374151}.pb{background:${a};color:#fff;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;font-weight:700}.aud{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:1rem 1.25rem;margin-bottom:2rem;font-family:sans-serif;font-size:.9rem;color:#166534}.kw{font-family:sans-serif;font-size:.8rem;color:#6b7280;margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb}.ft{text-align:center;font-family:sans-serif;font-size:.75rem;color:#9ca3af;margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e7eb}</style></head><body><h1>${n.title}</h1>${n.subtitle?`<p class="sub">${n.subtitle}</p>`:''} ${n.promise?`<div class="promise"><p>✦ ${n.promise}</p></div>`:''}<div class="meta"><span class="badge">${n.type}</span><span class="badge">${n.platform}</span><span class="badge">${n.niche}</span><span class="pb">$${n.priceMin}–$${n.priceMax}</span></div>${n.audience?`<div class="aud"><strong>For:</strong> ${n.audience}</div>`:''} ${bens}${secsHtml}${n.keywords.length?`<div class="kw"><strong>Keywords:</strong> ${n.keywords.join(' · ')}</div>`:''}<div class="ft">Generated by Launchora · ${new Date().getFullYear()}</div></body></html>`;
+};
 
-PRICE: $${priceMin}  (or use "Pay What You Want", minimum $${priceMin})
+const QUICK_START = (p,n) => `BUYER QUICK START GUIDE — ${n.title}\n${'═'.repeat(60)}\n\nWelcome! Here's how to get the most out of ${n.title} as fast as possible.\n\nWHAT THIS IS\n${hr()}\n${n.title} is a ${n.type} for ${n.audience||n.niche+' enthusiasts'}.\n${n.promise?'\nPROMISE:\n'+n.promise+'\n':''}\nHOW TO USE IT\n${hr()}\nSTEP 1: Skim the entire product once to understand the structure.\nSTEP 2: Work through these sections in order:\n${n.sections.slice(0,6).map((s,i)=>`   ${i+1}. ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\nSTEP 3: Take one action within 24 hours of downloading.\n\n${n.items.length>0?'KEY OUTCOMES\n'+hr()+'\n'+n.items.slice(0,5).map(b=>'✅ '+b).join('\n')+'\n':''}\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
 
-DESCRIPTION (paste directly into Gumroad):
-${hr('-')}
-${promise ? `✦ ${promise}\n\n` : ''}${listingDescription || ''}
+const IMPL_CHECKLIST = (p,n) => {
+  const list=n.items.length>0?n.items.map(b=>`□ ${b}`):n.sections.map((s,i)=>`□ Complete: ${s.title||s.heading||'Section '+(i+1)}`);
+  return `IMPLEMENTATION CHECKLIST — ${n.title}\n${'═'.repeat(60)}\n\nYOUR ACTION LIST\n${hr()}\n${list.join('\n')}\n\nQUICK WINS\n${hr()}\n□ Read through once without acting\n□ Pick the single most relevant section\n□ Complete that section first\n□ Apply one strategy within 48 hours\n□ Share one insight with your network\n\nRESULT TRACKER\n${hr()}\nTarget: _______________\nReview date: _______________\nNotes:\n_______________________________________________\n_______________________________________________\n\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
+};
 
-WHO IS THIS FOR?
-${targetAudience || ''}
+const PRIMARY_LISTING = (p,n) => `PRIMARY PLATFORM LISTING — ${n.title}\n${'═'.repeat(60)}\nPlatform: ${n.platform}\n\nTITLE\n${hr()}\n${n.listingTitle}\n\nDESCRIPTION\n${hr()}\n${n.longDesc}\n\nFOR\n${hr()}\n${n.audience||n.niche+' professionals'}\n\nBENEFITS\n${hr()}\n${n.items.length>0?n.items.map(b=>'✅ '+b).join('\n'):'✅ Instant digital download\n✅ Professionally structured '+n.type+'\n✅ Ready to use immediately'}\n\nKEYWORDS\n${hr()}\n${n.keywords.join(', ')}\n\nPRICING: $${n.priceMin}–$${n.priceMax}${n.ma.price_rationale?'\n'+n.ma.price_rationale:''}\n\nCTA: ${n.ma.platform_cta||n.ma.cta||'Download instantly →'}\n${n.pg.pro_tips?.length?'\nPRO TIPS\n'+hr()+'\n'+n.pg.pro_tips.map((t,i)=>`${i+1}. ${t}`).join('\n'):''}`;
 
-WHAT YOU'LL GET:
-• Instant digital download
-• ${p.product_type || 'Complete digital product'}
-• Ready to use immediately
+const GUMROAD = (p,n) => `GUMROAD LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.title}${n.subtitle?' — '+n.subtitle:''}\nPRICE: $${n.priceMin} (enable Pay What You Want)\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\n\nFOR: ${n.audience||n.niche}\n\nTAGS: ${n.keywords.slice(0,10).join(', ')}\n\nTIPS:\n• Upload cover image (1280×720px)\n• Enable "Let buyers pay more"\n• Add thank-you redirect to your email opt-in`;
 
-TAGS (comma-separated):
-${keywords.slice(0, 10).join(', ')}
-
-TIPS:
-• Upload a clean cover image (1280×720px recommended)
-• Enable "Let buyers pay more" to increase average order value
-• Set a "Thank You" redirect to your email opt-in page
-`;
-}
+const ETSY = (p,n) => {const tags=n.keywords.slice(0,13).map(t=>t.slice(0,20));return `ETSY LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.keywords[0]?n.keywords[0]+' — ':''}${n.title}${n.subtitle?' | '+n.subtitle:''}\nPRICE: $${(n.priceMin-0.01).toFixed(2)}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nPerfect for: ${n.audience||n.niche}\n────────────────────\n✅ INSTANT DOWNLOAD | ✅ ${n.type} | ✅ Works on all devices\n────────────────────\n\nTAGS (13 max):\n${tags.map((t,i)=>`${i+1}. ${t}`).join('\n')}\n\nTIPS:\n• Use all 10 listing photos\n• Fill all attributes for search placement\n• Price below round numbers`;};
 
-function buildEtsyListing(p, { title, subtitle, promise, targetAudience, priceMin, keywords, listingDescription }) {
-  const tags = keywords.slice(0, 13);
-  return `ETSY LISTING
-${hr()}
+const PAYHIP = (p,n) => `PAYHIP LISTING — ${n.title}\n${'═'.repeat(60)}\nNAME: ${n.title}\nTAGLINE: ${n.subtitle||n.promise||''}\nPRICE: $${n.priceMin}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nFOR: ${n.audience||n.niche}\nKEYWORDS: ${n.keywords.join(', ')}\n\nTIPS:\n• Enable Pay What You Want\n• Set up 30-50% affiliate commissions\n• Use Payhip email marketing for buyer follow-up`;
 
-TITLE (max 140 chars — front-load keywords):
-${keywords[0] ? keywords[0] + ' — ' : ''}${title}${subtitle ? ' | ' + subtitle : ''}
+const CREATIVE_MARKET = (p,n) => `CREATIVE MARKET LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.title}\nTAGLINE: ${n.subtitle||n.promise||''}\nPRICE: $${n.priceMin}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nFOR: ${n.audience||n.niche+' professionals'}\n\nWHAT'S INCLUDED:\n${n.sections.slice(0,6).map((s,i)=>`• ${s.title||s.heading||'Section '+(i+1)}`).join('\n')||`• Complete ${n.type}\n• Ready to use immediately`}\n\nTAGS: ${n.keywords.slice(0,12).join(', ')}\n\nTIPS:\n• Show mockup as first image\n• Include free mini version to build trust`;
 
-PRICE: $${priceMin}
+const DESC_SHORT = (p,n) => `SHORT DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\nONE PARAGRAPH:\n${n.shortDesc}\n\nTWEET / BIO VERSION:\n${n.title} — ${n.promise?n.promise.slice(0,100):n.subtitle||'Complete '+n.type+' for '+n.niche}. $${n.priceMin}. Download instantly →\n\nHEADLINE VARIATIONS:\n1. ${n.title} — ${n.promise||'The Complete '+n.type}\n2. The ${n.niche} ${n.type} Built for ${n.audience?n.audience.split(' ').slice(0,5).join(' ')+'...':'Real Results'}\n3. ${n.keywords[0]?n.keywords[0].charAt(0).toUpperCase()+n.keywords[0].slice(1)+': ':'' }${n.title}`;
 
-DESCRIPTION:
-${hr('-')}
-${promise ? `✦ ${promise}\n\n` : ''}${listingDescription || ''}
+const DESC_LONG = (p,n) => `LONG-FORM DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\n\nHEADLINE: ${n.promise||n.title}\n\nTHE STORY\n${hr()}\nIf you're ${n.audience||'working in '+n.niche}, you know how hard it is to find resources that actually deliver.\n\n${n.problem?'THE PROBLEM:\n'+n.problem+'\n\n':''}Most options are too generic, too expensive, or too complicated. That changes today.\n\nIntroducing ${n.title} — a ${n.type} built for ${n.audience||n.niche+' professionals'}.\n\nWHAT'S INSIDE\n${hr()}\n${n.sections.slice(0,8).map((s,i)=>`${i+1}. ${s.title||s.heading||'Module '+(i+1)}`).join('\n')}\n\nWHAT YOU GET\n${hr()}\n✅ Instant digital download\n✅ ${n.type} — professionally structured\n${n.items.slice(0,4).map(b=>'✅ '+b).join('\n')}\n\nPRICE: $${n.priceMin}${n.priceMax>n.priceMin?' (regular: $'+n.priceMax+')':''}\n\n${n.ma.platform_cta||n.ma.cta||'Click the button and download instantly →'}`;
 
-Perfect for: ${targetAudience || ''}
+const PRICING = (p,n) => `PRICING STRATEGY — ${n.title}\n${'═'.repeat(60)}\nRECOMMENDED: $${n.priceMin}–$${n.priceMax}\n${n.ma.price_rationale?'\nRATIONALE:\n'+n.ma.price_rationale+'\n':''}\nOPTION A — ENTRY: $${n.priceMin}\nBest for new audiences. Maximum volume. Works on Gumroad, Etsy.\n\nOPTION B — STANDARD: $${Math.round((n.priceMin+n.priceMax)/2)}\nBest for warm audiences. Signals credibility.\n\nOPTION C — PREMIUM: $${n.priceMax}\nBest for existing customers and niche experts. Requires testimonials.\n\nLAUNCH STRATEGY\n${hr()}\n• Launch at $${n.priceMin} for first 72 hours\n• Announce the price increase to create urgency\n• Raise to $${Math.round((n.priceMin+n.priceMax)/2)} after launch window\n• Bundle with another product for $${Math.round(n.priceMax*1.8)}\n\nPLATFORM TIPS\n${hr()}\n• Gumroad: Enable Pay What You Want (min $${n.priceMin})\n• Etsy: Price at $${(n.priceMin-0.01).toFixed(2)} (below round number)\n• Payhip: Use affiliates to drive volume\n• Shopify: Set Compare At to $${n.priceMax}`;
 
-────────────────────
-✅ INSTANT DOWNLOAD
-✅ No physical item shipped
-✅ ${p.product_type || 'Digital file'}
-────────────────────
+const SEO = (p,n) => {const pg=n.pg,ptags=Array.isArray(pg.tags)?pg.tags:[],all=[...new Set([...n.keywords,...ptags])]; return `SEO KEYWORDS — ${n.title}\n${'═'.repeat(60)}\n\nPRIMARY (highest buyer intent):\n${all.slice(0,5).join('\n')}\n\nSECONDARY:\n${all.slice(5,12).join('\n')}\n\nLONG-TAIL PHRASES:\n${all.slice(0,5).map(k=>`${k} for ${n.niche}\n${k} digital download`).join('\n')}\n\nETSY TAGS (max 20 chars each):\n${all.slice(0,13).map(k=>k.slice(0,20)).join(', ')}\n\nSEO META DESCRIPTION (max 155 chars):\n${(n.ma.seo_meta_description||`${n.promise||n.title}. Built for ${n.audience||n.niche}. Instant download.`).slice(0,155)}`;};
 
-TAGS (exactly 13, each max 20 chars):
-${tags.map((t, i) => `${i + 1}. ${t.slice(0, 20)}`).join('\n')}
-
-CATEGORY SUGGESTIONS:
-• Digital Downloads > ${p.product_type || 'Documents'}
+const HOOKS = (p,n) => `HOOKS — ${n.title}\n${'═'.repeat(60)}\nAttention-grabbing openers for posts, emails, ads, and videos.\n\nCURIOSITY:\n• The one thing most ${n.niche} people get wrong\n• What nobody tells you about ${n.niche} until it's too late\n• I spent [X] hours figuring this out so you don't have to\n\nPAIN POINT:\n• Stop wasting time on ${n.niche} strategies that don't work\n• Tired of starting over in ${n.niche} every month?\n• ${n.problem?n.problem.split('.')[0]:'The frustrating truth about '+n.niche}\n\nBENEFIT / PROMISE:\n• ${n.promise||'Everything you need to succeed in '+n.niche+', in one place'}\n• Get real results in ${n.niche} — without the guesswork\n• $${n.priceMin} could change how you approach ${n.niche} forever\n\nSTORY:\n• I used to struggle with ${n.niche} — until I built this system\n• This ${n.type} is everything I wish I had when I started\n• I built ${n.title} because nothing else like it existed\n\nQUESTION:\n• What if you could ${n.promise?n.promise.split(' ').slice(0,8).join(' '):'get real results in '+n.niche}?\n• How long have you been putting off your ${n.niche} goals?\n• What would change if you had a complete ${n.niche} system?`;
 
-TIPS:
-• Use all 10 product photos — include mockups, screenshots and lifestyle images
-• Fill in all attributes to improve search placement
-• Price just below round numbers (e.g. $9.99 instead of $10)
-`;
-}
+const INSTAGRAM = (p,n) => {
+  if(n.igCaps.length>0) return `INSTAGRAM CAPTIONS — ${n.title}\n${'═'.repeat(60)}\n\n`+n.igCaps.map((c,i)=>`${'─'.repeat(60)}\nCAPTION ${i+1}\n${'─'.repeat(60)}\n${c}`).join('\n\n');
+  const kw=n.keywords; const niche=n.niche; const type=n.type;
+  return `INSTAGRAM CAPTIONS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nCAPTION 1 — HOOK\n${'─'.repeat(60)}\nStop scrolling if you're into ${niche}.\n\n${n.promise||'I just launched something that will change how you approach '+niche+'.'}\n\nThis ${type} covers:\n${kw.slice(0,4).map(k=>'✅ '+k).join('\n')}\n\nLink in bio 🔗\n${kw.slice(0,5).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}\n\n${'─'.repeat(60)}\nCAPTION 2 — STORY\n${'─'.repeat(60)}\nI used to struggle with this too.\n\nThen I built ${n.title} — and everything changed.\n\nIt's a ${type} for ${n.audience||'people who want results'}. No fluff.\n\nLink in bio 👆\n${kw.slice(0,6).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}\n\n${'─'.repeat(60)}\nCAPTION 3 — PROBLEM\n${'─'.repeat(60)}\nIf you're tired of:\n❌ Wasting time on ${niche} strategies that don't work\n❌ Starting over from scratch\n❌ Feeling stuck\n\n${n.title} is your answer.\n\n${n.promise||''}\n\nLink in bio ⬆️\n${kw.slice(0,5).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}\n\n${'─'.repeat(60)}\nCAPTION 4 — OFFER\n${'─'.repeat(60)}\nNew drop: ${n.title} 🔥\n\n${n.promise||''}\n\n⏳ Launch price ends soon.\n📥 Download instantly.\n🎯 Made for ${n.audience||'you'}.\n\n${kw.slice(0,8).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}`;
+};
 
-function buildPayhipListing(p, { title, subtitle, promise, targetAudience, priceMin, priceMax, listingDescription, keywords }) {
-  return `PAYHIP LISTING
-${hr()}
+const LINKEDIN = (p,n) => `LINKEDIN POSTS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nPOST 1 — ANNOUNCEMENT\n${'─'.repeat(60)}\nAfter spending time in ${n.niche}, I kept noticing the same pattern:\n\n${n.problem||'People kept hitting the same wall, over and over.'}\n\nSo I built something to fix it: ${n.title}\n\n${n.promise||''}\n\nBuilt for ${n.audience||'professionals who want real results'}.\n→ $${n.priceMin} | Instant download | No fluff\n\n#${n.keywords.slice(0,3).map(k=>k.replace(/\s+/g,'')).join(' #')}\n\n${'─'.repeat(60)}\nPOST 2 — VALUE\n${'─'.repeat(60)}\n3 things that changed how I approach ${n.niche}:\n\n1. ${n.keywords[0]?'The importance of '+n.keywords[0]:'Systems beat willpower every time.'}\n2. ${n.keywords[1]?n.keywords[1]+' changes everything.':'Clarity is more valuable than effort.'}\n3. ${n.keywords[2]?n.keywords[2]+' is the missing piece.':'Simple always beats complex.'}\n\nI packaged everything into ${n.title} → [link]\n\n#${n.keywords.slice(0,4).map(k=>k.replace(/\s+/g,'')).join(' #')}\n\n${'─'.repeat(60)}\nPOST 3 — LAUNCH\n${'─'.repeat(60)}\nToday I launched ${n.title}.\n\nThis ${n.type} is for ${n.audience||'anyone who wants better results in '+n.niche}.\n\n• ${n.promise||'A complete system — not theory.'}\n• Structured for fast results\n• $${n.priceMin}\n\nGrab it → [link in comments]\n\n#${n.keywords.slice(0,5).map(k=>k.replace(/\s+/g,'')).join(' #')}`;
 
-PRODUCT NAME:
-${title}
-
-TAGLINE / SUBTITLE:
-${subtitle || promise || ''}
-
-PRICE: $${priceMin}
-
-DESCRIPTION:
-${hr('-')}
-${promise ? `✦ ${promise}\n\n` : ''}${listingDescription || ''}
-
-FOR: ${targetAudience || ''}
-
-PRODUCT TYPE: ${p.product_type || 'Digital Download'}
-
-SEARCH KEYWORDS:
-${keywords.join(', ')}
-
-PAYHIP-SPECIFIC TIPS:
-• Enable "Pay What You Want" to let fans support you more
-• Add an affiliate programme (Payhip offers 30–50% commissions)
-• Use the built-in email marketing to follow up with buyers
-• Offer a bundle discount to increase cart value
-`;
-}
-
-function buildShopifyListing(p, { title, subtitle, promise, targetAudience, priceMin, priceMax, listingDescription, keywords }) {
-  const handle = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return `SHOPIFY LISTING
-${hr()}
-
-PRODUCT TITLE:
-${title}
-
-HANDLE / URL SLUG:
-/products/${handle}
-
-PRICE: $${priceMin}   COMPARE AT PRICE: $${priceMax}
-
-SHORT DESCRIPTION (for product card):
-${subtitle || promise || ''}
-
-FULL DESCRIPTION (paste into Description editor):
-${hr('-')}
-<h2>${promise || title}</h2>
-<p>${listingDescription || ''}</p>
-<p><strong>Perfect for:</strong> ${targetAudience || ''}</p>
-<ul>
-  <li>✅ Instant digital download</li>
-  <li>✅ ${p.product_type || 'Complete digital resource'}</li>
-  <li>✅ Works immediately after purchase</li>
-</ul>
-${hr('-')}
-
-SEO TITLE (max 70 chars):
-${title} — ${p.niche || 'Digital Download'}
-
-SEO META DESCRIPTION (max 160 chars):
-${(p.marketing_assets?.seo_meta_description || `${promise || subtitle || title}. Buy now and download instantly.`).slice(0, 160)}
-
-TAGS:
-${keywords.join(', ')}
-
-COLLECTIONS SUGGESTION:
-Digital Downloads, ${p.niche || 'Resources'}, ${p.product_type || 'Products'}
-`;
-}
-
-function buildProductDescription(p, { title, subtitle, promise, targetAudience, buyerProfile, problemSolved, sections, priceMin, priceMax, listingDescription, keywords }) {
-  return `UNIVERSAL PRODUCT DESCRIPTION — ${title}
-${hr()}
-
-This is your long-form product description for use on any platform,
-landing page, email, or sales post.
-
-${hr('-')}
-THE BIG IDEA
-${hr('-')}
-${promise || subtitle || title}
-
-${hr('-')}
-WHO THIS IS FOR
-${hr('-')}
-${targetAudience || ''}
-
-${buyerProfile ? `\nBUYER PROFILE:\n${buyerProfile}\n` : ''}
-
-${hr('-')}
-THE PROBLEM WE SOLVE
-${hr('-')}
-${problemSolved || ''}
-
-${hr('-')}
-WHAT'S INSIDE
-${hr('-')}
-${sections.slice(0, 8).map((s, i) => `${i + 1}. ${s.title || s.heading || 'Module ' + (i + 1)}`).join('\n')}
-
-${hr('-')}
-FULL DESCRIPTION
-${hr('-')}
-${listingDescription || ''}
-
-${hr('-')}
-PRICING
-${hr('-')}
-Recommended price: $${priceMin} – $${priceMax}
-
-${hr('-')}
-KEYWORDS
-${hr('-')}
-${keywords.join(', ')}
-`;
-}
-
-function buildPricingStrategy(p, { title, priceMin, priceMax, targetAudience }) {
-  const ma = p.marketing_assets || {};
-  return `PRICING STRATEGY — ${title}
-${hr()}
-
-RECOMMENDED PRICE RANGE: $${priceMin} – $${priceMax}
-
-${ma.price_rationale ? `RATIONALE:\n${ma.price_rationale}\n\n` : ''}
-
-${hr('-')}
-PRICING FRAMEWORKS
-${hr('-')}
-
-OPTION A — VALUE-BASED ENTRY ($${priceMin})
-Best for: New audiences, first-time buyers, building trust fast.
-• Lower barrier to impulse buying
-• Works well on Gumroad and Etsy
-• Great for list-building campaigns
-
-OPTION B — STANDARD PRICE ($${Math.round((priceMin + priceMax) / 2)})
-Best for: Warm audiences who already follow you.
-• Positions the product as credible and professional
-• Works on all platforms
+const TIKTOK = (p,n) => {
+  if(n.scripts.length>0) return `TIKTOK / REEL IDEAS — ${n.title}\n${'═'.repeat(60)}\n\n`+n.scripts.map((vs,i)=>`${'─'.repeat(60)}\nVIDEO ${i+1} — ${(vs.title||'Concept '+(i+1)).toUpperCase()}\n${'─'.repeat(60)}\nHOOK: ${vs.hook||''}\n\n${vs.body||''}\n\nCTA: ${vs.cta||'Link in bio!'}`).join('\n\n');
+  const niche=n.niche,type=n.type;
+  return `TIKTOK / REEL IDEAS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nVIDEO 1 — POV FORMAT\n${'─'.repeat(60)}\nHook: "POV: You finally stopped guessing about ${niche}"\nScript: "I just dropped my new ${type}. It's called ${n.title}. ${n.promise||''} Link in bio."\nCTA: Link in bio 👆 | Comment 'LINK' for DM\n\n${'─'.repeat(60)}\nVIDEO 2 — WHAT'S INSIDE\n${'─'.repeat(60)}\nHook: "Here's what's inside my new ${niche} ${type}..."\nScript: "I built ${n.title} because most ${niche} resources are vague. Here's what's inside:\n${n.sections.slice(0,3).map(s=>'• '+(s.title||s.heading||'')).join('\n')}\nLink in bio."\nCTA: Save this video!\n\n${'─'.repeat(60)}\nVIDEO 3 — PAIN POINT\n${'─'.repeat(60)}\nHook: "Stop doing this in ${niche} 🚫"\nScript: "${n.problem?n.problem.split('.')[0]:'The biggest mistake in '+niche}. I fixed it in ${n.title}. Comment 'INFO' for the link."\nCTA: Comment 'INFO' 👇\n\n${'─'.repeat(60)}\nVIDEO 4 — VALUE DROP\n${'─'.repeat(60)}\nHook: "3 ${niche} things you need to know (save this)"\nScript: "1. ${n.keywords[0]||'Know your system'} 2. ${n.keywords[1]||'Consistency wins'} 3. ${n.keywords[2]||'Simple beats complex'}. All in ${n.title}. Link in bio."\nCTA: Follow for more ${niche} tips\n\n${'─'.repeat(60)}\nVIDEO 5 — LAUNCH\n${'─'.repeat(60)}\nHook: "It's finally here 🎉 ${n.title}"\nScript: "${n.promise||'This is the '+type+' I wish existed when I started.'}. Built for ${n.audience||'you'}. Live now."\nCTA: Link in bio NOW 🔗`;
+};
 
-OPTION C — PREMIUM PRICE ($${priceMax})
-Best for: Existing customers, niche experts, coaching audiences.
-• Signals high quality
-• Works best with a strong landing page and testimonials
+const CAROUSEL = (p,n) => `CAROUSEL POST OUTLINES — ${n.title}\n${'═'.repeat(60)}\n\nCARROUSEL 1 — "5 MISTAKES" (7 slides)\nSlide 1: "5 ${n.niche} mistakes keeping you stuck"\nSlide 2: Mistake #1 — Not having a clear system\nSlide 3: Mistake #2 — Relying on willpower instead of structure\nSlide 4: Mistake #3 — Skipping basics and going straight to advanced\nSlide 5: Mistake #4 — Trying to do everything at once\nSlide 6: Mistake #5 — Not reviewing and adjusting your approach\nSlide 7 (CTA): "I cover the fix in ${n.title}. Link in bio 🔗"\n\nCARROUSEL 2 — "WHAT'S INSIDE" (6 slides)\nSlide 1: "What's inside ${n.title} 👀"\n${n.sections.slice(0,4).map((s,i)=>`Slide ${i+2}: ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\nSlide 6 (CTA): "Get ${n.title} for $${n.priceMin} — link in bio"\n\nCARROUSEL 3 — "STEP BY STEP" (5 slides)\nSlide 1: "How to ${n.promise?n.promise.split(' ').slice(0,6).join(' '):'succeed in '+n.niche} — step by step"\nSlide 2: Step 1 — Foundation (${n.keywords[0]||'mindset + system'})\nSlide 3: Step 2 — Process (${n.keywords[1]||'consistency beats motivation'})\nSlide 4: Step 3 — Execute + track (${n.keywords[2]||'measure what matters'})\nSlide 5 (CTA): "I built ${n.title} to guide you through every step. $${n.priceMin} → link in bio"`;
 
-${hr('-')}
-DISCOUNT & URGENCY TACTICS
-${hr('-')}
-• Launch discount: Offer 30% off for the first 72 hours
-• Bundle deal: Pair with a complementary product for 20% more
-• "Pay What You Want" (PWYW): Set $${priceMin} as minimum on Gumroad/Payhip
+const HASHTAGS = (p,n) => {const ni=n.niche.replace(/\s+/g,''),ty=n.type.replace(/\s+/g,''),pl=n.platform.toLowerCase().replace(/\s+/g,''),kw=n.keywords.map(k=>'#'+k.replace(/\s+/g,'')); return `HASHTAG GROUPS — ${n.title}\n${'═'.repeat(60)}\n\nINSTAGRAM — FULL 30\n${hr()}\n${kw.slice(0,8).join(' ')} #${ni} #${ty}\n#digitalproduct #passiveincome #onlinebusiness #sidehustle #digitaldownload #etsy #gumroad #${pl}\n#entrepreneur #smallbusiness #makemoneyonline #workfromhome #creativeentrepreneur #businessowner #solopreneur #contentcreator #digitalmarketing #onlinestore\n\nINSTAGRAM — COMPACT 15\n${hr()}\n${kw.slice(0,5).join(' ')} #${ni} #${ty} #digitalproduct #passiveincome #digitaldownload #onlinebusiness #sidehustle #entrepreneur #smallbusiness\n\nTIKTOK (5–8 tags)\n${hr()}\n${kw.slice(0,3).join(' ')} #digitalproducts #${ni} #sidehustle #passiveincome\n\nLINKEDIN (3–5)\n${hr()}\n#${ni} #${ty} #digitalproducts #entrepreneurship #onlinebusiness\n\nPINTEREST\n${hr()}\n${n.keywords.join(', ')}, digital product, ${n.type}, ${n.platform}`;};
 
-${hr('-')}
-AUDIENCE NOTE
-${hr('-')}
-${targetAudience || ''}
+const CALENDAR = (p,n) => {
+  if(n.calItems.length>0) return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\n`+n.calItems.slice(0,7).map(d=>`DAY ${d.day||'?'} — ${(d.platform||'Social').toUpperCase()}\nType: ${d.content_type||'Post'}\n${d.message||''}`).join('\n\n');
+  return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\nDAY 1 — INSTAGRAM + LINKEDIN\nType: Announcement | Use: Caption 1 + LinkedIn Post 1\nGoal: First impressions, link in bio\n\nDAY 2 — TIKTOK / REELS\nType: Short-form video | Use: TikTok Video 1 or 2\nGoal: Reach new audience\n\nDAY 3 — CAROUSEL + EMAIL\nType: What's Inside carousel | Send: Email_2_Educational_Value\nGoal: Build trust with value-first content\n\nDAY 4 — TIKTOK + LINKEDIN\nType: Pain point video + educational post\nUse: TikTok Video 3 + LinkedIn Post 2\n\nDAY 5 — COMMUNITY\nType: Poll + group engagement | Run a story poll\nGoal: Expand reach through engagement\n\nDAY 6 — URGENCY POST + EMAIL\nType: Urgency caption | Send: Email_4_Offer\nGoal: Convert fence-sitters with deadline\n\nDAY 7 — FINAL PUSH — ALL PLATFORMS\nUse: Caption 5 (IG) + Post 3 (LinkedIn) + TikTok Video 5\nSend: Email_5_Last_Call\nGoal: Final conversions + close launch window`;
+};
 
-${hr('-')}
-PLATFORM PRICING TIPS
-${hr('-')}
-• Gumroad:  Set a minimum; enable "Pay What You Want"
-• Etsy:     Price just below round numbers ($9.99 vs $10)
-• Payhip:   Use affiliate commissions to drive volume
-• Shopify:  Add a "Compare At" price to show a discount
-`;
-}
+const EMAIL1 = (p,n) => `EMAIL 1 — LAUNCH ANNOUNCEMENT\n${'═'.repeat(60)}\nSEND ON: Launch Day\nSUBJECT: 🚀 It's here — ${n.title}\nPREVIEW: ${n.promise||'Introducing '+n.title+' — built for '+(n.audience||'you')}\n\n${'─'.repeat(60)}\nHey [First Name],\n\nToday's the day. ${n.title} is officially live.\n\n${n.promise?'"'+n.promise+'"\n\n':''}I built this for ${n.audience||'people like you'} who are ready to stop guessing.\n\nInside:\n• Complete ${n.type} built around your needs\n• Step-by-step structure you can actually follow\n${n.items.slice(0,3).map(b=>'• '+b).join('\n')}\n\nGrab it for $${n.priceMin} → [INSERT LINK]\n\nThis is the launch price — going up after [DATE].\n\nTalk soon,\n[Your Name]\n\nP.S. Forward to a friend struggling with ${n.niche}.`;
 
-function buildInstagramCaptions(p, { title, promise, targetAudience, keywords }) {
-  const niche = p.niche || 'your niche';
-  const type = p.product_type || 'digital product';
-  return `INSTAGRAM CAPTIONS — ${title}
-${hr()}
-5 ready-to-post captions. Choose one, add your image, and go.
+const EMAIL2 = (p,n) => `EMAIL 2 — EDUCATIONAL VALUE\n${'═'.repeat(60)}\nSEND ON: Day 3\nSUBJECT: The real reason most people fail at ${n.niche}\n\n${'─'.repeat(60)}\nHey [First Name],\n\n${n.problem?'Here\'s what I kept seeing:\n\n'+n.problem+'\n':'A lot of people in '+n.niche+' make the same avoidable mistakes.'}\n\nHere's what actually works:\n\n1. ${n.sections[0]?.title||n.sections[0]?.heading||'Clarity beats complexity.'}\n2. ${n.sections[1]?.title||n.sections[1]?.heading||'Systems outperform willpower.'}\n3. ${n.sections[2]?.title||n.sections[2]?.heading||'Action beats perfection.'}\n\nThese are the principles behind ${n.title}.\n\n→ [INSERT LINK] — $${n.priceMin}\n\n[Your Name]`;
 
-${hr('-')}
-CAPTION 1 — HOOK + VALUE
-${hr('-')}
-Stop scrolling if you're a ${targetAudience || niche + ' enthusiast'}.
+const EMAIL3 = (p,n) => `EMAIL 3 — PROBLEM AWARE\n${'═'.repeat(60)}\nSEND ON: Day 5\nSUBJECT: Are you making this ${n.niche} mistake?\n\n${'─'.repeat(60)}\nHey [First Name],\n\n${n.problem||'Most people in '+n.niche+' are stuck — not from lack of effort, but lack of system.'}\n\nYou don't need more motivation. You need a clearer path.\n\nThat's what ${n.title} gives you.\n\n${n.promise?'"'+n.promise+'"':''}\n\n$${n.priceMin} → [INSERT LINK]\n\n[Your Name]`;
 
-${promise || `I just launched something that will change how you approach ${niche}.`}
+const EMAIL4 = (p,n) => `EMAIL 4 — THE OFFER\n${'═'.repeat(60)}\nSEND ON: Day 6\nSUBJECT: Here's everything you get with ${n.title}\n\n${'─'.repeat(60)}\nHey [First Name],\n\nHere's exactly what you get:\n\n${n.sections.slice(0,6).map((s,i)=>`→ ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\n\n${n.items.slice(0,4).map(b=>'✅ '+b).join('\n')}\n\nAll of that for $${n.priceMin}.\n\nYou pay once. You own it forever.\n\n→ [INSERT LINK]\n\nLaunch price closes [DATE/TIME].\n\n[Your Name]`;
 
-This ${type} covers everything you need:
-${keywords.slice(0, 4).map(k => `✅ ${k}`).join('\n')}
+const EMAIL5 = (p,n) => `EMAIL 5 — LAST CALL\n${'═'.repeat(60)}\nSEND ON: Day 7 (morning)\nSUBJECT: Last chance — ${n.title} launch price ends tonight\n\n${'─'.repeat(60)}\nHey [First Name],\n\nThis is my last email about ${n.title}.\n\nAfter [TIME] tonight, the price goes from $${n.priceMin} to $${n.priceMax}.\n\n${n.promise?'"'+n.promise+'"':''}\n\n→ [GRAB IT BEFORE THE PRICE GOES UP]\n\n[Your Name]\n\nP.S. Questions? Just reply.`;
 
-Grab it now → link in bio 🔗
+const LAUNCH_PLAN = (p,n) => {
+  if(n.launchPlan&&n.launchPlan.length>100) return `7-DAY LAUNCH PLAN — ${n.title}\n${'═'.repeat(60)}\n\n${n.launchPlan}\n\nFOR: ${n.audience||'Your audience'} | PROMISE: ${n.promise||n.title}`;
+  return `7-DAY LAUNCH PLAN — ${n.title}\n${'═'.repeat(60)}\n\nDAY 1 🚀 LAUNCH\n${hr()}\n□ Publish on ${n.platform} | □ Send Email 1 | □ Instagram Caption 1 | □ LinkedIn Post 1 | □ Share in communities\nGOAL: First sales + impressions\n\nDAY 2 — AMPLIFY\n${hr()}\n□ Reply to every comment + DM | □ Behind-the-scenes story | □ TikTok Video 1 or 2\nGOAL: Word of mouth + social proof\n\nDAY 3 — VALUE\n${hr()}\n□ Send Email 2 | □ "What's Inside" carousel | □ LinkedIn Post 2\nGOAL: Re-engage with value, not selling\n\nDAY 4 — PROOF\n${hr()}\n□ Share buyer reactions | □ TikTok Video 3 | □ Send Email 3 | □ Engage in 2–3 communities\nGOAL: Build trust, reduce objections\n\nDAY 5 — REACH\n${hr()}\n□ DM 3 creators for cross-promo | □ TikTok Video 4 | □ Story poll\nGOAL: Expand beyond your existing audience\n\nDAY 6 — OFFER\n${hr()}\n□ Send Email 4 | □ Urgency Instagram caption | □ LinkedIn Post 3 | □ Announce price increase tomorrow\nGOAL: Convert fence-sitters\n\nDAY 7 — CLOSE\n${hr()}\n□ Send Email 5 (morning) | □ Final story | □ Raise price | □ Thank-you to buyers\nGOAL: Final conversions + leave great impression\n\nWEEK 2+\n${hr()}\n□ Collect testimonials | □ Repurpose buyer results | □ Set up email automation | □ Plan bundle/upsell\n\nFOR: ${n.audience||'Your audience'} | PROMISE: ${n.promise||n.title}`;
+};
 
-${keywords.slice(0, 5).map(k => '#' + k.replace(/\s+/g, '')).join(' ')}
+const LAUNCH_CHECKLIST = (p,n) => `LAUNCH CHECKLIST — ${n.title}\n${'═'.repeat(60)}\n\nPRODUCT\n${hr()}\n□ File finalised and tested\n□ Opens on Mac, Windows, iOS, Android\n□ Delivers on every listing promise\n□ Thank-you email set up\n\nLISTING\n${hr()}\n□ Title includes primary keyword\n□ Description: benefits, not just features\n□ Price set (see Pricing_Strategy.txt)\n□ Cover image uploaded (min 1280×720px)\n□ All tags/keywords filled in\n\nPLATFORM SETUP (${n.platform})\n${hr()}\n□ Payment connected + payout configured\n□ Product URL is clean and shareable\n□ Refund policy visible\n\nMARKETING\n${hr()}\n□ Bio link updated on all platforms\n□ Email sequence ready (04_Email_Launch/)\n□ Social posts scheduled (03_Social_Media/)\n□ Warm audience given heads-up\n\nLAUNCH DAY\n${hr()}\n□ Product is live + purchase link works\n□ Email 1 sent\n□ First social post live\n□ Available for 2–3 hours to reply to comments/DMs\n\nYOU'RE READY. GO LAUNCH. 🚀`;
 
-${hr('-')}
-CAPTION 2 — STORY / PERSONAL
-${hr('-')}
-I used to struggle with this too.
+const PLATFORM_REC = (p,n) => `PLATFORM RECOMMENDATION — ${n.title}\n${'═'.repeat(60)}\nRECOMMENDED: ${n.platform}\n\n${n.pg.why_this_platform?'WHY:\n'+n.pg.why_this_platform+'\n\n':''}${n.pg.pricing_strategy?'PRICING:\n'+n.pg.pricing_strategy+'\n\n':''}${n.pg.thumbnail_guidance?'THUMBNAIL:\n'+n.pg.thumbnail_guidance+'\n\n':''}\nCOMPARISON\n${hr()}\nGUMROAD:  Creators with audiences. 10% fee or $10/mo flat. Best: $${n.priceMin}\nETSY:     Search-driven traffic. ~6.5%+$0.20. Best: $${(n.priceMin-0.01).toFixed(2)}\nPAYHIP:   Affiliates + email list. 5% free tier. Best: $${n.priceMin}\nSHOPIFY:  Branded storefront. $29+/mo. Best: $${n.priceMin} with Compare At $${n.priceMax}\n\n${n.pg.pro_tips?.length?'PRO TIPS:\n'+n.pg.pro_tips.map((t,i)=>`${i+1}. ${t}`).join('\n')+'\n\n':''}${n.pg.mistakes_to_avoid?.length?'AVOID:\n'+n.pg.mistakes_to_avoid.map((m,i)=>`${i+1}. ${m}`).join('\n'):''}`;
 
-Then I built ${title} — and everything changed.
+const READINESS = (p,n) => {
+  const checks=[{l:'Title & subtitle',ok:!!(p.title&&p.subtitle)},{l:'Promise defined',ok:!!p.promise},{l:'Target audience',ok:!!p.target_audience},{l:'Content sections',ok:n.sections.length>0},{l:'Sales copy ready',ok:!!(p.marketing_assets?.listing_title)},{l:'Platform guides',ok:!!p.platform_guides},{l:'Social media kit',ok:!!(p.social_media_kit?.instagram_captions?.length)},{l:'Launch plan',ok:!!p.launch_plan},{l:'Keywords (3+)',ok:n.keywords.length>3},{l:'Pricing set',ok:n.priceMin>0}];
+  const score=checks.filter(c=>c.ok).length,pct=Math.round(score/checks.length*100);
+  return `LAUNCH READINESS REPORT — ${n.title}\n${'═'.repeat(60)}\nGenerated: ${new Date().toLocaleDateString()}\nREADINESS: ${pct}% (${score}/${checks.length})\n\n${checks.map(c=>(c.ok?'✅':'⬜')+' '+c.l).join('\n')}\n\nSUMMARY\n${hr()}\nTitle: ${n.title} | Type: ${n.type} | Platform: ${n.platform}\nPrice: $${n.priceMin}–$${n.priceMax} | Sections: ${n.sections.length} | Keywords: ${n.keywords.length}\n\n${pct>=80?'🚀 READY TO LAUNCH — Follow the 7-Day Launch Plan.':pct>=50?'⚠️ ALMOST READY — Review the missing items above.':'🛠 SETUP NEEDED — Generate missing assets before launching.'}`;
+};
 
-It's a ${type} for ${targetAudience || 'people who want results'}.
-No fluff. Just what works.
+const AVATAR = (p,n) => `CUSTOMER AVATAR — ${n.title}\n${'═'.repeat(60)}\n\nWHO THEY ARE\n${hr()}\n${n.audience||n.niche+' enthusiasts and professionals'}\n\n${n.buyer?'DETAILED PROFILE:\n'+n.buyer+'\n\n':''}\nPAIN POINT\n${hr()}\n${n.pa.painPoint||n.problem||'Struggling to find clear, actionable guidance in '+n.niche+' that actually moves the needle.'}\n\nWHAT THEY WANT\n${hr()}\n${n.pa.transformation||n.promise||'To go from overwhelmed to confident in '+n.niche+'.'}\n\nWHAT MAKES THEM BUY\n${hr()}\nEmotional hook: ${n.pa.emotionalHook||'Feeling in control and having a trusted system'}\n• They've tried other options and been disappointed\n• They trust the creator\n• The price is a no-brainer vs staying stuck\n\nWHERE TO FIND THEM\n${hr()}\n• Instagram/TikTok: #${n.niche.replace(/\s+/g,'')}\n• Pinterest: "${n.niche} tips", "${n.type} ${n.niche}"\n• Etsy: "${n.keywords[0]||n.niche} ${n.type}"\n• Reddit/Facebook Groups: ${n.niche} communities`;
 
-Get it today → link in bio 👆
+const FAQ = (p,n) => `FAQ — ${n.title}\n${'═'.repeat(60)}\n\nQ: What is ${n.title}?\nA: A ${n.type} for ${n.audience||n.niche+' enthusiasts'}. ${n.promise||'It gives you everything you need to get results in '+n.niche+'.'}\n\nQ: Who is this for?\nA: ${n.audience||'Anyone working in '+n.niche+' who wants a clearer, more structured approach.'}\n\nQ: Is this a physical product?\nA: No — it's a digital download. You receive your link immediately after purchase.\n\nQ: How do I access it after purchase?\nA: You'll get an email with your download link immediately. You can also re-download anytime from your receipt.\n\nQ: Do I need special software?\nA: No. The files work with standard apps on any device.\n\nQ: What if I'm not satisfied?\nA: Contact the seller directly. Most sellers offer a satisfaction guarantee.\n\nQ: Can I share this with others?\nA: For personal use only. Please don't share or resell the file.\n\nQ: How is this better than free content?\nA: ${n.title} is specifically structured for ${n.audience||n.niche+' professionals'} and goes far deeper. ${n.promise||'Designed to save you time and get faster results.'}`;
 
-${keywords.slice(0, 6).map(k => '#' + k.replace(/\s+/g, '')).join(' ')}
+const UPSELL = (p,n) => `UPSELL & BUNDLE IDEAS — ${n.title}\n${'═'.repeat(60)}\n\nIMMEDIATE UPSELL (thank-you page)\nProduct: Advanced version of ${n.title}\nPrice: $${Math.round(n.priceMax*1.5)}\nPitch: "Go deeper — get the advanced version with [bonus feature]"\n\nBUNDLE IDEAS\n${hr()}\nBundle 1: ${n.title} + [Companion ${n.type}] → $${Math.round(n.priceMin*1.8)}\nBundle 2: ${n.title} + [Worksheet or Tracker] → $${Math.round(n.priceMin*1.5)}\nBundle 3: 3-product ${n.niche} suite → $${Math.round(n.priceMax*2.5)}\n\nORDER BUMP (at checkout)\nProduct: Companion workbook\nPrice: $${Math.round(n.priceMin*0.5)} (checkbox at checkout)\n\nSUBSCRIPTION\nProduct: Monthly ${n.niche} templates\nPrice: $${Math.round(n.priceMin*0.7)}/month\n\nWHERE TO ADD\n• Gumroad: "Recommended" products feature\n• Payhip: Thank-you page link\n• Email: Include upsell in Email 2 or follow-up sequence`;
 
-${hr('-')}
-CAPTION 3 — PROBLEM / SOLUTION
-${hr('-')}
-If you're tired of:
-❌ Wasting time on the wrong things
-❌ Starting over from scratch
-❌ Feeling stuck in ${niche}
-
-${title} is your answer.
-
-${promise || ''}
-
-Link in bio to download instantly ⬆️
-
-${keywords.slice(0, 5).map(k => '#' + k.replace(/\s+/g, '')).join(' ')}
-
-${hr('-')}
-CAPTION 4 — SOCIAL PROOF / RESULTS
-${hr('-')}
-What if you could get [result] in [timeframe]?
-
-That's exactly what ${title} helps you do.
-
-→ ${promise || 'Real results, real fast.'}
-→ Built for: ${targetAudience || niche}
-→ Available now — link in bio
-
-${keywords.slice(0, 6).map(k => '#' + k.replace(/\s+/g, '')).join(' ')}
-
-${hr('-')}
-CAPTION 5 — DIRECT / URGENCY
-${hr('-')}
-New drop: ${title} 🔥
-
-${promise || ''}
-
-⏳ Launch price ends soon.
-📥 Download instantly.
-🎯 Made for ${targetAudience || 'you'}.
-
-Link in bio → grab it now.
-
-${keywords.slice(0, 8).map(k => '#' + k.replace(/\s+/g, '')).join(' ')}
-`;
-}
-
-function buildLinkedInPosts(p, { title, promise, targetAudience, problemSolved, priceMin, keywords }) {
-  const type = p.product_type || 'digital resource';
-  const niche = p.niche || 'your field';
-  return `LINKEDIN POSTS — ${title}
-${hr()}
-3 posts optimised for LinkedIn's professional audience.
-
-${hr('-')}
-POST 1 — ANNOUNCEMENT / INSIGHT-LED
-${hr('-')}
-After working in ${niche} for a while, I noticed the same pattern:
-
-${problemSolved || 'People kept hitting the same wall, over and over.'}
-
-So I built something to fix it.
-
-Introducing: ${title}
-
-${promise || ''}
-
-It's a ${type} designed for ${targetAudience || 'professionals who want real results'}.
-
-If you're serious about getting ahead in ${niche}, this is for you.
-
-→ Available now at $${priceMin}
-→ Instant download
-→ No fluff, just results
-
-Drop a 🙌 if you want the link.
-
-#${keywords.slice(0, 3).map(k => k.replace(/\s+/g, '')).join(' #')}
-
-${hr('-')}
-POST 2 — EDUCATIONAL VALUE
-${hr('-')}
-3 things I wish I knew before starting in ${niche}:
-
-1. ${keywords[0] ? 'The importance of ' + keywords[0] : 'Having a clear system matters more than tools.'}
-2. ${keywords[1] ? keywords[1] + ' is a game-changer.' : 'Consistency beats creativity every time.'}
-3. ${keywords[2] ? keywords[2] + ' is often overlooked.' : 'Simple always beats complex.'}
-
-I've packaged everything I know into ${title}.
-
-${promise || ''}
-
-Built for: ${targetAudience || 'driven professionals'}
-
-Check it out → [link]
-
-#${keywords.slice(0, 4).map(k => k.replace(/\s+/g, '')).join(' #')}
-
-${hr('-')}
-POST 3 — LAUNCH STORY
-${hr('-')}
-Today I'm officially launching ${title}.
-
-This ${type} is for ${targetAudience || 'anyone who wants to get better results'}.
-
-Here's what makes it different:
-• ${promise || 'A clear, actionable framework — not theory.'}
-• Structured for fast results
-• Priced at $${priceMin} — accessible for everyone
-
-I poured everything I know into this. I hope it helps you as much as building it helped me.
-
-Grab it here → [link in comments]
-
-#${keywords.slice(0, 5).map(k => k.replace(/\s+/g, '')).join(' #')}
-`;
-}
-
-function buildTikTokIdeas(p, { title, promise, targetAudience, keywords, sections }) {
-  const niche = p.niche || 'this niche';
-  const type = p.product_type || 'digital product';
-  return `TIKTOK VIDEO IDEAS — ${title}
-${hr()}
-5 short-form video concepts with hooks and scripts.
-Target: 30–60 seconds each.
-
-${hr('-')}
-VIDEO 1 — "POV" FORMAT
-${hr('-')}
-Hook (on-screen text): "POV: You finally stopped wasting time on ${niche}"
-
-Script:
-"Okay so I just dropped my new ${type} and it's literally everything I wish existed when I started.
-It's called ${title} and it covers [topic 1], [topic 2], and [topic 3].
-If you're into ${niche}, you NEED this.
-Link in bio — it's only $${p.marketing_assets?.price_min || '—'}."
-
-CTA: "Link in bio 👆 | Comment 'LINK' and I'll DM you"
-
-${hr('-')}
-VIDEO 2 — "I TRIED IT" FORMAT
-${hr('-')}
-Hook: "I tested this method for 30 days and here's what happened…"
-
-Script:
-"I built ${title} after realising that most ${niche} resources were either too vague or too expensive.
-So I made one that actually works.
-Here's what's inside: [show screen / slides]
-${sections.slice(0, 3).map(s => '• ' + (s.title || s.heading || '')).join('\n')}
-Grab it — link in bio."
-
-CTA: "Save this video if you want the link later"
-
-${hr('-')}
-VIDEO 3 — PAIN POINT FORMAT
-${hr('-')}
-Hook: "Stop doing this if you're serious about ${niche} 🚫"
-
-Script:
-"The biggest mistake people make in ${niche}? [relatable mistake]
-I made it too. Until I figured out [solution linked to promise].
-I broke it all down in ${title}. It's a ${type} for ${targetAudience || 'people like us'}.
-Comment 'INFO' and I'll send you the link."
-
-CTA: "Comment 'INFO' for the link 👇"
-
-${hr('-')}
-VIDEO 4 — VALUE DROP FORMAT
-${hr('-')}
-Hook: "3 things you need to know about ${niche} (save this)"
-
-Script:
-"Number 1: ${keywords[0] || 'Know your audience deeply'}
-Number 2: ${keywords[1] || 'Focus on one platform first'}
-Number 3: ${keywords[2] || 'Consistency always wins'}
-I go deep on all of these in my new ${type}, ${title}.
-Link in bio."
-
-CTA: "Follow for more ${niche} tips"
-
-${hr('-')}
-VIDEO 5 — LAUNCH ANNOUNCEMENT
-${hr('-')}
-Hook: "It's finally here 🎉 ${title}"
-
-Script:
-"I've been working on this for a while and it's finally live.
-${promise || ''}
-It's a ${type} built for ${targetAudience || 'you'}.
-Dropping the link in bio right now — go grab it."
-
-CTA: "Link in bio NOW 🔗"
-`;
-}
-
-function buildHashtags(p, { keywords }) {
-  const niche = (p.niche || 'digital').replace(/\s+/g, '');
-  const type = (p.product_type || 'digitalproduct').replace(/\s+/g, '');
-  const platform = (p.platform || 'gumroad').replace(/\s+/g, '');
-
-  const kwTags = keywords.map(k => '#' + k.replace(/\s+/g, ''));
-
-  return `HASHTAGS — ${p.title || 'Product'}
-${hr()}
-
-INSTAGRAM (30 tags — mix of sizes)
-${hr('-')}
-NICHE TAGS (high relevance):
-${kwTags.slice(0, 8).join(' ')} #${niche} #${type}
-
-COMMUNITY TAGS (mid-size):
-#digitalproduct #passiveincome #onlinebusiness #sidehustle #digitaldownload #etsy #gumroad #${platform}
-
-BROAD REACH TAGS:
-#entrepreneur #smallbusiness #makemoneyonline #workfromhome #creativeentrepreneur #businessowner #solopreneur #contentcreator #digitalmarketing #onlinestore
-
-${hr('-')}
-TIKTOK (5–8 tags recommended)
-${hr('-')}
-${kwTags.slice(0, 3).join(' ')} #digitalproducts #${niche} #sidehustle #passiveincome
-
-${hr('-')}
-LINKEDIN (3–5 tags)
-${hr('-')}
-#${niche} #${type} #digitalproducts #entrepreneurship #onlinebusiness
-
-${hr('-')}
-TWITTER / X (2–3 tags)
-${hr('-')}
-#${niche} #digitalproduct #${type}
-
-${hr('-')}
-PINTEREST (keyword-style tags)
-${hr('-')}
-${keywords.join(', ')}, digital product, ${p.product_type || 'digital download'}, ${p.platform || 'online business'}
-`;
-}
-
-function buildEmail1(p, { title, promise, targetAudience, priceMin, priceMax }) {
-  return `EMAIL 1 — LAUNCH ANNOUNCEMENT
-${hr()}
-Send this on: LAUNCH DAY (Day 1)
-
-SUBJECT LINE OPTIONS:
-A) 🚀 It's here — ${title}
-B) I built this for you: ${title}
-C) New: ${promise || title}
-
-PREVIEW TEXT:
-${promise || `Introducing ${title} — built for ${targetAudience || 'you'}`}
-
-${hr('-')}
-EMAIL BODY:
-${hr('-')}
-
-Hey [First Name],
-
-Today's the day.
-
-${title} is officially live.
-
-${promise ? `Here's the promise I'm making you:\n\n"${promise}"\n` : ''}
-
-I built this for ${targetAudience || 'people like you'} who are ready to stop guessing and start getting results.
-
-Inside, you'll find:
-• A complete ${p.product_type || 'digital resource'} designed around your needs
-• Step-by-step structure you can actually follow
-• Everything in one place — no more hunting across the internet
-
-Right now, you can grab it for just $${priceMin}.
-
-→ [DOWNLOAD NOW — INSERT LINK HERE]
-
-This is the launch price — it won't last forever.
-
-Talk soon,
-[Your Name]
-
-P.S. Forward this to a friend who's been struggling with ${p.niche || 'this topic'}. They'll thank you for it.
-`;
-}
-
-function buildEmail2(p, { title, promise, targetAudience, problemSolved, sections, priceMin }) {
-  return `EMAIL 2 — EDUCATIONAL VALUE
-${hr()}
-Send this on: Day 3 (2 days after launch)
-
-SUBJECT LINE OPTIONS:
-A) The real reason most people fail at ${p.niche || 'this'}
-B) 3 lessons I learned the hard way
-C) What I wish I knew before I started
-
-PREVIEW TEXT:
-Inside: a key insight that changes everything about ${p.niche || 'your work'}
-
-${hr('-')}
-EMAIL BODY:
-${hr('-')}
-
-Hey [First Name],
-
-I want to share something with you today — no pitch, just value.
-
-${problemSolved ? `Here's the problem I kept seeing:\n\n${problemSolved}\n` : `A lot of people in ${p.niche || 'this space'} make the same mistake.`}
-
-Through a lot of trial and error, I figured out what actually works. And I broke it down into 3 core insights:
-
-1. ${sections[0]?.title || sections[0]?.heading || 'Clarity beats complexity every time.'}
-   The biggest wins come from simplifying, not adding more.
-
-2. ${sections[1]?.title || sections[1]?.heading || 'Systems outperform willpower.'}
-   When you have the right structure, you remove the need for motivation.
-
-3. ${sections[2]?.title || sections[2]?.heading || 'Action over perfection.'}
-   An imperfect start beats a perfect plan that never launches.
-
-These are the principles I've built ${title} around.
-
-If you haven't grabbed it yet, now's a great time:
-→ [GET ${title.toUpperCase()} — INSERT LINK HERE] — $${priceMin}
-
-See you in a couple of days,
-[Your Name]
-`;
-}
-
-function buildEmail3(p, { title, promise, targetAudience, priceMin, priceMax }) {
-  return `EMAIL 3 — FINAL PUSH
-${hr()}
-Send this on: Day 6–7 (before closing launch price)
-
-SUBJECT LINE OPTIONS:
-A) Last chance — ${title} launch price ends tonight
-B) Closing this out tomorrow (final email)
-C) ⏳ Hours left at this price
-
-PREVIEW TEXT:
-Don't miss this — the launch price disappears soon.
-
-${hr('-')}
-EMAIL BODY:
-${hr('-')}
-
-Hey [First Name],
-
-This is my last email about ${title}.
-
-I know — nobody likes "last chance" emails. So I'll keep this short.
-
-If you've been thinking about grabbing it, now is genuinely the best time.
-
-After [DATE/TIME], the price goes from $${priceMin} to $${priceMax}.
-
-${promise ? `Remember what this is about:\n"${promise}"\n` : ''}
-
-This was built for ${targetAudience || 'people who are ready to take action'}.
-
-If that's you → [GRAB IT NOW — INSERT LINK HERE]
-
-If it's not for you right now, no worries. I'll be back soon with more good stuff.
-
-Thanks for being on my list.
-
-[Your Name]
-
-P.S. Questions? Just reply to this email. I read everything.
-`;
-}
-
-function build7DayPlan(p, { title, promise, platform, targetAudience }) {
-  return `7-DAY LAUNCH PLAN — ${title}
-${hr()}
-
-This plan is designed to create momentum from day one.
-Adapt timing to your audience and schedule.
-
-${hr('-')}
-DAY 1 — LAUNCH DAY 🚀
-${hr('-')}
-□ Publish your product on ${platform || 'your chosen platform'}
-□ Send Email 1 (Announcement) to your list
-□ Post on Instagram (Caption 1 or 2)
-□ Post on LinkedIn (Post 1)
-□ Share in relevant Facebook/Reddit/community groups
-□ Pin the product link to your social bio
-
-GOAL: Get your first 5–10 sales and social proof.
-
-${hr('-')}
-DAY 2 — AMPLIFY
-${hr('-')}
-□ Reply to every comment and DM personally
-□ Share a "behind the scenes" story on Instagram/TikTok
-□ Post TikTok Video 1 or 2
-□ Ask 3 friends/peers to share or review
-
-GOAL: Build buzz and early word-of-mouth.
-
-${hr('-')}
-DAY 3 — VALUE DROP
-${hr('-')}
-□ Send Email 2 (Educational Value)
-□ Post educational content related to your product topic
-□ Post LinkedIn Post 2
-□ Share a testimonial or early buyer reaction (if you have one)
-
-GOAL: Re-engage people who haven't bought yet with value.
-
-${hr('-')}
-DAY 4 — SOCIAL PROOF
-${hr('-')}
-□ Screenshot or quote any positive feedback you've received
-□ Post TikTok Video 3 (Pain Point format)
-□ Share a "results" or "process" Instagram post
-□ Engage in 2–3 communities where your buyers hang out
-
-GOAL: Build trust and reduce purchase objections.
-
-${hr('-')}
-DAY 5 — COMMUNITY & PARTNERSHIPS
-${hr('-')}
-□ Reach out to 3 complementary creators for a cross-promotion
-□ Post in online communities with genuine value + soft mention
-□ Post TikTok Video 4 (Value Drop)
-□ Run a poll or question related to your product topic
-
-GOAL: Expand reach beyond your existing audience.
-
-${hr('-')}
-DAY 6 — URGENCY
-${hr('-')}
-□ Announce that the launch price ends tomorrow
-□ Post Instagram Caption 5 (urgency)
-□ Post LinkedIn Post 3
-□ Post TikTok Video 5 (Launch Announcement)
-
-GOAL: Convert fence-sitters with a clear deadline.
-
-${hr('-')}
-DAY 7 — FINAL DAY
-${hr('-')}
-□ Send Email 3 (Final Push) in the morning
-□ Post a final Instagram story/post ("last few hours")
-□ Raise the price at end of day as promised
-□ Send a thank-you message to all buyers
-
-GOAL: Close the launch strong with urgency and gratitude.
-
-${hr('-')}
-POST-LAUNCH (Week 2 onwards)
-${hr('-')}
-□ Collect testimonials from early buyers
-□ Repurpose one buyer result into a social post
-□ Set up an email automation for future buyers
-□ Consider a bundle or upsell for existing customers
-□ Review your analytics and adjust pricing if needed
-
-${hr()}
-PROMISE: ${promise || title}
-FOR: ${targetAudience || 'Your target audience'}
-`;
-}
-
-function buildLaunchChecklist(p, { title, platform }) {
-  return `LAUNCH CHECKLIST — ${title}
-${hr()}
-
-Complete these before you hit publish.
-
-${hr('-')}
-PRODUCT PREPARATION
-${hr('-')}
-□ Product file is finalised and tested
-□ File opens correctly on Mac, Windows, and mobile
-□ File name is professional (no "final_v2_FINAL.pdf")
-□ Product delivers on every promise made in the listing
-□ Thank-you page or delivery email is set up
-
-${hr('-')}
-LISTING & PRICING
-${hr('-')}
-□ Listing title includes primary keyword
-□ Description is complete with benefits, not just features
-□ Price is set (use the Pricing Strategy file for guidance)
-□ Cover image is uploaded (high quality, 1280×720px minimum)
-□ Tags / keywords are filled in
-
-${hr('-')}
-PLATFORM SETUP (${platform || 'your platform'})
-${hr('-')}
-□ Account is verified and payment method connected
-□ Payout details are configured
-□ Product preview or sample is included (where possible)
-□ Refund policy is written and visible
-□ Product URL is clean and shareable
-
-${hr('-')}
-EMAIL & MARKETING
-${hr('-')}
-□ Email sequence is scheduled (use the Email Launch files)
-□ Bio link is updated on all platforms
-□ Social posts are scheduled for Days 1–7
-□ Friends / warm audience have been given a heads-up
-□ Hashtags are ready (use the Hashtags file)
-
-${hr('-')}
-ANALYTICS & TRACKING
-${hr('-')}
-□ Platform analytics are enabled
-□ You know how many sales = a successful launch for you
-□ A follow-up plan is in place for after the 7-day launch
-
-${hr('-')}
-DAY-OF LAUNCH
-${hr('-')}
-□ Product is live and purchase link works
-□ Email 1 is sent
-□ First social post is live
-□ You are available to reply to comments and DMs for 2–3 hours
-
-${hr()}
-You're ready. Go launch. 🚀
-`;
-}
-
-function buildPlatformRecommendation(p, { title, platform, targetAudience, priceMin }) {
-  const pg = p.platform_guides || p.generated_data?.platform_guidance || {};
-  return `PLATFORM RECOMMENDATION — ${title}
-${hr()}
-
-RECOMMENDED PLATFORM: ${platform || 'See guidance below'}
-
-${pg.why_this_platform ? `WHY THIS PLATFORM:\n${pg.why_this_platform}\n` : ''}
-${pg.platform_audience ? `\nPLATFORM AUDIENCE:\n${pg.platform_audience}\n` : ''}
-${pg.pricing_strategy ? `\nPLATFORM PRICING STRATEGY:\n${pg.pricing_strategy}\n` : ''}
-${pg.thumbnail_guidance ? `\nTHUMBNAIL / COVER GUIDANCE:\n${pg.thumbnail_guidance}\n` : ''}
-
-${hr('-')}
-GENERAL PLATFORM COMPARISON
-${hr('-')}
-
-GUMROAD
-Best for:   Creators with an existing audience
-Fee:        10% (free plan) or $10/month (no transaction fee)
-Strengths:  Simple setup, "Pay What You Want", email list built-in
-Best price: $${priceMin}–$${Math.round(Number(priceMin) * 1.5) || 15}
-
-ETSY
-Best for:   Discovery-based sales (search traffic)
-Fee:        ~6.5% + $0.20 listing fee
-Strengths:  Built-in search audience, trusted brand
-Best price: $${Math.max(3, Number(priceMin) - 2) || 7}.99 (just under round numbers)
-
-PAYHIP
-Best for:   Affiliate-driven sales and email list growth
-Fee:        5% (free plan) or $0 (paid plans)
-Strengths:  Built-in affiliates, email marketing, memberships
-Best price: $${priceMin}
-
-SHOPIFY
-Best for:   Scaling with a branded storefront
-Fee:        $29+/month + payment fees
-Strengths:  Full control, SEO, upsells, professional brand
-Best price: $${priceMin} (with "Compare At" set to $${priceMax})
-
-${hr('-')}
-${pg.launch_plan ? `PLATFORM LAUNCH PLAN:\n${pg.launch_plan}\n` : ''}
-
-${pg.pro_tips && pg.pro_tips.length ? `PRO TIPS:\n${pg.pro_tips.map((t, i) => `${i + 1}. ${t}`).join('\n')}\n` : ''}
-
-${pg.mistakes_to_avoid && pg.mistakes_to_avoid.length ? `MISTAKES TO AVOID:\n${pg.mistakes_to_avoid.map((m, i) => `${i + 1}. ${m}`).join('\n')}\n` : ''}
-
-${pg.tags && pg.tags.length ? `PLATFORM TAGS:\n${pg.tags.join(', ')}\n` : ''}
-
-${hr()}
-FOR: ${targetAudience || 'Your target audience'}
-`;
-}
-
-// ── Main Handler ──────────────────────────────────────────────────────────────
-
-// ── Safe product normalizer ───────────────────────────────────────────────────
-function normalizeProductForExport(product) {
-  const d = product.generated_data || {};
-  const ma = product.marketing_assets || {};
-  const pa = product.product_angle || {};
-
-  const title = String(product.title || d.title || 'Untitled Product');
-  const subtitle = String(product.subtitle || d.subtitle || '');
-  const promise = String(product.promise || d.promise || '');
-  const targetAudience = String(product.target_audience || d.audience || d.target_audience || 'General audience');
-  const buyerProfile = String(product.buyer_profile || d.buyer_profile || '');
-  const problemSolved = String(product.problem_solved || d.problem_solved || '');
-  const productType = String(product.product_type || d.product_type || 'Digital Product');
-  const niche = String(product.niche || 'General');
-  const platform = String(product.platform || 'Gumroad');
-  const tone = String(product.tone || 'Professional');
-
-  const pages = Array.isArray(product.pages) ? product.pages : (Array.isArray(d.product_blocks) ? d.product_blocks : []);
-  const sections = Array.isArray(product.sections) && product.sections.length > 0
-    ? product.sections
-    : Array.isArray(d.sections) && d.sections.length > 0
-    ? d.sections
-    : pages.filter(b => b?.type === 'section').map(b => ({ title: b.heading || b.content?.title || '', body: b.content?.body || '' }));
-
-  const priceMin = Number(ma.price_min ?? d.price_min ?? 17) || 17;
-  const priceMax = Number(ma.price_max ?? d.price_max ?? 37) || 37;
-  const keywords = Array.isArray(ma.keywords) && ma.keywords.length > 0
-    ? ma.keywords
-    : Array.isArray(d.keywords) && d.keywords.length > 0
-    ? d.keywords
-    : [niche, productType, 'digital product', 'download'].filter(Boolean);
-
-  const listingTitle = String(ma.listing_title || d.listing_title || title);
-  const listingDescription = String(ma.listing_description || d.listing_description ||
-    `${promise || subtitle || title}\n\nBuilt for ${targetAudience}.\n\nThis ${productType} covers everything you need.\n\n✅ Instant digital download\n✅ Professionally structured\n✅ Ready to use immediately\n\n${pa.finalAngle || ''}`);
-  const safeTitle = title.replace(/[^a-z0-9]/gi, '_').slice(0, 40) || 'Launchora_Product';
-
-  return {
-    title, subtitle, promise, targetAudience, buyerProfile, problemSolved,
-    productType, niche, platform, tone, pages, sections,
-    priceMin, priceMax, keywords, listingTitle, listingDescription,
-    safeTitle, pa, ma,
-    missingFields: [
-      !product.title && 'title',
-      !product.sections?.length && !d.sections?.length && 'sections',
-      !product.marketing_assets?.listing_title && 'marketing_assets.listing_title',
-      !product.platform_guides && 'platform_guides',
-      !product.social_media_kit && 'social_media_kit',
-      !product.launch_plan && 'launch_plan',
-    ].filter(Boolean),
-  };
-}
-
-// ── Build minimal fallback ZIP ────────────────────────────────────────────────
-function buildFallbackZip(productId, norm, product) {
-  const files = [
-    {
-      name: 'README.txt',
-      data: `LAUNCHORA EXPORT PACKAGE\n${'─'.repeat(40)}\n\nThis is your digital product export package.\nFull content generation may still be in progress.\n\nProduct: ${norm.title}\nGenerated: ${new Date().toLocaleDateString()}\n`,
-    },
-    {
-      name: 'Product_Summary.txt',
-      data: `PRODUCT SUMMARY\n${'─'.repeat(40)}\n\nTITLE:    ${norm.title}\nSUBTITLE: ${norm.subtitle || '—'}\nTYPE:     ${norm.productType}\nNICHE:    ${norm.niche}\nPLATFORM: ${norm.platform}\nPRICE:    $${norm.priceMin}–$${norm.priceMax}\n\nTARGET AUDIENCE:\n${norm.targetAudience}\n\nPROMISE:\n${norm.promise || '—'}\n`,
-    },
-    {
-      name: 'Debug_Info.txt',
-      data: `DEBUG INFO\n${'─'.repeat(40)}\n\nproductId: ${productId}\ngenerationStatus: ${product.generationStatus || '—'}\nexport_status: ${product.export_status || '—'}\nmissingFields: ${norm.missingFields.join(', ') || 'none'}\ngeneratedAt: ${new Date().toISOString()}\n`,
-    },
-  ];
-  return { files, zipBytes: buildZip(files) };
-}
+const NEXT_PRODUCTS = (p,n) => `NEXT PRODUCT IDEAS — ${n.title}\n${'═'.repeat(60)}\n\nTIER 1 — EASY WINS (1–3 days)\n${hr()}\nIDEA 1: "${n.niche} Quick Start Checklist" — Checklist | $${Math.round(n.priceMin*0.5)}–$9\nIDEA 2: "${n.keywords[0]||n.niche} Swipe File" — Template Pack | $${Math.round(n.priceMin*0.7)}–$17\nIDEA 3: "${n.niche} 30-Day Challenge" — Journal | $${n.priceMin}–$${Math.round(n.priceMax*0.8)}\n\nTIER 2 — MEDIUM (1–2 weeks)\n${hr()}\nIDEA 4: "Advanced ${n.title}: [Next Level]" — $${Math.round(n.priceMax*1.5)}–$${Math.round(n.priceMax*2)}\nIDEA 5: "${n.niche} Masterclass Workbook" — $${Math.round(n.priceMax*1.2)}–$${Math.round(n.priceMax*2)}\n\nTIER 3 — BIG PRODUCT (1–4 weeks)\n${hr()}\nIDEA 6: "The Complete ${n.niche} System" — Bundle | $${Math.round(n.priceMax*3)}–$${Math.round(n.priceMax*5)}\n\nPRODUCT ROADMAP\n${hr()}\nMonth 1: ${n.title} ✅\nMonth 2: Idea 1 or 2 (quick win)\nMonth 3: Bundle ${n.title} + new product\nMonth 4: Idea 5 (workbook)\nMonth 6+: Full premium system bundle\n\nUse Launchora to generate any of these instantly.`;
 
 // ── Main Handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
-  let productId = null;
-  let currentStep = 'init';
-  const exportStart = Date.now();
-  const exportTimings = { exportStartedAt: new Date().toISOString(), errors: [] };
-  const warnings = [];
+  let productId = null, currentStep = 'init';
+  const exportStart = Date.now(), warnings = [];
 
-  // Helper: always return 200 with structured error (never throw 500 to frontend)
-  const fail = async (step, errorMsg, details = '') => {
-    console.error(`[generateZip] ❌ FAIL at step=${step}: ${errorMsg}`);
-    exportTimings.totalDurationMs = Date.now() - exportStart;
-    exportTimings.errors.push({ step, error: errorMsg, at: new Date().toISOString() });
-    try {
-      if (productId) {
-        await base44.asServiceRole.entities.Product.update(productId, {
-          export_status: 'failed',
-          export_error: `[${step}] ${errorMsg}`,
-          exportTimings,
-        });
-      }
-    } catch (_) {}
-    return Response.json({
-      success: false,
-      error: errorMsg,
-      details: String(details),
-      step,
-      timings: exportTimings,
-      warnings,
-    });
+  const fail = async (step, msg, details='') => {
+    console.error(`[generateZip] ❌ step=${step}: ${msg}`);
+    try { if(productId) await base44.asServiceRole.entities.Product.update(productId,{export_status:'failed',export_error:`[${step}] ${msg}`}); } catch(_){}
+    return Response.json({success:false,error:msg,details:String(details),step,warnings});
   };
 
   try {
-    // ── parse_request ─────────────────────────────────────────────────────
-    currentStep = 'parse_request';
-    let body;
-    try {
-      body = await req.json();
-    } catch (e) {
-      return fail('parse_request', 'Could not parse request body', e.message);
-    }
-    productId = body?.productId;
-    const stylePreset = body?.stylePreset || 'minimal';
+    currentStep = 'parse';
+    let body; try { body=await req.json(); } catch(e){ return fail('parse','Cannot parse body',e.message); }
+    productId = body?.productId?.trim();
+    const debugMode = body?.debug===true;
 
-    // ── authenticate_user ─────────────────────────────────────────────────
-    currentStep = 'authenticate_user';
-    let user;
-    try {
-      user = await base44.auth.me();
-    } catch (e) {
-      return fail('authenticate_user', 'Authentication failed', e.message);
-    }
-    if (!user) return fail('authenticate_user', 'Unauthorized — please log in');
+    currentStep = 'auth';
+    const user = await base44.auth.me();
+    if(!user) return fail('auth','Unauthorized');
+    if(!productId) return fail('validate','productId required');
 
-    // ── validate_product_id ───────────────────────────────────────────────
-    currentStep = 'validate_product_id';
-    if (!productId || typeof productId !== 'string' || productId.trim() === '') {
-      return fail('validate_product_id', 'productId is required and must be a non-empty string');
-    }
-    productId = productId.trim();
-    console.log('[generateZip] ▶ START productId:', productId, '| stylePreset:', stylePreset);
+    console.log(`[generateZip] ▶ START productId=${productId} debug=${debugMode}`);
 
-    // ── set_export_generating ─────────────────────────────────────────────
-    currentStep = 'set_export_generating';
-    try {
-      await base44.asServiceRole.entities.Product.update(productId, {
-        export_status: 'generating',
-        export_error: null,
-        exportTimings,
-      });
-    } catch (e) {
-      warnings.push(`Could not set export_status to generating: ${e.message}`);
-    }
+    try { await base44.asServiceRole.entities.Product.update(productId,{export_status:'generating',export_error:null}); } catch(e){ warnings.push('set generating: '+e.message); }
 
-    // ── fetch_product ─────────────────────────────────────────────────────
-    currentStep = 'fetch_product';
+    currentStep = 'fetch';
     const fetchStart = Date.now();
-    let product;
-    try {
-      product = await base44.asServiceRole.entities.Product.get(productId);
-      exportTimings.productFetchedAt = new Date().toISOString();
-      exportTimings.productFetchDurationMs = Date.now() - fetchStart;
-      console.log(`[generateZip] ⏱ product fetch: ${exportTimings.productFetchDurationMs}ms`);
-    } catch (e) {
-      return fail('fetch_product', `Failed to fetch product: ${e.message}`, e.stack);
-    }
-    if (!product) {
-      return fail('fetch_product', `Product not found with id: ${productId}`);
-    }
+    const product = await base44.asServiceRole.entities.Product.get(productId);
+    const fetchMs = Date.now()-fetchStart;
+    if(!product) return fail('fetch','Product not found: '+productId);
+    console.log(`[generateZip] fetched in ${fetchMs}ms | generationStatus=${product.generationStatus}`);
 
-    // ── normalize_product ─────────────────────────────────────────────────
-    currentStep = 'normalize_product';
-    let norm;
-    try {
-      norm = normalizeProductForExport(product);
-      console.log('[generateZip] normalized title:', norm.title, '| missingFields:', norm.missingFields.join(', ') || 'none');
-      if (norm.missingFields.length > 0) {
-        warnings.push(`Some fields were missing and used fallbacks: ${norm.missingFields.join(', ')}`);
-      }
-    } catch (e) {
-      return fail('normalize_product', `Product normalization failed: ${e.message}`, e.stack);
-    }
+    currentStep = 'normalize';
+    const n = norm(product);
+    console.log(`[generateZip] title="${n.title}" sections=${n.sections.length} keywords=${n.keywords.length}`);
 
-    // ── build_files ───────────────────────────────────────────────────────
     currentStep = 'build_files';
-    const zipBuildStart = Date.now();
-    exportTimings.zipStartedAt = new Date().toISOString();
-    let files = [];
-    let usedFallback = false;
+    const buildStart = Date.now();
 
-    try {
-      const vars = {
-        title: norm.title,
-        subtitle: norm.subtitle,
-        promise: norm.promise,
-        targetAudience: norm.targetAudience,
-        buyerProfile: norm.buyerProfile,
-        problemSolved: norm.problemSolved,
-        sections: norm.sections,
-        listingTitle: norm.listingTitle,
-        listingDescription: norm.listingDescription,
-        keywords: norm.keywords,
-        priceMin: norm.priceMin,
-        priceMax: norm.priceMax,
-        platform: norm.platform,
-        listingTitle: norm.listingTitle,
-      };
-      // Also expose on product for builder functions that read product.marketing_assets
-      product._normVars = vars;
+    const fileDefs = [
+      { name:'01_Product/Product_Content.txt',           fn:()=>PRODUCT_TXT(product,n) },
+      { name:'01_Product/Product_Content.html',           fn:()=>PRODUCT_HTML(product,n) },
+      { name:'01_Product/Buyer_Quick_Start_Guide.txt',   fn:()=>QUICK_START(product,n) },
+      { name:'01_Product/Implementation_Checklist.txt',  fn:()=>IMPL_CHECKLIST(product,n) },
+      { name:'02_Sales_Page/Platform_Listing_Primary.txt',fn:()=>PRIMARY_LISTING(product,n) },
+      { name:'02_Sales_Page/Gumroad_Listing.txt',         fn:()=>GUMROAD(product,n) },
+      { name:'02_Sales_Page/Etsy_Listing.txt',            fn:()=>ETSY(product,n) },
+      { name:'02_Sales_Page/Payhip_Listing.txt',          fn:()=>PAYHIP(product,n) },
+      { name:'02_Sales_Page/Creative_Market_Listing.txt', fn:()=>CREATIVE_MARKET(product,n) },
+      { name:'02_Sales_Page/Product_Description_Short.txt',fn:()=>DESC_SHORT(product,n) },
+      { name:'02_Sales_Page/Product_Description_Long.txt', fn:()=>DESC_LONG(product,n) },
+      { name:'02_Sales_Page/Pricing_Strategy.txt',         fn:()=>PRICING(product,n) },
+      { name:'02_Sales_Page/SEO_Keywords.txt',             fn:()=>SEO(product,n) },
+      { name:'03_Social_Media/Hooks.txt',                  fn:()=>HOOKS(product,n) },
+      { name:'03_Social_Media/Instagram_Captions.txt',     fn:()=>INSTAGRAM(product,n) },
+      { name:'03_Social_Media/LinkedIn_Posts.txt',         fn:()=>LINKEDIN(product,n) },
+      { name:'03_Social_Media/TikTok_Reel_Ideas.txt',      fn:()=>TIKTOK(product,n) },
+      { name:'03_Social_Media/Carousel_Post_Outlines.txt', fn:()=>CAROUSEL(product,n) },
+      { name:'03_Social_Media/Hashtag_Groups.txt',         fn:()=>HASHTAGS(product,n) },
+      { name:'03_Social_Media/7_Day_Posting_Calendar.txt', fn:()=>CALENDAR(product,n) },
+      { name:'04_Email_Launch/Email_1_Announcement.txt',       fn:()=>EMAIL1(product,n) },
+      { name:'04_Email_Launch/Email_2_Educational_Value.txt',  fn:()=>EMAIL2(product,n) },
+      { name:'04_Email_Launch/Email_3_Problem_Aware.txt',      fn:()=>EMAIL3(product,n) },
+      { name:'04_Email_Launch/Email_4_Offer.txt',              fn:()=>EMAIL4(product,n) },
+      { name:'04_Email_Launch/Email_5_Last_Call.txt',          fn:()=>EMAIL5(product,n) },
+      { name:'05_Launch_Plan/7_Day_Launch_Plan.txt',           fn:()=>LAUNCH_PLAN(product,n) },
+      { name:'05_Launch_Plan/Launch_Checklist.txt',            fn:()=>LAUNCH_CHECKLIST(product,n) },
+      { name:'05_Launch_Plan/Platform_Recommendation.txt',     fn:()=>PLATFORM_REC(product,n) },
+      { name:'05_Launch_Plan/Launch_Readiness_Report.txt',     fn:()=>READINESS(product,n) },
+      { name:'06_Bonus/Customer_Avatar.txt',                   fn:()=>AVATAR(product,n) },
+      { name:'06_Bonus/FAQ.txt',                               fn:()=>FAQ(product,n) },
+      { name:'06_Bonus/Upsell_Ideas.txt',                      fn:()=>UPSELL(product,n) },
+      { name:'06_Bonus/Next_Product_Ideas.txt',                fn:()=>NEXT_PRODUCTS(product,n) },
+    ];
 
-      console.log('[generateZip] Building ZIP with', norm.sections.length, 'sections,', norm.keywords.length, 'keywords');
-
-      files = [
-        { name: '01_Product/Product.txt',                          data: buildProductTxt(product, vars) },
-        { name: '01_Product/Product_Content.html',                  data: buildProductHtml(product, vars) },
-        { name: '02_Sales_Page/Gumroad_Listing.txt',               data: buildGumroadListing(product, vars) },
-        { name: '02_Sales_Page/Etsy_Listing.txt',                  data: buildEtsyListing(product, vars) },
-        { name: '02_Sales_Page/Payhip_Listing.txt',                data: buildPayhipListing(product, vars) },
-        { name: '02_Sales_Page/Shopify_Listing.txt',               data: buildShopifyListing(product, vars) },
-        { name: '02_Sales_Page/Product_Description.txt',           data: buildProductDescription(product, vars) },
-        { name: '02_Sales_Page/Pricing_Strategy.txt',              data: buildPricingStrategy(product, vars) },
-        { name: '03_Social_Media/Instagram_Captions.txt',          data: buildInstagramCaptions(product, vars) },
-        { name: '03_Social_Media/LinkedIn_Posts.txt',              data: buildLinkedInPosts(product, vars) },
-        { name: '03_Social_Media/TikTok_Video_Ideas.txt',          data: buildTikTokIdeas(product, vars) },
-        { name: '03_Social_Media/Hashtags.txt',                    data: buildHashtags(product, vars) },
-        { name: '04_Email_Launch/Email_1_Announcement.txt',        data: buildEmail1(product, vars) },
-        { name: '04_Email_Launch/Email_2_Educational_Value.txt',   data: buildEmail2(product, vars) },
-        { name: '04_Email_Launch/Email_3_Final_Push.txt',          data: buildEmail3(product, vars) },
-        { name: '05_Launch_Plan/7_Day_Launch_Plan.txt',            data: build7DayPlan(product, vars) },
-        { name: '05_Launch_Plan/Launch_Checklist.txt',             data: buildLaunchChecklist(product, vars) },
-        { name: '05_Launch_Plan/Platform_Recommendation.txt',      data: buildPlatformRecommendation(product, vars) },
-        { name: 'README.txt',                                      data: buildReadme(product, vars) },
-      ];
-    } catch (e) {
-      console.warn(`[generateZip] Full file build failed (${e.message}) — using minimal fallback ZIP`);
-      warnings.push(`Full file build failed: ${e.message}. Using minimal fallback ZIP.`);
-      usedFallback = true;
-      try {
-        const fb = buildFallbackZip(productId, norm, product);
-        files = fb.files;
-      } catch (fe) {
-        return fail('build_files', `Both full and fallback file builds failed: ${fe.message}`, e.stack);
-      }
+    const files = [], filesIncluded = [];
+    for(const def of fileDefs){
+      const r = safeFile(def.name, def.fn, warnings);
+      if(r){ files.push(r); filesIncluded.push(def.name); }
+    }
+    // README always last
+    const rm = safeFile('README.txt', ()=>README(product,n), warnings);
+    if(rm){ files.push(rm); filesIncluded.push('README.txt'); }
+    // Debug only when requested
+    if(debugMode){
+      const dbg=`DEBUG\n${'─'.repeat(40)}\nproductId: ${productId}\ngenerationStatus: ${product.generationStatus||'—'}\nsections: ${n.sections.length}\nkeywords: ${n.keywords.length}\nfilesBuilt: ${files.length}\nwarnings: ${warnings.length}\ngeneratedAt: ${new Date().toISOString()}\n`;
+      files.push({name:'DEBUG_Info.txt',data:dbg}); filesIncluded.push('DEBUG_Info.txt');
     }
 
-    // ── build_zip ─────────────────────────────────────────────────────────
-    currentStep = 'build_zip';
-    let zipBytes;
-    try {
-      zipBytes = buildZip(files);
-      exportTimings.zipFinishedAt = new Date().toISOString();
-      exportTimings.zipBuildDurationMs = Date.now() - zipBuildStart;
-      console.log(`[generateZip] ⏱ ZIP build: ${exportTimings.zipBuildDurationMs}ms | files: ${files.length} | bytes: ${zipBytes?.length}`);
-    } catch (e) {
-      return fail('build_zip', `ZIP assembly failed: ${e.message}`, e.stack);
-    }
+    console.log(`[generateZip] built ${files.length} files | warnings: ${warnings.length}`);
+    if(files.length===0) return fail('build_files','No files could be built');
 
-    if (!zipBytes || zipBytes.length < 50) {
-      // Try fallback if we haven't already
-      if (!usedFallback) {
-        warnings.push('Full ZIP was empty — using minimal fallback ZIP');
-        try {
-          const fb = buildFallbackZip(productId, norm, product);
-          zipBytes = buildZip(fb.files);
-        } catch (fe) {
-          return fail('build_zip', `ZIP was empty and fallback also failed: ${fe.message}`);
-        }
-      } else {
-        return fail('build_zip', 'ZIP generation produced an empty file even with fallback');
-      }
-    }
+    currentStep = 'zip';
+    const zipBytes = buildZip(files);
+    const buildMs = Date.now()-buildStart;
+    console.log(`[generateZip] ZIP: ${zipBytes.length} bytes in ${buildMs}ms`);
+    if(!zipBytes||zipBytes.length<50) return fail('zip','ZIP output was empty');
 
-    // ── create_file_object ────────────────────────────────────────────────
-    currentStep = 'create_file_object';
-    const fileName = `${norm.safeTitle}_launch_kit.zip`;
-    let zipFile;
-    try {
-      console.log(`[generateZip] Creating file object: name=${fileName} type=application/zip size=${zipBytes.length}`);
-      zipFile = new File([zipBytes], fileName, { type: 'application/zip' });
-    } catch (e) {
-      // Blob fallback
-      try {
-        console.warn('[generateZip] File constructor failed, trying Blob fallback');
-        zipFile = new Blob([zipBytes], { type: 'application/zip' });
-        warnings.push('Used Blob instead of File for upload');
-      } catch (be) {
-        return fail('create_file_object', `Cannot create file for upload: ${e.message}`, be.message);
-      }
-    }
-
-    // ── upload_file ───────────────────────────────────────────────────────
-    currentStep = 'upload_file';
+    currentStep = 'upload';
     const uploadStart = Date.now();
-    exportTimings.uploadStartedAt = new Date().toISOString();
-    let uploadResult;
+    const fileName = `${n.safe}_launch_kit.zip`;
+    let zipFile;
+    try { zipFile=new File([zipBytes],fileName,{type:'application/zip'}); }
+    catch(_){ zipFile=new Blob([zipBytes],{type:'application/zip'}); warnings.push('Used Blob for upload'); }
+
+    const uploadResult = await base44.integrations.Core.UploadFile({file:zipFile});
+    const uploadMs = Date.now()-uploadStart;
+    const fileUrl = uploadResult?.file_url||uploadResult?.url||null;
+    if(!fileUrl) return fail('upload','Upload succeeded but no URL returned',JSON.stringify(uploadResult));
+
+    currentStep = 'persist';
+    const generatedAt = new Date().toISOString();
+    const totalMs = Date.now()-exportStart;
     try {
-      uploadResult = await base44.integrations.Core.UploadFile({ file: zipFile });
-      exportTimings.uploadFinishedAt = new Date().toISOString();
-      exportTimings.uploadDurationMs = Date.now() - uploadStart;
-      console.log(`[generateZip] ⏱ upload: ${exportTimings.uploadDurationMs}ms | result:`, JSON.stringify(uploadResult));
-    } catch (e) {
-      return fail('upload_file', `File upload failed: ${e.message}`, e.stack);
-    }
-
-    // ── validate_upload_response ──────────────────────────────────────────
-    currentStep = 'validate_upload_response';
-    const fileUrl = uploadResult?.file_url || uploadResult?.url || null;
-    if (!fileUrl) {
-      return fail('validate_upload_response',
-        'Upload succeeded but no download URL was returned',
-        JSON.stringify(uploadResult)
-      );
-    }
-
-    // ── finalise timings ──────────────────────────────────────────────────
-    exportTimings.exportFinishedAt = new Date().toISOString();
-    exportTimings.totalDurationMs = Date.now() - exportStart;
-    const stepDurations = {
-      productFetch: exportTimings.productFetchDurationMs || 0,
-      zipBuild: exportTimings.zipBuildDurationMs || 0,
-      upload: exportTimings.uploadDurationMs || 0,
-    };
-    exportTimings.slowestStep = Object.entries(stepDurations).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
-    console.log(`[generateZip] ⏱ SUMMARY — total: ${exportTimings.totalDurationMs}ms | slowest: ${exportTimings.slowestStep}`);
-
-    // ── update_product_export_metadata ────────────────────────────────────
-    currentStep = 'update_product_export_metadata';
-    const now = new Date().toISOString();
-    try {
-      await base44.asServiceRole.entities.Product.update(productId, {
-        export_status: 'ready',
-        last_exported_at: now,
-        export_error: null,
-        exportTimings,
-        export_files: [{
-          name: fileName,
-          url: fileUrl,
-          type: 'zip',
-          generated_at: now,
-          size: zipBytes.length,
-        }],
+      await base44.asServiceRole.entities.Product.update(productId,{
+        export_status:'ready', last_exported_at:generatedAt, export_error:null,
+        export_files:[{name:fileName,url:fileUrl,type:'zip',generated_at:generatedAt,size:zipBytes.length}],
       });
-    } catch (e) {
-      warnings.push(`Could not update export metadata on product: ${e.message}`);
-    }
+    } catch(e){ warnings.push('Could not persist export metadata: '+e.message); }
 
-    console.log('[generateZip] ✅ Done fileUrl:', fileUrl, '| warnings:', warnings.length);
+    console.log(`[generateZip] ✅ Done in ${totalMs}ms | files=${files.length} | url=${fileUrl}`);
 
-    // ── return_response ───────────────────────────────────────────────────
     return Response.json({
-      success: true,
-      fileUrl,
-      fileName,
-      fileSize: zipBytes.length,
-      generatedAt: now,
-      usedFallback,
-      timings: { totalDurationMs: exportTimings.totalDurationMs, slowestStep: exportTimings.slowestStep, stepDurations },
-      warnings,
+      success:true, fileUrl, fileName, fileSize:zipBytes.length,
+      generatedAt, export_status:'ready', filesIncluded, warnings,
+      timings:{totalMs,fetchMs,buildMs,uploadMs},
     });
 
-  } catch (error) {
-    // Last-resort catch — should never reach here, but guarantees no unhandled 500
-    console.error('[generateZip] ❌ Unhandled exception at step:', currentStep, error.message, error.stack);
-    return fail(currentStep || 'unknown', `Unexpected error: ${error.message}`, error.stack || '');
+  } catch(error){
+    console.error('[generateZip] ❌ Unhandled at step:', currentStep, error.message);
+    return fail(currentStep,'Unexpected error: '+error.message, error.stack||'');
   }
 });
