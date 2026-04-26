@@ -64,7 +64,11 @@ export default function ZipExportModal({ product, style, onClose, onExported }) 
   const [exportError, setExportError] = useState(null);
 
   useEffect(() => {
-    setFreeUsed(localStorage.getItem(FREE_EXPORT_KEY) === 'true');
+    // In preview/dev environments, never block free export so you can test
+    const isPreview = window.location.hostname.includes('base44') || window.location.hostname === 'localhost';
+    if (!isPreview) {
+      setFreeUsed(localStorage.getItem(FREE_EXPORT_KEY) === 'true');
+    }
   }, []);
 
   const downloadZip = async (markFreeUsed = false) => {
