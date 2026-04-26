@@ -1099,209 +1099,362 @@ FOR: ${targetAudience || 'Your target audience'}
 
 // ── Main Handler ──────────────────────────────────────────────────────────────
 
+// ── Safe product normalizer ───────────────────────────────────────────────────
+function normalizeProductForExport(product) {
+  const d = product.generated_data || {};
+  const ma = product.marketing_assets || {};
+  const pa = product.product_angle || {};
+
+  const title = String(product.title || d.title || 'Untitled Product');
+  const subtitle = String(product.subtitle || d.subtitle || '');
+  const promise = String(product.promise || d.promise || '');
+  const targetAudience = String(product.target_audience || d.audience || d.target_audience || 'General audience');
+  const buyerProfile = String(product.buyer_profile || d.buyer_profile || '');
+  const problemSolved = String(product.problem_solved || d.problem_solved || '');
+  const productType = String(product.product_type || d.product_type || 'Digital Product');
+  const niche = String(product.niche || 'General');
+  const platform = String(product.platform || 'Gumroad');
+  const tone = String(product.tone || 'Professional');
+
+  const pages = Array.isArray(product.pages) ? product.pages : (Array.isArray(d.product_blocks) ? d.product_blocks : []);
+  const sections = Array.isArray(product.sections) && product.sections.length > 0
+    ? product.sections
+    : Array.isArray(d.sections) && d.sections.length > 0
+    ? d.sections
+    : pages.filter(b => b?.type === 'section').map(b => ({ title: b.heading || b.content?.title || '', body: b.content?.body || '' }));
+
+  const priceMin = Number(ma.price_min ?? d.price_min ?? 17) || 17;
+  const priceMax = Number(ma.price_max ?? d.price_max ?? 37) || 37;
+  const keywords = Array.isArray(ma.keywords) && ma.keywords.length > 0
+    ? ma.keywords
+    : Array.isArray(d.keywords) && d.keywords.length > 0
+    ? d.keywords
+    : [niche, productType, 'digital product', 'download'].filter(Boolean);
+
+  const listingTitle = String(ma.listing_title || d.listing_title || title);
+  const listingDescription = String(ma.listing_description || d.listing_description ||
+    `${promise || subtitle || title}\n\nBuilt for ${targetAudience}.\n\nThis ${productType} covers everything you need.\n\n✅ Instant digital download\n✅ Professionally structured\n✅ Ready to use immediately\n\n${pa.finalAngle || ''}`);
+  const safeTitle = title.replace(/[^a-z0-9]/gi, '_').slice(0, 40) || 'Launchora_Product';
+
+  return {
+    title, subtitle, promise, targetAudience, buyerProfile, problemSolved,
+    productType, niche, platform, tone, pages, sections,
+    priceMin, priceMax, keywords, listingTitle, listingDescription,
+    safeTitle, pa, ma,
+    missingFields: [
+      !product.title && 'title',
+      !product.sections?.length && !d.sections?.length && 'sections',
+      !product.marketing_assets?.listing_title && 'marketing_assets.listing_title',
+      !product.platform_guides && 'platform_guides',
+      !product.social_media_kit && 'social_media_kit',
+      !product.launch_plan && 'launch_plan',
+    ].filter(Boolean),
+  };
+}
+
+// ── Build minimal fallback ZIP ────────────────────────────────────────────────
+function buildFallbackZip(productId, norm, product) {
+  const files = [
+    {
+      name: 'README.txt',
+      data: `LAUNCHORA EXPORT PACKAGE\n${'─'.repeat(40)}\n\nThis is your digital product export package.\nFull content generation may still be in progress.\n\nProduct: ${norm.title}\nGenerated: ${new Date().toLocaleDateString()}\n`,
+    },
+    {
+      name: 'Product_Summary.txt',
+      data: `PRODUCT SUMMARY\n${'─'.repeat(40)}\n\nTITLE:    ${norm.title}\nSUBTITLE: ${norm.subtitle || '—'}\nTYPE:     ${norm.productType}\nNICHE:    ${norm.niche}\nPLATFORM: ${norm.platform}\nPRICE:    $${norm.priceMin}–$${norm.priceMax}\n\nTARGET AUDIENCE:\n${norm.targetAudience}\n\nPROMISE:\n${norm.promise || '—'}\n`,
+    },
+    {
+      name: 'Debug_Info.txt',
+      data: `DEBUG INFO\n${'─'.repeat(40)}\n\nproductId: ${productId}\ngenerationStatus: ${product.generationStatus || '—'}\nexport_status: ${product.export_status || '—'}\nmissingFields: ${norm.missingFields.join(', ') || 'none'}\ngeneratedAt: ${new Date().toISOString()}\n`,
+    },
+  ];
+  return { files, zipBytes: buildZip(files) };
+}
+
+// ── Main Handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   let productId = null;
+  let currentStep = 'init';
   const exportStart = Date.now();
   const exportTimings = { exportStartedAt: new Date().toISOString(), errors: [] };
+  const warnings = [];
 
-  try {
-    const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const body = await req.json();
-    productId = body.productId;
-    const stylePreset = body.stylePreset || 'minimal';
-
-    console.log('[generateZip] ▶ START productId:', productId, '| stylePreset:', stylePreset);
-
-    if (!productId) {
-      return Response.json({ success: false, error: 'productId is required' }, { status: 400 });
-    }
-
-    // Mark export as in-progress
-    await base44.asServiceRole.entities.Product.update(productId, {
-      export_status: 'generating',
-      export_error: null,
-      exportTimings,
-    });
-
-    // Fetch the product record
-    const fetchStart = Date.now();
-    const product = await base44.asServiceRole.entities.Product.get(productId);
-    exportTimings.productFetchedAt = new Date().toISOString();
-    exportTimings.productFetchDurationMs = Date.now() - fetchStart;
-    console.log(`[generateZip] ⏱ product fetch: ${exportTimings.productFetchDurationMs}ms`);
-
-    if (!product) {
-      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: 'Product not found', exportTimings });
-      return Response.json({ success: false, error: 'Product not found' }, { status: 404 });
-    }
-
-    // ── Normalize all data sources ──────────────────────────────────────────
-    const d = product.generated_data || {};
-    const title = product.title || d.title || '';
-    const subtitle = product.subtitle || d.subtitle || '';
-    const promise = product.promise || d.promise || '';
-    const targetAudience = product.target_audience || d.audience || '';
-    const buyerProfile = product.buyer_profile || d.buyer_profile || '';
-    const problemSolved = product.problem_solved || d.problem_solved || '';
-
-    // ── Validate required fields (only hard-block on missing title) ─────────
-    if (!title.trim()) {
-      const errMsg = 'Product title is missing — cannot export';
-      await base44.asServiceRole.entities.Product.update(productId, { export_status: 'failed', export_error: errMsg, exportTimings });
-      return Response.json({ success: false, error: errMsg }, { status: 422 });
-    }
-
-    const sections = (product.sections?.length > 0)
-      ? product.sections
-      : (d.sections?.length > 0)
-        ? d.sections
-        : (product.pages?.filter(b => b.type === 'section') || []);
-
-    // ── Marketing assets (with fallbacks for partially-generated products) ──
-    const ma = product.marketing_assets || {};
-    const pa = product.product_angle || {};
-    const listingTitle = ma.listing_title || d.listing_title || title;
-    const listingDescription = ma.listing_description || d.listing_description ||
-      `${promise || subtitle || title}\n\nBuilt for ${targetAudience || product.niche || 'professionals'} who want real results.\n\nThis ${product.product_type || 'digital product'} covers everything you need to get started and succeed.\n\n✅ Instant digital download\n✅ Professionally structured\n✅ Ready to use immediately\n\n${pa.finalAngle || ''}`;
-    const keywords = (ma.keywords?.length ? ma.keywords : d.keywords) || [product.niche, product.product_type, 'digital product', 'download'].filter(Boolean);
-    const priceMin = ma.price_min ?? d.price_min ?? 17;
-    const priceMax = ma.price_max ?? d.price_max ?? 37;
-    const platform = product.platform || '';
-
-    const vars = {
-      title, subtitle, promise, targetAudience, buyerProfile,
-      problemSolved, sections, listingTitle, listingDescription,
-      keywords, priceMin, priceMax, platform,
-    };
-
-    console.log('[generateZip] Building ZIP with', sections.length, 'sections,', keywords.length, 'keywords');
-
-    // ── Assemble all files (pure CPU — should be <100ms) ───────────────────
-    // ✅ No PDF generation here — PDF is client-side only (exportProductPDF).
-    // ✅ ZIP export does NOT auto-run during generation — only on explicit user click.
-    const zipBuildStart = Date.now();
-    exportTimings.zipStartedAt = new Date().toISOString();
-
-    const files = [
-      // 01_Product
-      { name: '01_Product/Product.txt',         data: buildProductTxt(product, vars) },
-      { name: '01_Product/Product_Content.html', data: buildProductHtml(product, vars) },
-
-      // 02_Sales_Page
-      { name: '02_Sales_Page/Gumroad_Listing.txt',     data: buildGumroadListing(product, vars) },
-      { name: '02_Sales_Page/Etsy_Listing.txt',        data: buildEtsyListing(product, vars) },
-      { name: '02_Sales_Page/Payhip_Listing.txt',      data: buildPayhipListing(product, vars) },
-      { name: '02_Sales_Page/Shopify_Listing.txt',     data: buildShopifyListing(product, vars) },
-      { name: '02_Sales_Page/Product_Description.txt', data: buildProductDescription(product, vars) },
-      { name: '02_Sales_Page/Pricing_Strategy.txt',    data: buildPricingStrategy(product, vars) },
-
-      // 03_Social_Media
-      { name: '03_Social_Media/Instagram_Captions.txt',   data: buildInstagramCaptions(product, vars) },
-      { name: '03_Social_Media/LinkedIn_Posts.txt',        data: buildLinkedInPosts(product, vars) },
-      { name: '03_Social_Media/TikTok_Video_Ideas.txt',    data: buildTikTokIdeas(product, vars) },
-      { name: '03_Social_Media/Hashtags.txt',              data: buildHashtags(product, vars) },
-
-      // 04_Email_Launch
-      { name: '04_Email_Launch/Email_1_Announcement.txt',      data: buildEmail1(product, vars) },
-      { name: '04_Email_Launch/Email_2_Educational_Value.txt',  data: buildEmail2(product, vars) },
-      { name: '04_Email_Launch/Email_3_Final_Push.txt',         data: buildEmail3(product, vars) },
-
-      // 05_Launch_Plan
-      { name: '05_Launch_Plan/7_Day_Launch_Plan.txt',          data: build7DayPlan(product, vars) },
-      { name: '05_Launch_Plan/Launch_Checklist.txt',            data: buildLaunchChecklist(product, vars) },
-      { name: '05_Launch_Plan/Platform_Recommendation.txt',     data: buildPlatformRecommendation(product, vars) },
-
-      // README
-      { name: 'README.txt', data: buildReadme(product, vars) },
-    ];
-
-    const zipBytes = buildZip(files);
-    exportTimings.zipFinishedAt = new Date().toISOString();
-    exportTimings.zipBuildDurationMs = Date.now() - zipBuildStart;
-    console.log(`[generateZip] ⏱ ZIP build: ${exportTimings.zipBuildDurationMs}ms | files: ${files.length} | size: ${zipBytes.length} bytes`);
-
-    if (!zipBytes || zipBytes.length < 100) {
-      throw new Error('ZIP generation produced an invalid or empty file');
-    }
-
-    // ── Upload (main bottleneck for export — depends on file size + network) ─
-    // ⚠️ Upload is typically 1-5s but can spike to 15s+ for large products.
-    const uploadStart = Date.now();
-    exportTimings.uploadStartedAt = new Date().toISOString();
-    const safeTitle = title.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
-    const fileName = `${safeTitle}_launch_kit.zip`;
-
-    const zipFile = new File([zipBytes], fileName, { type: 'application/zip' });
-    const uploadResult = await base44.integrations.Core.UploadFile({ file: zipFile });
-    exportTimings.uploadFinishedAt = new Date().toISOString();
-    exportTimings.uploadDurationMs = Date.now() - uploadStart;
-    console.log(`[generateZip] ⏱ upload: ${exportTimings.uploadDurationMs}ms | result:`, JSON.stringify(uploadResult));
-
-    if (!uploadResult?.file_url) {
-      throw new Error('File uploaded but no download URL returned: ' + JSON.stringify(uploadResult));
-    }
-
-    // ── Finalise timings ────────────────────────────────────────────────────
-    exportTimings.exportFinishedAt = new Date().toISOString();
+  // Helper: always return 200 with structured error (never throw 500 to frontend)
+  const fail = async (step, errorMsg, details = '') => {
+    console.error(`[generateZip] ❌ FAIL at step=${step}: ${errorMsg}`);
     exportTimings.totalDurationMs = Date.now() - exportStart;
-    const stepDurations = {
-      productFetch: exportTimings.productFetchDurationMs,
-      zipBuild: exportTimings.zipBuildDurationMs,
-      upload: exportTimings.uploadDurationMs,
-    };
-    exportTimings.slowestStep = Object.entries(stepDurations).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
-    console.log(`[generateZip] ⏱ SUMMARY — total: ${exportTimings.totalDurationMs}ms | slowest: ${exportTimings.slowestStep}`);
-    console.log(`[generateZip] Step durations:`, JSON.stringify(stepDurations));
-
-    if (exportTimings.totalDurationMs > 45000) {
-      console.warn(`[generateZip] ⚠️ Export took >45s (${exportTimings.totalDurationMs}ms). Likely bottleneck: ${exportTimings.slowestStep}`);
-    }
-
-    // ── Persist export metadata ─────────────────────────────────────────────
-    const now = new Date().toISOString();
-    await base44.asServiceRole.entities.Product.update(productId, {
-      export_status: 'ready',
-      last_exported_at: now,
-      export_error: null,
-      exportTimings,
-      export_files: [{
-        name: fileName,
-        url: uploadResult.file_url,
-        type: 'zip',
-        generated_at: now,
-        size: zipBytes.length,
-      }],
-    });
-
-    console.log('[generateZip] ✅ Done fileUrl:', uploadResult.file_url);
-
-    return Response.json({
-      success: true,
-      fileUrl: uploadResult.file_url,
-      fileName,
-      fileSize: zipBytes.length,
-      generatedAt: now,
-      timings: { totalDurationMs: exportTimings.totalDurationMs, slowestStep: exportTimings.slowestStep, stepDurations },
-    });
-
-  } catch (error) {
-    console.error('[generateZip] ❌ Fatal error:', error.message, error.stack);
-    exportTimings.errors.push({ error: error.message, at: new Date().toISOString() });
-    exportTimings.totalDurationMs = Date.now() - exportStart;
+    exportTimings.errors.push({ step, error: errorMsg, at: new Date().toISOString() });
     try {
       if (productId) {
         await base44.asServiceRole.entities.Product.update(productId, {
           export_status: 'failed',
-          export_error: error.message || 'Unknown error during ZIP generation',
+          export_error: `[${step}] ${errorMsg}`,
           exportTimings,
         });
       }
-    } catch (_) { /* best-effort */ }
-    return Response.json({ success: false, error: error.message, details: error.stack || '' }, { status: 500 });
+    } catch (_) {}
+    return Response.json({
+      success: false,
+      error: errorMsg,
+      details: String(details),
+      step,
+      timings: exportTimings,
+      warnings,
+    });
+  };
+
+  try {
+    // ── parse_request ─────────────────────────────────────────────────────
+    currentStep = 'parse_request';
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return fail('parse_request', 'Could not parse request body', e.message);
+    }
+    productId = body?.productId;
+    const stylePreset = body?.stylePreset || 'minimal';
+
+    // ── authenticate_user ─────────────────────────────────────────────────
+    currentStep = 'authenticate_user';
+    let user;
+    try {
+      user = await base44.auth.me();
+    } catch (e) {
+      return fail('authenticate_user', 'Authentication failed', e.message);
+    }
+    if (!user) return fail('authenticate_user', 'Unauthorized — please log in');
+
+    // ── validate_product_id ───────────────────────────────────────────────
+    currentStep = 'validate_product_id';
+    if (!productId || typeof productId !== 'string' || productId.trim() === '') {
+      return fail('validate_product_id', 'productId is required and must be a non-empty string');
+    }
+    productId = productId.trim();
+    console.log('[generateZip] ▶ START productId:', productId, '| stylePreset:', stylePreset);
+
+    // ── set_export_generating ─────────────────────────────────────────────
+    currentStep = 'set_export_generating';
+    try {
+      await base44.asServiceRole.entities.Product.update(productId, {
+        export_status: 'generating',
+        export_error: null,
+        exportTimings,
+      });
+    } catch (e) {
+      warnings.push(`Could not set export_status to generating: ${e.message}`);
+    }
+
+    // ── fetch_product ─────────────────────────────────────────────────────
+    currentStep = 'fetch_product';
+    const fetchStart = Date.now();
+    let product;
+    try {
+      product = await base44.asServiceRole.entities.Product.get(productId);
+      exportTimings.productFetchedAt = new Date().toISOString();
+      exportTimings.productFetchDurationMs = Date.now() - fetchStart;
+      console.log(`[generateZip] ⏱ product fetch: ${exportTimings.productFetchDurationMs}ms`);
+    } catch (e) {
+      return fail('fetch_product', `Failed to fetch product: ${e.message}`, e.stack);
+    }
+    if (!product) {
+      return fail('fetch_product', `Product not found with id: ${productId}`);
+    }
+
+    // ── normalize_product ─────────────────────────────────────────────────
+    currentStep = 'normalize_product';
+    let norm;
+    try {
+      norm = normalizeProductForExport(product);
+      console.log('[generateZip] normalized title:', norm.title, '| missingFields:', norm.missingFields.join(', ') || 'none');
+      if (norm.missingFields.length > 0) {
+        warnings.push(`Some fields were missing and used fallbacks: ${norm.missingFields.join(', ')}`);
+      }
+    } catch (e) {
+      return fail('normalize_product', `Product normalization failed: ${e.message}`, e.stack);
+    }
+
+    // ── build_files ───────────────────────────────────────────────────────
+    currentStep = 'build_files';
+    const zipBuildStart = Date.now();
+    exportTimings.zipStartedAt = new Date().toISOString();
+    let files = [];
+    let usedFallback = false;
+
+    try {
+      const vars = {
+        title: norm.title,
+        subtitle: norm.subtitle,
+        promise: norm.promise,
+        targetAudience: norm.targetAudience,
+        buyerProfile: norm.buyerProfile,
+        problemSolved: norm.problemSolved,
+        sections: norm.sections,
+        listingTitle: norm.listingTitle,
+        listingDescription: norm.listingDescription,
+        keywords: norm.keywords,
+        priceMin: norm.priceMin,
+        priceMax: norm.priceMax,
+        platform: norm.platform,
+        listingTitle: norm.listingTitle,
+      };
+      // Also expose on product for builder functions that read product.marketing_assets
+      product._normVars = vars;
+
+      console.log('[generateZip] Building ZIP with', norm.sections.length, 'sections,', norm.keywords.length, 'keywords');
+
+      files = [
+        { name: '01_Product/Product.txt',                          data: buildProductTxt(product, vars) },
+        { name: '01_Product/Product_Content.html',                  data: buildProductHtml(product, vars) },
+        { name: '02_Sales_Page/Gumroad_Listing.txt',               data: buildGumroadListing(product, vars) },
+        { name: '02_Sales_Page/Etsy_Listing.txt',                  data: buildEtsyListing(product, vars) },
+        { name: '02_Sales_Page/Payhip_Listing.txt',                data: buildPayhipListing(product, vars) },
+        { name: '02_Sales_Page/Shopify_Listing.txt',               data: buildShopifyListing(product, vars) },
+        { name: '02_Sales_Page/Product_Description.txt',           data: buildProductDescription(product, vars) },
+        { name: '02_Sales_Page/Pricing_Strategy.txt',              data: buildPricingStrategy(product, vars) },
+        { name: '03_Social_Media/Instagram_Captions.txt',          data: buildInstagramCaptions(product, vars) },
+        { name: '03_Social_Media/LinkedIn_Posts.txt',              data: buildLinkedInPosts(product, vars) },
+        { name: '03_Social_Media/TikTok_Video_Ideas.txt',          data: buildTikTokIdeas(product, vars) },
+        { name: '03_Social_Media/Hashtags.txt',                    data: buildHashtags(product, vars) },
+        { name: '04_Email_Launch/Email_1_Announcement.txt',        data: buildEmail1(product, vars) },
+        { name: '04_Email_Launch/Email_2_Educational_Value.txt',   data: buildEmail2(product, vars) },
+        { name: '04_Email_Launch/Email_3_Final_Push.txt',          data: buildEmail3(product, vars) },
+        { name: '05_Launch_Plan/7_Day_Launch_Plan.txt',            data: build7DayPlan(product, vars) },
+        { name: '05_Launch_Plan/Launch_Checklist.txt',             data: buildLaunchChecklist(product, vars) },
+        { name: '05_Launch_Plan/Platform_Recommendation.txt',      data: buildPlatformRecommendation(product, vars) },
+        { name: 'README.txt',                                      data: buildReadme(product, vars) },
+      ];
+    } catch (e) {
+      console.warn(`[generateZip] Full file build failed (${e.message}) — using minimal fallback ZIP`);
+      warnings.push(`Full file build failed: ${e.message}. Using minimal fallback ZIP.`);
+      usedFallback = true;
+      try {
+        const fb = buildFallbackZip(productId, norm, product);
+        files = fb.files;
+      } catch (fe) {
+        return fail('build_files', `Both full and fallback file builds failed: ${fe.message}`, e.stack);
+      }
+    }
+
+    // ── build_zip ─────────────────────────────────────────────────────────
+    currentStep = 'build_zip';
+    let zipBytes;
+    try {
+      zipBytes = buildZip(files);
+      exportTimings.zipFinishedAt = new Date().toISOString();
+      exportTimings.zipBuildDurationMs = Date.now() - zipBuildStart;
+      console.log(`[generateZip] ⏱ ZIP build: ${exportTimings.zipBuildDurationMs}ms | files: ${files.length} | bytes: ${zipBytes?.length}`);
+    } catch (e) {
+      return fail('build_zip', `ZIP assembly failed: ${e.message}`, e.stack);
+    }
+
+    if (!zipBytes || zipBytes.length < 50) {
+      // Try fallback if we haven't already
+      if (!usedFallback) {
+        warnings.push('Full ZIP was empty — using minimal fallback ZIP');
+        try {
+          const fb = buildFallbackZip(productId, norm, product);
+          zipBytes = buildZip(fb.files);
+        } catch (fe) {
+          return fail('build_zip', `ZIP was empty and fallback also failed: ${fe.message}`);
+        }
+      } else {
+        return fail('build_zip', 'ZIP generation produced an empty file even with fallback');
+      }
+    }
+
+    // ── create_file_object ────────────────────────────────────────────────
+    currentStep = 'create_file_object';
+    const fileName = `${norm.safeTitle}_launch_kit.zip`;
+    let zipFile;
+    try {
+      console.log(`[generateZip] Creating file object: name=${fileName} type=application/zip size=${zipBytes.length}`);
+      zipFile = new File([zipBytes], fileName, { type: 'application/zip' });
+    } catch (e) {
+      // Blob fallback
+      try {
+        console.warn('[generateZip] File constructor failed, trying Blob fallback');
+        zipFile = new Blob([zipBytes], { type: 'application/zip' });
+        warnings.push('Used Blob instead of File for upload');
+      } catch (be) {
+        return fail('create_file_object', `Cannot create file for upload: ${e.message}`, be.message);
+      }
+    }
+
+    // ── upload_file ───────────────────────────────────────────────────────
+    currentStep = 'upload_file';
+    const uploadStart = Date.now();
+    exportTimings.uploadStartedAt = new Date().toISOString();
+    let uploadResult;
+    try {
+      uploadResult = await base44.integrations.Core.UploadFile({ file: zipFile });
+      exportTimings.uploadFinishedAt = new Date().toISOString();
+      exportTimings.uploadDurationMs = Date.now() - uploadStart;
+      console.log(`[generateZip] ⏱ upload: ${exportTimings.uploadDurationMs}ms | result:`, JSON.stringify(uploadResult));
+    } catch (e) {
+      return fail('upload_file', `File upload failed: ${e.message}`, e.stack);
+    }
+
+    // ── validate_upload_response ──────────────────────────────────────────
+    currentStep = 'validate_upload_response';
+    const fileUrl = uploadResult?.file_url || uploadResult?.url || null;
+    if (!fileUrl) {
+      return fail('validate_upload_response',
+        'Upload succeeded but no download URL was returned',
+        JSON.stringify(uploadResult)
+      );
+    }
+
+    // ── finalise timings ──────────────────────────────────────────────────
+    exportTimings.exportFinishedAt = new Date().toISOString();
+    exportTimings.totalDurationMs = Date.now() - exportStart;
+    const stepDurations = {
+      productFetch: exportTimings.productFetchDurationMs || 0,
+      zipBuild: exportTimings.zipBuildDurationMs || 0,
+      upload: exportTimings.uploadDurationMs || 0,
+    };
+    exportTimings.slowestStep = Object.entries(stepDurations).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
+    console.log(`[generateZip] ⏱ SUMMARY — total: ${exportTimings.totalDurationMs}ms | slowest: ${exportTimings.slowestStep}`);
+
+    // ── update_product_export_metadata ────────────────────────────────────
+    currentStep = 'update_product_export_metadata';
+    const now = new Date().toISOString();
+    try {
+      await base44.asServiceRole.entities.Product.update(productId, {
+        export_status: 'ready',
+        last_exported_at: now,
+        export_error: null,
+        exportTimings,
+        export_files: [{
+          name: fileName,
+          url: fileUrl,
+          type: 'zip',
+          generated_at: now,
+          size: zipBytes.length,
+        }],
+      });
+    } catch (e) {
+      warnings.push(`Could not update export metadata on product: ${e.message}`);
+    }
+
+    console.log('[generateZip] ✅ Done fileUrl:', fileUrl, '| warnings:', warnings.length);
+
+    // ── return_response ───────────────────────────────────────────────────
+    return Response.json({
+      success: true,
+      fileUrl,
+      fileName,
+      fileSize: zipBytes.length,
+      generatedAt: now,
+      usedFallback,
+      timings: { totalDurationMs: exportTimings.totalDurationMs, slowestStep: exportTimings.slowestStep, stepDurations },
+      warnings,
+    });
+
+  } catch (error) {
+    // Last-resort catch — should never reach here, but guarantees no unhandled 500
+    console.error('[generateZip] ❌ Unhandled exception at step:', currentStep, error.message, error.stack);
+    return fail(currentStep || 'unknown', `Unexpected error: ${error.message}`, error.stack || '');
   }
 });

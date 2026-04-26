@@ -88,20 +88,26 @@ export default function ZipExportModal({ product, style, onClose, onExported }) 
       });
 
       console.log('[ZipExport] Raw response:', res);
-      setDebugLastResponse(res?.data ?? res);
-
+      // Handle both Axios response wrapper and direct object
       const data = res?.data ?? res;
+      setDebugLastResponse(data);
 
       if (!data) {
-        throw new Error('Empty response from generateZip function');
+        const msg = 'Empty response from generateZip — backend may have crashed';
+        setDebugLastError({ error: msg });
+        setExportError(msg);
+        setDebugStatus('error');
+        setLoading(false);
+        return;
       }
 
       if (data.success === false) {
-        const msg = data.error || 'Unknown backend error';
+        const msg = data.error || 'Backend export failed';
+        const step = data.step ? ` (step: ${data.step})` : '';
         const detail = data.details || '';
-        console.error('[ZipExport] Backend error:', msg, detail);
-        setDebugLastError({ error: msg, details: detail });
-        setExportError(msg + (detail ? ` — ${detail}` : ''));
+        console.error('[ZipExport] Backend error:', msg, step, detail);
+        setDebugLastError({ error: msg, step: data.step, details: detail });
+        setExportError(`${msg}${step}`);
         setDebugStatus('error');
         setLoading(false);
         return;
@@ -110,6 +116,7 @@ export default function ZipExportModal({ product, style, onClose, onExported }) 
       if (!data.fileUrl) {
         const msg = 'ZIP was generated but no download URL was returned.';
         console.error('[ZipExport]', msg, data);
+        setDebugLastError({ error: msg, raw: data });
         setExportError(msg);
         setDebugStatus('error');
         setLoading(false);
@@ -146,9 +153,19 @@ export default function ZipExportModal({ product, style, onClose, onExported }) 
       onExported?.();
 
     } catch (e) {
-      console.error('[ZipExport] Exception:', e);
-      setDebugLastError({ error: e.message, stack: e.stack });
-      setExportError(e.message || 'Unexpected error');
+      // Axios wraps non-2xx as exceptions — extract structured data if available
+      const serverData = e?.response?.data;
+      if (serverData) {
+        const msg = serverData.error || e.message;
+        const step = serverData.step ? ` (step: ${serverData.step})` : '';
+        console.error('[ZipExport] Server error response:', serverData);
+        setDebugLastError(serverData);
+        setExportError(`${msg}${step}`);
+      } else {
+        console.error('[ZipExport] Exception:', e);
+        setDebugLastError({ error: e.message, stack: e.stack });
+        setExportError(e.message || 'Unexpected error');
+      }
       setDebugStatus('error');
     }
 
