@@ -19,9 +19,60 @@ function buildZip(files) {
 
 const hr = (c='─',n=60) => c.repeat(n);
 
+// ── Quality Gate ──────────────────────────────────────────────────────────────
+const BANNED = [
+  'content pending','todo','coming soon','day ?','empty hook','[bonus feature]',
+  '[companion ','placeholder','undefined','null','nan','\bnull\b',
+];
+function hasBannedContent(text) {
+  const lower = text.toLowerCase();
+  return BANNED.some(b => lower.includes(b));
+}
+function cleanText(text) {
+  // Remove literal "null", "undefined", "NaN" values left by template interpolation
+  return text
+    .replace(/\bnull\b/g, '')
+    .replace(/\bundefined\b/g, '')
+    .replace(/\bNaN\b/g, '')
+    .replace(/\[bonus feature\]/gi, 'exclusive bonus content')
+    .replace(/\[companion [^\]]+\]/gi, 'companion resource')
+    .replace(/DAY \?/gi, '')
+    .replace(/HOOK:\s*\n/gi, '')
+    .replace(/Content pending/gi, '')
+    .trim();
+}
+function validateFile(name, data) {
+  const text = String(data);
+  const issues = [];
+  if (hasBannedContent(text)) {
+    const found = BANNED.filter(b => text.toLowerCase().includes(b));
+    issues.push(`Contains banned phrases: ${found.join(', ')}`);
+  }
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  if (name.includes('01_Product') && wordCount < 80) issues.push(`Too short: ${wordCount} words (min 80)`);
+  if (name.includes('04_Email') && (!text.includes('SUBJECT') || !text.includes('[INSERT LINK]'))) issues.push('Email missing SUBJECT or CTA link placeholder');
+  if (name.includes('7_Day_Posting_Calendar') && !text.includes('DAY 1')) issues.push('Calendar missing DAY 1');
+  if (name.includes('7_Day_Launch_Plan') && !text.includes('DAY 1')) issues.push('Launch plan missing DAY 1');
+  if (name.includes('TikTok') && text.split('VIDEO').length < 4) issues.push('TikTok file has fewer than 3 videos');
+  if (name.includes('Instagram') && text.split('CAPTION').length < 4) issues.push('Instagram has fewer than 3 captions');
+  return issues;
+}
 function safeFile(name, fn, warnings) {
-  try { const d=fn(); if(!d||!String(d).trim()) throw new Error('empty'); return {name,data:d}; }
-  catch(e) { warnings.push(`Skipped ${name}: ${e.message}`); return null; }
+  try {
+    let data = fn();
+    if (!data || !String(data).trim()) throw new Error('builder returned empty content');
+    data = cleanText(String(data));
+    const issues = validateFile(name, data);
+    if (issues.length > 0) {
+      warnings.push(`Quality issues in ${name}: ${issues.join('; ')}`);
+      console.warn(`[QA] ${name} — ${issues.join('; ')}`);
+      // Still include the file after cleaning — don't discard unless completely empty
+    }
+    return { name, data };
+  } catch(e) {
+    warnings.push(`Skipped ${name}: ${e.message}`);
+    return null;
+  }
 }
 
 // ── Normalizer ────────────────────────────────────────────────────────────────
@@ -108,7 +159,13 @@ const PRODUCT_TXT = (p,n) => {
 
 const PRODUCT_HTML = (p,n) => {
   const a='#ea580c';
-  const secsHtml=n.sections.map((s,i)=>`<section style="margin-bottom:2.5rem;padding-bottom:2rem;border-bottom:1px solid #f3f4f6"><h2 style="font-size:1.25rem;font-weight:700;color:#111;padding-left:.75rem;border-left:4px solid ${a};margin-bottom:.75rem">${i+1}. ${s.title||s.heading||'Section '+(i+1)}</h2><div style="font-size:1rem;line-height:1.8;color:#374151;white-space:pre-wrap">${s.body||s.content?.body||'<em style="color:#9ca3af">Content pending</em>'}</div></section>`).join('');
+  const secsHtml=n.sections.map((s,i)=>{
+    const title=s.title||s.heading||'Section '+(i+1);
+    const body=s.body||s.content?.body||'';
+    // Never show "Content pending" — use a meaningful placeholder tied to the actual section title
+    const displayBody=body.trim()||`This section covers: ${title}. Open the .txt version for full content details.`;
+    return `<section style="margin-bottom:2.5rem;padding-bottom:2rem;border-bottom:1px solid #f3f4f6"><h2 style="font-size:1.25rem;font-weight:700;color:#111;padding-left:.75rem;border-left:4px solid ${a};margin-bottom:.75rem">${i+1}. ${title}</h2><div style="font-size:1rem;line-height:1.8;color:#374151;white-space:pre-wrap">${displayBody.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></section>`;
+  }).join('');
   const bens=n.items.length>0?`<ul style="list-style:none;padding:0;margin-bottom:2rem">${n.items.map(b=>`<li style="padding:.35rem 0;color:#166534">✅ ${b}</li>`).join('')}</ul>`:'';
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>${n.title}</title><style>body{font-family:Georgia,serif;max-width:780px;margin:0 auto;padding:2rem 1.5rem;background:#fafaf9;color:#1a1a1a}h1{font-size:2.1rem;font-weight:800;color:#111;margin-bottom:.5rem}.sub{font-size:1.1rem;color:#6b7280;font-style:italic;margin-bottom:1.5rem}.promise{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:2px solid ${a};border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem}.promise p{margin:0;font-size:1rem;font-weight:600;color:#9a3412}.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem;font-family:sans-serif}.badge{background:#f3f4f6;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;color:#374151}.pb{background:${a};color:#fff;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;font-weight:700}.aud{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:1rem 1.25rem;margin-bottom:2rem;font-family:sans-serif;font-size:.9rem;color:#166534}.kw{font-family:sans-serif;font-size:.8rem;color:#6b7280;margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb}.ft{text-align:center;font-family:sans-serif;font-size:.75rem;color:#9ca3af;margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e7eb}</style></head><body><h1>${n.title}</h1>${n.subtitle?`<p class="sub">${n.subtitle}</p>`:''} ${n.promise?`<div class="promise"><p>✦ ${n.promise}</p></div>`:''}<div class="meta"><span class="badge">${n.type}</span><span class="badge">${n.platform}</span><span class="badge">${n.niche}</span><span class="pb">$${n.priceMin}–$${n.priceMax}</span></div>${n.audience?`<div class="aud"><strong>For:</strong> ${n.audience}</div>`:''} ${bens}${secsHtml}${n.keywords.length?`<div class="kw"><strong>Keywords:</strong> ${n.keywords.join(' · ')}</div>`:''}<div class="ft">Generated by Launchora · ${new Date().getFullYear()}</div></body></html>`;
 };
@@ -149,7 +206,14 @@ const INSTAGRAM = (p,n) => {
 const LINKEDIN = (p,n) => `LINKEDIN POSTS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nPOST 1 — ANNOUNCEMENT\n${'─'.repeat(60)}\nAfter spending time in ${n.niche}, I kept noticing the same pattern:\n\n${n.problem||'People kept hitting the same wall, over and over.'}\n\nSo I built something to fix it: ${n.title}\n\n${n.promise||''}\n\nBuilt for ${n.audience||'professionals who want real results'}.\n→ $${n.priceMin} | Instant download | No fluff\n\n#${n.keywords.slice(0,3).map(k=>k.replace(/\s+/g,'')).join(' #')}\n\n${'─'.repeat(60)}\nPOST 2 — VALUE\n${'─'.repeat(60)}\n3 things that changed how I approach ${n.niche}:\n\n1. ${n.keywords[0]?'The importance of '+n.keywords[0]:'Systems beat willpower every time.'}\n2. ${n.keywords[1]?n.keywords[1]+' changes everything.':'Clarity is more valuable than effort.'}\n3. ${n.keywords[2]?n.keywords[2]+' is the missing piece.':'Simple always beats complex.'}\n\nI packaged everything into ${n.title} → [link]\n\n#${n.keywords.slice(0,4).map(k=>k.replace(/\s+/g,'')).join(' #')}\n\n${'─'.repeat(60)}\nPOST 3 — LAUNCH\n${'─'.repeat(60)}\nToday I launched ${n.title}.\n\nThis ${n.type} is for ${n.audience||'anyone who wants better results in '+n.niche}.\n\n• ${n.promise||'A complete system — not theory.'}\n• Structured for fast results\n• $${n.priceMin}\n\nGrab it → [link in comments]\n\n#${n.keywords.slice(0,5).map(k=>k.replace(/\s+/g,'')).join(' #')}`;
 
 const TIKTOK = (p,n) => {
-  if(n.scripts.length>0) return `TIKTOK / REEL IDEAS — ${n.title}\n${'═'.repeat(60)}\n\n`+n.scripts.map((vs,i)=>`${'─'.repeat(60)}\nVIDEO ${i+1} — ${(vs.title||'Concept '+(i+1)).toUpperCase()}\n${'─'.repeat(60)}\nHOOK: ${vs.hook||''}\n\n${vs.body||''}\n\nCTA: ${vs.cta||'Link in bio!'}`).join('\n\n');
+  const defaultHooks = [
+    `"POV: You finally stopped guessing about ${n.niche}"`,
+    `"Here's what's inside my new ${n.niche} ${n.type}..."`,
+    `"Stop doing this in ${n.niche} 🚫"`,
+    `"3 ${n.niche} things you need to know (save this)"`,
+    `"It's finally here 🎉 ${n.title}"`,
+  ];
+  if(n.scripts.length>0) return `TIKTOK / REEL IDEAS — ${n.title}\n${'═'.repeat(60)}\n\n`+n.scripts.map((vs,i)=>`${'─'.repeat(60)}\nVIDEO ${i+1} — ${(vs.title||'Concept '+(i+1)).toUpperCase()}\n${'─'.repeat(60)}\nHOOK: ${vs.hook&&vs.hook.trim()?vs.hook:defaultHooks[i]||defaultHooks[0]}\n\n${vs.body||'Script: [describe your approach and how '+n.title+' solves it]'}\n\nCTA: ${vs.cta||'Link in bio → grab it now!'}`).join('\n\n');
   const niche=n.niche,type=n.type;
   return `TIKTOK / REEL IDEAS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nVIDEO 1 — POV FORMAT\n${'─'.repeat(60)}\nHook: "POV: You finally stopped guessing about ${niche}"\nScript: "I just dropped my new ${type}. It's called ${n.title}. ${n.promise||''} Link in bio."\nCTA: Link in bio 👆 | Comment 'LINK' for DM\n\n${'─'.repeat(60)}\nVIDEO 2 — WHAT'S INSIDE\n${'─'.repeat(60)}\nHook: "Here's what's inside my new ${niche} ${type}..."\nScript: "I built ${n.title} because most ${niche} resources are vague. Here's what's inside:\n${n.sections.slice(0,3).map(s=>'• '+(s.title||s.heading||'')).join('\n')}\nLink in bio."\nCTA: Save this video!\n\n${'─'.repeat(60)}\nVIDEO 3 — PAIN POINT\n${'─'.repeat(60)}\nHook: "Stop doing this in ${niche} 🚫"\nScript: "${n.problem?n.problem.split('.')[0]:'The biggest mistake in '+niche}. I fixed it in ${n.title}. Comment 'INFO' for the link."\nCTA: Comment 'INFO' 👇\n\n${'─'.repeat(60)}\nVIDEO 4 — VALUE DROP\n${'─'.repeat(60)}\nHook: "3 ${niche} things you need to know (save this)"\nScript: "1. ${n.keywords[0]||'Know your system'} 2. ${n.keywords[1]||'Consistency wins'} 3. ${n.keywords[2]||'Simple beats complex'}. All in ${n.title}. Link in bio."\nCTA: Follow for more ${niche} tips\n\n${'─'.repeat(60)}\nVIDEO 5 — LAUNCH\n${'─'.repeat(60)}\nHook: "It's finally here 🎉 ${n.title}"\nScript: "${n.promise||'This is the '+type+' I wish existed when I started.'}. Built for ${n.audience||'you'}. Live now."\nCTA: Link in bio NOW 🔗`;
 };
@@ -159,7 +223,9 @@ const CAROUSEL = (p,n) => `CAROUSEL POST OUTLINES — ${n.title}\n${'═'.repeat
 const HASHTAGS = (p,n) => {const ni=n.niche.replace(/\s+/g,''),ty=n.type.replace(/\s+/g,''),pl=n.platform.toLowerCase().replace(/\s+/g,''),kw=n.keywords.map(k=>'#'+k.replace(/\s+/g,'')); return `HASHTAG GROUPS — ${n.title}\n${'═'.repeat(60)}\n\nINSTAGRAM — FULL 30\n${hr()}\n${kw.slice(0,8).join(' ')} #${ni} #${ty}\n#digitalproduct #passiveincome #onlinebusiness #sidehustle #digitaldownload #etsy #gumroad #${pl}\n#entrepreneur #smallbusiness #makemoneyonline #workfromhome #creativeentrepreneur #businessowner #solopreneur #contentcreator #digitalmarketing #onlinestore\n\nINSTAGRAM — COMPACT 15\n${hr()}\n${kw.slice(0,5).join(' ')} #${ni} #${ty} #digitalproduct #passiveincome #digitaldownload #onlinebusiness #sidehustle #entrepreneur #smallbusiness\n\nTIKTOK (5–8 tags)\n${hr()}\n${kw.slice(0,3).join(' ')} #digitalproducts #${ni} #sidehustle #passiveincome\n\nLINKEDIN (3–5)\n${hr()}\n#${ni} #${ty} #digitalproducts #entrepreneurship #onlinebusiness\n\nPINTEREST\n${hr()}\n${n.keywords.join(', ')}, digital product, ${n.type}, ${n.platform}`;};
 
 const CALENDAR = (p,n) => {
-  if(n.calItems.length>0) return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\n`+n.calItems.slice(0,7).map(d=>`DAY ${d.day||'?'} — ${(d.platform||'Social').toUpperCase()}\nType: ${d.content_type||'Post'}\n${d.message||''}`).join('\n\n');
+  // Validate stored calendar items — each must have a valid day number and message
+  const validCalItems = n.calItems.filter(d => d && Number.isInteger(Number(d.day)) && Number(d.day) > 0 && d.message && String(d.message).trim().length > 10);
+  if(validCalItems.length >= 5) return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\n`+validCalItems.slice(0,7).map(d=>`DAY ${d.day} — ${(d.platform||'Social').toUpperCase()}\nType: ${d.content_type||'Post'}\n${d.message}`).join('\n\n');
   return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\nDAY 1 — INSTAGRAM + LINKEDIN\nType: Announcement | Use: Caption 1 + LinkedIn Post 1\nGoal: First impressions, link in bio\n\nDAY 2 — TIKTOK / REELS\nType: Short-form video | Use: TikTok Video 1 or 2\nGoal: Reach new audience\n\nDAY 3 — CAROUSEL + EMAIL\nType: What's Inside carousel | Send: Email_2_Educational_Value\nGoal: Build trust with value-first content\n\nDAY 4 — TIKTOK + LINKEDIN\nType: Pain point video + educational post\nUse: TikTok Video 3 + LinkedIn Post 2\n\nDAY 5 — COMMUNITY\nType: Poll + group engagement | Run a story poll\nGoal: Expand reach through engagement\n\nDAY 6 — URGENCY POST + EMAIL\nType: Urgency caption | Send: Email_4_Offer\nGoal: Convert fence-sitters with deadline\n\nDAY 7 — FINAL PUSH — ALL PLATFORMS\nUse: Caption 5 (IG) + Post 3 (LinkedIn) + TikTok Video 5\nSend: Email_5_Last_Call\nGoal: Final conversions + close launch window`;
 };
 
@@ -183,16 +249,70 @@ const LAUNCH_CHECKLIST = (p,n) => `LAUNCH CHECKLIST — ${n.title}\n${'═'.repe
 const PLATFORM_REC = (p,n) => `PLATFORM RECOMMENDATION — ${n.title}\n${'═'.repeat(60)}\nRECOMMENDED: ${n.platform}\n\n${n.pg.why_this_platform?'WHY:\n'+n.pg.why_this_platform+'\n\n':''}${n.pg.pricing_strategy?'PRICING:\n'+n.pg.pricing_strategy+'\n\n':''}${n.pg.thumbnail_guidance?'THUMBNAIL:\n'+n.pg.thumbnail_guidance+'\n\n':''}\nCOMPARISON\n${hr()}\nGUMROAD:  Creators with audiences. 10% fee or $10/mo flat. Best: $${n.priceMin}\nETSY:     Search-driven traffic. ~6.5%+$0.20. Best: $${(n.priceMin-0.01).toFixed(2)}\nPAYHIP:   Affiliates + email list. 5% free tier. Best: $${n.priceMin}\nSHOPIFY:  Branded storefront. $29+/mo. Best: $${n.priceMin} with Compare At $${n.priceMax}\n\n${n.pg.pro_tips?.length?'PRO TIPS:\n'+n.pg.pro_tips.map((t,i)=>`${i+1}. ${t}`).join('\n')+'\n\n':''}${n.pg.mistakes_to_avoid?.length?'AVOID:\n'+n.pg.mistakes_to_avoid.map((m,i)=>`${i+1}. ${m}`).join('\n'):''}`;
 
 const READINESS = (p,n) => {
-  const checks=[{l:'Title & subtitle',ok:!!(p.title&&p.subtitle)},{l:'Promise defined',ok:!!p.promise},{l:'Target audience',ok:!!p.target_audience},{l:'Content sections',ok:n.sections.length>0},{l:'Sales copy ready',ok:!!(p.marketing_assets?.listing_title)},{l:'Platform guides',ok:!!p.platform_guides},{l:'Social media kit',ok:!!(p.social_media_kit?.instagram_captions?.length)},{l:'Launch plan',ok:!!p.launch_plan},{l:'Keywords (3+)',ok:n.keywords.length>3},{l:'Pricing set',ok:n.priceMin>0}];
-  const score=checks.filter(c=>c.ok).length,pct=Math.round(score/checks.length*100);
-  return `LAUNCH READINESS REPORT — ${n.title}\n${'═'.repeat(60)}\nGenerated: ${new Date().toLocaleDateString()}\nREADINESS: ${pct}% (${score}/${checks.length})\n\n${checks.map(c=>(c.ok?'✅':'⬜')+' '+c.l).join('\n')}\n\nSUMMARY\n${hr()}\nTitle: ${n.title} | Type: ${n.type} | Platform: ${n.platform}\nPrice: $${n.priceMin}–$${n.priceMax} | Sections: ${n.sections.length} | Keywords: ${n.keywords.length}\n\n${pct>=80?'🚀 READY TO LAUNCH — Follow the 7-Day Launch Plan.':pct>=50?'⚠️ ALMOST READY — Review the missing items above.':'🛠 SETUP NEEDED — Generate missing assets before launching.'}`;
+  // Real quality checks — not just field existence
+  const sectionsWithContent = n.sections.filter(s => s.body && s.body.trim().length > 30);
+  const sectionsTotal = n.sections.length;
+  const listingDesc = n.ma.listing_description || '';
+  const hasRealListingDesc = listingDesc.length > 100 && !hasBannedContent(listingDesc);
+  const hasRealSections = sectionsWithContent.length >= 2;
+  const hasSufficientSections = sectionsTotal >= 3;
+  const hasRealKeywords = n.keywords.length >= 5 && n.keywords.every(k => k && k.length > 2);
+  const hasRealSocialKit = Array.isArray(p.social_media_kit?.instagram_captions) && p.social_media_kit.instagram_captions.length >= 3 && p.social_media_kit.instagram_captions.every(c => c && c.length > 20);
+  const hasRealLaunchPlan = n.launchPlan && n.launchPlan.length > 200;
+  const hasNicheSpecificity = n.niche !== 'General' && n.audience && n.audience.length > 10;
+  const hasPlatformGuides = !!(p.platform_guides?.why_this_platform && p.platform_guides?.launch_plan);
+  const isPriced = n.priceMin > 0 && n.priceMax >= n.priceMin;
+  const hasProductAngle = !!(n.pa.finalAngle || n.pa.painPoint);
+
+  const checks = [
+    { l:'Product title (specific, not generic)', ok: !!(p.title && p.title.length > 5 && p.title !== 'Untitled Product'), fix:'Set a clear, specific product title in the Studio editor.' },
+    { l:'Subtitle / tagline present', ok: !!(p.subtitle && p.subtitle.length > 10), fix:'Add a subtitle in Product Studio → Content tab.' },
+    { l:'Promise clearly defined', ok: !!(p.promise && p.promise.length > 20), fix:'Define the product promise in Studio → Metadata.' },
+    { l:'Target audience specific (not empty)', ok: hasNicheSpecificity, fix:'Set a specific target audience — not just a niche name.' },
+    { l:'Content sections generated (3+ minimum)', ok: hasSufficientSections, fix:`Only ${sectionsTotal} sections found. Regenerate content in Studio.` },
+    { l:'Section bodies have real content (2+ non-empty)', ok: hasRealSections, fix:`Only ${sectionsWithContent.length}/${sectionsTotal} sections have content. Try regenerating section expansion.` },
+    { l:'Sales copy ready (listing description 100+ chars)', ok: hasRealListingDesc, fix:'Sales copy is missing or too short. Retry Sales Copy step in Studio.' },
+    { l:'Keywords bank (5+, all meaningful)', ok: hasRealKeywords, fix:'Need 5+ specific buyer-intent keywords. Retry Sales Copy generation.' },
+    { l:'Platform guides generated', ok: hasPlatformGuides, fix:'Platform guides are incomplete. Retry Platform Guides step.' },
+    { l:'Social media kit (3+ real captions)', ok: hasRealSocialKit, fix:'Social media kit is missing or has empty captions. Retry Social Kit step.' },
+    { l:'Launch plan generated (200+ chars)', ok: hasRealLaunchPlan, fix:'Launch plan is missing or too short. Retry Launch Plan step.' },
+    { l:'Product angle / positioning defined', ok: hasProductAngle, fix:'Product angle is missing. Re-run the generation from the Create page.' },
+    { l:'Pricing set correctly', ok: isPriced, fix:`Pricing is ${isPriced ? 'OK' : 'missing or invalid'}.` },
+  ];
+
+  const passed = checks.filter(c => c.ok);
+  const failed = checks.filter(c => !c.ok);
+  const score = passed.length;
+  const pct = Math.round((score / checks.length) * 100);
+
+  const failedBlock = failed.length > 0
+    ? `\nFAILED CHECKS — ACTION REQUIRED\n${hr()}\n${failed.map((c,i) => `${i+1}. ❌ ${c.l}\n   Fix: ${c.fix}`).join('\n\n')}\n`
+    : '';
+
+  const verdict = pct >= 85
+    ? `🚀 READY TO LAUNCH\nAll critical checks passed. Follow the 7-Day Launch Plan.`
+    : pct >= 60
+    ? `⚠️ ALMOST READY — ${100 - pct}% REMAINING\nAddress the failed checks above before launching.\nLaunching now risks a poor buyer experience.`
+    : `🛠 NOT READY — DO NOT LAUNCH YET\n${failed.length} critical items need attention.\nFix these in Launchora Studio before exporting again.`;
+
+  return `LAUNCH READINESS REPORT — ${n.title}\n${'═'.repeat(60)}\nGenerated: ${new Date().toLocaleDateString()}\n\nOVERALL READINESS: ${pct}% (${score}/${checks.length} checks passed)\n\nALL CHECKS\n${hr()}\n${checks.map(c=>(c.ok?'✅':'❌')+' '+c.l+(c.ok?'':'\n   → '+c.fix)).join('\n')}\n${failedBlock}\nPRODUCT SUMMARY\n${hr()}\nTitle:    ${n.title}\nType:     ${n.type}\nNiche:    ${n.niche}\nPlatform: ${n.platform}\nPrice:    $${n.priceMin}–$${n.priceMax}\nSections: ${sectionsTotal} total | ${sectionsWithContent.length} with real content\nKeywords: ${n.keywords.length}\n\nVERDICT\n${hr()}\n${verdict}\n`;
 };
 
 const AVATAR = (p,n) => `CUSTOMER AVATAR — ${n.title}\n${'═'.repeat(60)}\n\nWHO THEY ARE\n${hr()}\n${n.audience||n.niche+' enthusiasts and professionals'}\n\n${n.buyer?'DETAILED PROFILE:\n'+n.buyer+'\n\n':''}\nPAIN POINT\n${hr()}\n${n.pa.painPoint||n.problem||'Struggling to find clear, actionable guidance in '+n.niche+' that actually moves the needle.'}\n\nWHAT THEY WANT\n${hr()}\n${n.pa.transformation||n.promise||'To go from overwhelmed to confident in '+n.niche+'.'}\n\nWHAT MAKES THEM BUY\n${hr()}\nEmotional hook: ${n.pa.emotionalHook||'Feeling in control and having a trusted system'}\n• They've tried other options and been disappointed\n• They trust the creator\n• The price is a no-brainer vs staying stuck\n\nWHERE TO FIND THEM\n${hr()}\n• Instagram/TikTok: #${n.niche.replace(/\s+/g,'')}\n• Pinterest: "${n.niche} tips", "${n.type} ${n.niche}"\n• Etsy: "${n.keywords[0]||n.niche} ${n.type}"\n• Reddit/Facebook Groups: ${n.niche} communities`;
 
 const FAQ = (p,n) => `FAQ — ${n.title}\n${'═'.repeat(60)}\n\nQ: What is ${n.title}?\nA: A ${n.type} for ${n.audience||n.niche+' enthusiasts'}. ${n.promise||'It gives you everything you need to get results in '+n.niche+'.'}\n\nQ: Who is this for?\nA: ${n.audience||'Anyone working in '+n.niche+' who wants a clearer, more structured approach.'}\n\nQ: Is this a physical product?\nA: No — it's a digital download. You receive your link immediately after purchase.\n\nQ: How do I access it after purchase?\nA: You'll get an email with your download link immediately. You can also re-download anytime from your receipt.\n\nQ: Do I need special software?\nA: No. The files work with standard apps on any device.\n\nQ: What if I'm not satisfied?\nA: Contact the seller directly. Most sellers offer a satisfaction guarantee.\n\nQ: Can I share this with others?\nA: For personal use only. Please don't share or resell the file.\n\nQ: How is this better than free content?\nA: ${n.title} is specifically structured for ${n.audience||n.niche+' professionals'} and goes far deeper. ${n.promise||'Designed to save you time and get faster results.'}`;
 
-const UPSELL = (p,n) => `UPSELL & BUNDLE IDEAS — ${n.title}\n${'═'.repeat(60)}\n\nIMMEDIATE UPSELL (thank-you page)\nProduct: Advanced version of ${n.title}\nPrice: $${Math.round(n.priceMax*1.5)}\nPitch: "Go deeper — get the advanced version with [bonus feature]"\n\nBUNDLE IDEAS\n${hr()}\nBundle 1: ${n.title} + [Companion ${n.type}] → $${Math.round(n.priceMin*1.8)}\nBundle 2: ${n.title} + [Worksheet or Tracker] → $${Math.round(n.priceMin*1.5)}\nBundle 3: 3-product ${n.niche} suite → $${Math.round(n.priceMax*2.5)}\n\nORDER BUMP (at checkout)\nProduct: Companion workbook\nPrice: $${Math.round(n.priceMin*0.5)} (checkbox at checkout)\n\nSUBSCRIPTION\nProduct: Monthly ${n.niche} templates\nPrice: $${Math.round(n.priceMin*0.7)}/month\n\nWHERE TO ADD\n• Gumroad: "Recommended" products feature\n• Payhip: Thank-you page link\n• Email: Include upsell in Email 2 or follow-up sequence`;
+const UPSELL = (p,n) => {
+  // Build product-specific names — no generic placeholders
+  const advancedName = `Advanced ${n.title}: Deeper Strategies for ${n.niche}`;
+  const companion1 = `The ${n.niche} ${n.type === 'Checklist' ? 'Workbook' : 'Checklist'} — companion resource`;
+  const companion2 = `${n.niche} Implementation Tracker — 30-day progress system`;
+  const companion3 = `Complete ${n.niche} Starter Bundle`;
+  const upsellFeatures = n.items.length > 0
+    ? `extra training on ${n.items[0]}, deeper templates, and a 1-page quick-reference guide`
+    : `expanded templates, advanced strategies, and a done-for-you quick-reference sheet`;
+  return `UPSELL & BUNDLE IDEAS — ${n.title}\n${'═'.repeat(60)}\n\nIMMEDIATE UPSELL (show on thank-you page, 1-click)\n${hr()}\nProduct: ${advancedName}\nPrice: $${Math.round(n.priceMax*1.5)}\nPitch: "Go deeper — get the advanced version with ${upsellFeatures}."\nConversion tip: Keep it one click. Pre-fill payment details.\n\nBUNDLE IDEAS\n${hr()}\nBundle 1: "${n.title}" + "${companion1}"\n→ Price: $${Math.round(n.priceMin*1.8)} (save ${Math.round((1-(n.priceMin*1.8)/(n.priceMin*2))*100)}% vs buying separately)\n→ Pitch: "Get the complete ${n.niche} system in one package"\n\nBundle 2: "${n.title}" + "${companion2}"\n→ Price: $${Math.round(n.priceMin*1.5)}\n→ Pitch: "The ${n.title} + daily tracker to keep you on pace"\n\nBundle 3: "${companion3}" (3 products)\n→ Price: $${Math.round(n.priceMax*2.5)}\n→ Pitch: "Everything a ${n.niche} beginner needs — one bundle, one price"\n\nORDER BUMP (checkbox at checkout)\n${hr()}\nProduct: "${n.niche} Quick-Start Cheat Sheet" — 1-page PDF\nPrice: $${Math.round(n.priceMin*0.5)}\nPitch: "Add the cheat sheet for just $${Math.round(n.priceMin*0.5)} more — get results in your first 24 hours"\n\nSUBSCRIPTION / MEMBERSHIP\n${hr()}\nProduct: Monthly ${n.niche} ${n.type} updates + new templates\nPrice: $${Math.round(n.priceMin*0.7)}/month\nPitch: "Stay current with fresh ${n.niche} resources every month — cancel anytime"\n\nWHERE TO ADD UPSELLS\n${hr()}\n• Gumroad: Use "Recommended" products panel\n• Payhip: Configure thank-you page redirect with upsell link\n• Email: Add upsell offer in Email 2 or as a Day 3 follow-up\n• ThriveCart / SamCart: One-click upsell after main checkout`;
+};
 
 const NEXT_PRODUCTS = (p,n) => `NEXT PRODUCT IDEAS — ${n.title}\n${'═'.repeat(60)}\n\nTIER 1 — EASY WINS (1–3 days)\n${hr()}\nIDEA 1: "${n.niche} Quick Start Checklist" — Checklist | $${Math.round(n.priceMin*0.5)}–$9\nIDEA 2: "${n.keywords[0]||n.niche} Swipe File" — Template Pack | $${Math.round(n.priceMin*0.7)}–$17\nIDEA 3: "${n.niche} 30-Day Challenge" — Journal | $${n.priceMin}–$${Math.round(n.priceMax*0.8)}\n\nTIER 2 — MEDIUM (1–2 weeks)\n${hr()}\nIDEA 4: "Advanced ${n.title}: [Next Level]" — $${Math.round(n.priceMax*1.5)}–$${Math.round(n.priceMax*2)}\nIDEA 5: "${n.niche} Masterclass Workbook" — $${Math.round(n.priceMax*1.2)}–$${Math.round(n.priceMax*2)}\n\nTIER 3 — BIG PRODUCT (1–4 weeks)\n${hr()}\nIDEA 6: "The Complete ${n.niche} System" — Bundle | $${Math.round(n.priceMax*3)}–$${Math.round(n.priceMax*5)}\n\nPRODUCT ROADMAP\n${hr()}\nMonth 1: ${n.title} ✅\nMonth 2: Idea 1 or 2 (quick win)\nMonth 3: Bundle ${n.title} + new product\nMonth 4: Idea 5 (workbook)\nMonth 6+: Full premium system bundle\n\nUse Launchora to generate any of these instantly.`;
 
