@@ -724,38 +724,724 @@ const PRICING = (p,n) => `PRICING STRATEGY — ${n.title}\n${'═'.repeat(60)}\n
 
 const SEO = (p,n) => {const pg=n.pg,ptags=Array.isArray(pg.tags)?pg.tags:[],all=[...new Set([...n.keywords,...ptags])]; return `SEO KEYWORDS — ${n.title}\n${'═'.repeat(60)}\n\nPRIMARY (highest buyer intent):\n${all.slice(0,5).join('\n')}\n\nSECONDARY:\n${all.slice(5,12).join('\n')}\n\nLONG-TAIL PHRASES:\n${all.slice(0,5).map(k=>`${k} for ${n.niche}\n${k} digital download`).join('\n')}\n\nETSY TAGS (max 20 chars each):\n${all.slice(0,13).map(k=>k.slice(0,20)).join(', ')}\n\nSEO META DESCRIPTION (max 155 chars):\n${(n.ma.seo_meta_description||`${n.promise||n.title}. Built for ${n.audience||n.niche}. Instant download.`).slice(0,155)}`;};
 
-const HOOKS = (p,n) => `HOOKS — ${n.title}\n${'═'.repeat(60)}\nAttention-grabbing openers for posts, emails, ads, and videos.\n\nCURIOSITY:\n• The one thing most ${n.niche} people get wrong\n• What nobody tells you about ${n.niche} until it's too late\n• I spent [X] hours figuring this out so you don't have to\n\nPAIN POINT:\n• Stop wasting time on ${n.niche} strategies that don't work\n• Tired of starting over in ${n.niche} every month?\n• ${n.problem?n.problem.split('.')[0]:'The frustrating truth about '+n.niche}\n\nBENEFIT / PROMISE:\n• ${n.promise||'Everything you need to succeed in '+n.niche+', in one place'}\n• Get real results in ${n.niche} — without the guesswork\n• $${n.priceMin} could change how you approach ${n.niche} forever\n\nSTORY:\n• I used to struggle with ${n.niche} — until I built this system\n• This ${n.type} is everything I wish I had when I started\n• I built ${n.title} because nothing else like it existed\n\nQUESTION:\n• What if you could ${n.promise?n.promise.split(' ').slice(0,8).join(' '):'get real results in '+n.niche}?\n• How long have you been putting off your ${n.niche} goals?\n• What would change if you had a complete ${n.niche} system?`;
+// ── Social Media Context Helper ───────────────────────────────────────────────
+// Builds a rich, product-specific social context object for all SM builders
+function socialCtx(n) {
+  const audience = n.audience || `independent ${n.niche} professionals`;
+  const promise = n.promise || `transform your ${n.niche} brand from amateur to premium`;
+  const pain = n.pa?.painPoint || `losing clients to competitors with more polished ${n.niche} materials`;
+  const transformation = n.pa?.transformation || `go from looking like everyone else to commanding premium fees in ${n.niche}`;
+  const hook = n.pa?.emotionalHook || `confidence and authority in every client-facing moment`;
+  const mechanism = n.pa?.uniqueMechanism || `professionally designed ${n.niche} templates you can customize in minutes`;
+  const angle = n.pa?.finalAngle || n.title;
+  const kw = n.keywords.length > 0 ? n.keywords : [n.niche.replace(/\s+/g,''), n.type.replace(/\s+/g,''), 'digitalproduct', 'templates'];
+  // Audience shortname — first 4 meaningful words
+  const audShort = audience.split(' ').slice(0,4).join(' ');
+  // Infer what "competitor" looks like for this niche
+  const isLuxury = /luxury|premium|high.end|bespoke|editorial/i.test(n.niche + n.title);
+  const isRealEstate = /real.estate|realt|property|listing|agent/i.test(n.niche + n.title);
+  const isFitness = /fitness|gym|workout|training|coach/i.test(n.niche);
+  const isCoach = /coach|consult|mentor|advisor/i.test(n.niche);
+  const isMarketing = /market|brand|social|content|copy/i.test(n.niche);
+  // Context-specific phrases
+  let clientWord = 'clients';
+  let competitorPhrase = 'bigger firms';
+  let materialWord = 'materials';
+  let resultVerb = 'close';
+  if (isRealEstate) { clientWord = 'sellers'; competitorPhrase = 'big-team agencies'; materialWord = 'listing presentations'; resultVerb = 'win listings'; }
+  if (isFitness) { clientWord = 'clients'; competitorPhrase = 'big gyms'; materialWord = 'client programs'; resultVerb = 'sign clients'; }
+  if (isCoach) { clientWord = 'clients'; competitorPhrase = 'established coaches'; materialWord = 'proposals and decks'; resultVerb = 'close discovery calls'; }
+  if (isMarketing) { clientWord = 'clients'; competitorPhrase = 'big agencies'; materialWord = 'campaign assets'; resultVerb = 'win retainers'; }
+  return { audience, audShort, promise, pain, transformation, hook, mechanism, angle, kw, clientWord, competitorPhrase, materialWord, resultVerb, isLuxury, isRealEstate };
+}
+
+const HOOKS = (p,n) => {
+  const c = socialCtx(n);
+  const aud = c.audShort;
+  const mat = c.materialWord;
+  const comp = c.competitorPhrase;
+  const verb = c.resultVerb;
+  return `HOOKS — ${n.title}
+${'═'.repeat(60)}
+20 attention-grabbing openers for posts, emails, ads, and videos.
+Organised by hook type. Use the first line as your opening sentence.
+${'═'.repeat(60)}
+
+PAIN / PROBLEM HOOKS (5)
+${hr()}
+1. Your ${mat} are costing you ${c.clientWord}. Here's how to fix it in under 30 minutes.
+2. ${aud} — your brand is the reason you're losing to ${comp}. Not your price.
+3. The uncomfortable truth: ${c.clientWord} judge your credibility before you say a word. What do your ${mat} say?
+4. If you're still using Canva templates designed for everyone, you're positioning yourself as nobody in ${n.niche}.
+5. ${c.pain.split('.')[0]}. There's a fix, and it doesn't require a designer.
+
+ASPIRATION / IDENTITY HOOKS (4)
+${hr()}
+6. What if your ${mat} looked like they were designed by a studio that charges $10k a month?
+7. The ${n.niche} professionals who consistently ${verb} have one thing in common — their brand looks intentional.
+8. Bespoke visuals. Luxury positioning. ${n.priceMin === n.priceMax ? '$' + n.priceMin : '$' + n.priceMin + '–$' + n.priceMax} for the whole pack. This is not a drill.
+9. ${c.transformation.charAt(0).toUpperCase() + c.transformation.slice(1)} — that's what ${n.title} was built for.
+
+AUTHORITY / PROOF HOOKS (4)
+${hr()}
+10. I studied what the top-performing ${n.niche} professionals have in common. It's not their track record. It's their presentation.
+11. The difference between a ${n.niche} professional who charges $${n.priceMin} and one who charges $${n.priceMax * 3}? Perceived value. And perceived value starts with design.
+12. Here's what I know after building ${n.title}: ${aud} don't lose ${c.clientWord} on price. They lose them on first impressions.
+13. Every template in ${n.title} was built around one question: "Does this make the buyer look like the premium choice in the room?"
+
+BEFORE / AFTER HOOKS (4)
+${hr()}
+14. Before ${n.title}: Cobbling together generic templates at midnight before a big presentation. After: Opening a polished, ready-to-brand kit and customizing it in 20 minutes.
+15. Before: Your ${mat} look like everyone else's. After: ${c.clientWord} assume you're the premium option before you've said a word.
+16. Before ${n.title}: Paying a designer $300–$800 per project. After: $${n.priceMax} once, unlimited use forever.
+17. Before: Hoping your content will compensate for weak visuals. After: Your visuals do the selling before the meeting even starts.
+
+URGENCY HOOKS (3)
+${hr()}
+18. Launch price on ${n.title} ends [DATE]. After that, $${n.priceMax}. Download now while it's $${n.priceMin}.
+19. Every week you present with amateur ${mat} is a week ${comp} look more credible than you. Fix it today.
+20. The ${n.niche} market doesn't wait. Your ${c.clientWord} are deciding right now. Make sure your brand says "premium."`;
+};
 
 const INSTAGRAM = (p,n) => {
-  if(n.igCaps.length>0) return `INSTAGRAM CAPTIONS — ${n.title}\n${'═'.repeat(60)}\n\n`+n.igCaps.map((c,i)=>`${'─'.repeat(60)}\nCAPTION ${i+1}\n${'─'.repeat(60)}\n${c}`).join('\n\n');
-  const kw=n.keywords; const niche=n.niche; const type=n.type;
-  return `INSTAGRAM CAPTIONS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nCAPTION 1 — HOOK\n${'─'.repeat(60)}\nStop scrolling if you're into ${niche}.\n\n${n.promise||'I just launched something that will change how you approach '+niche+'.'}\n\nThis ${type} covers:\n${kw.slice(0,4).map(k=>'✅ '+k).join('\n')}\n\nLink in bio 🔗\n${kw.slice(0,5).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}\n\n${'─'.repeat(60)}\nCAPTION 2 — STORY\n${'─'.repeat(60)}\nI used to struggle with this too.\n\nThen I built ${n.title} — and everything changed.\n\nIt's a ${type} for ${n.audience||'people who want results'}. No fluff.\n\nLink in bio 👆\n${kw.slice(0,6).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}\n\n${'─'.repeat(60)}\nCAPTION 3 — PROBLEM\n${'─'.repeat(60)}\nIf you're tired of:\n❌ Wasting time on ${niche} strategies that don't work\n❌ Starting over from scratch\n❌ Feeling stuck\n\n${n.title} is your answer.\n\n${n.promise||''}\n\nLink in bio ⬆️\n${kw.slice(0,5).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}\n\n${'─'.repeat(60)}\nCAPTION 4 — OFFER\n${'─'.repeat(60)}\nNew drop: ${n.title} 🔥\n\n${n.promise||''}\n\n⏳ Launch price ends soon.\n📥 Download instantly.\n🎯 Made for ${n.audience||'you'}.\n\n${kw.slice(0,8).map(k=>'#'+k.replace(/\s+/g,'')).join(' ')}`;
+  // Prefer AI-generated captions if they exist and are high-quality
+  if (n.igCaps.length >= 8 && n.igCaps.every(c => c && c.length > 60)) {
+    return `INSTAGRAM CAPTIONS — ${n.title}\n${'═'.repeat(60)}\n\n` + n.igCaps.slice(0,10).map((c,i) => `${'─'.repeat(60)}\nCAPTION ${i+1}\n${'─'.repeat(60)}\n${c}`).join('\n\n');
+  }
+  const c = socialCtx(n);
+  const kw = c.kw;
+  const tags5 = kw.slice(0,5).map(k=>'#'+k.replace(/\s+/g,'')).join(' ');
+  const tags8 = kw.slice(0,8).map(k=>'#'+k.replace(/\s+/g,'')).join(' ');
+  return `INSTAGRAM CAPTIONS — ${n.title}
+${'═'.repeat(60)}
+10 captions: 3 educational · 3 promotional · 2 story-based · 2 urgency/launch
+${'═'.repeat(60)}
+
+${'─'.repeat(60)}
+CAPTION 1 — EDUCATIONAL: Visual Brand = Business Credibility
+${'─'.repeat(60)}
+Here's a truth most ${n.niche} professionals skip:
+
+Your ${c.materialWord} are marketing before you even open your mouth.
+
+${c.clientWord.charAt(0).toUpperCase() + c.clientWord.slice(1)} form an opinion about your professionalism in the first 7 seconds of seeing your materials.
+
+That opinion affects:
+→ Whether they trust your pricing
+→ Whether they compare you to ${c.competitorPhrase}
+→ Whether they say yes in the room
+
+${n.title} gives you the visual system to make that first impression count.
+
+${tags5} #${n.niche.replace(/\s+/g,'')}branding #premiumtemplates
+
+${'─'.repeat(60)}
+CAPTION 2 — EDUCATIONAL: The Cost of Looking Generic
+${'─'.repeat(60)}
+Unpopular opinion: Bad design is costing you more than you think.
+
+Not because ${c.clientWord} are design critics.
+
+But because professional design signals:
+✦ You take your business seriously
+✦ You understand premium positioning
+✦ You're worth what you're charging
+
+${c.pain.split('.')[0]}.
+
+${n.title} was built to solve exactly that.
+
+${'─'.repeat(60)}
+CAPTION 3 — EDUCATIONAL: What's Inside ${n.title}
+${'─'.repeat(60)}
+What's actually in ${n.title}? 👀
+
+${n.sections.length > 0 ? n.sections.slice(0,5).map((s,i) => `${i+1}. ${s.title||s.heading}`).join('\n') : `Each template includes:\n→ Ready-to-brand layout\n→ Copy blocks you just fill in\n→ Professional typography + color system\n→ Export-ready format`}
+
+Every template is built for ${c.audShort} who need to look like the premium option in the room.
+
+$${n.priceMin} for the full pack. Link in bio.
+
+${tags8}
+
+${'─'.repeat(60)}
+CAPTION 4 — PROMOTIONAL: Launch Announcement
+${'─'.repeat(60)}
+${n.title} is live. 🎉
+
+${c.promise.charAt(0).toUpperCase() + c.promise.slice(1)}.
+
+This isn't another template pack with generic layouts. It's a complete visual brand system built specifically for ${c.audShort} — so you can walk into any client meeting looking like the premium choice.
+
+$${n.priceMin} → download instantly on ${n.platform}.
+Link in bio. 🔗
+
+${tags8}
+
+${'─'.repeat(60)}
+CAPTION 5 — PROMOTIONAL: The Price Argument
+${'─'.repeat(60)}
+Let's do the math.
+
+Hiring a designer for one polished ${n.niche} presentation: $300–$800.
+
+Getting ${n.title} — an entire ${n.type} with ${n.sections.length || '7'}+ ready-to-use templates: $${n.priceMin}.
+
+Same result. One-time cost. Unlimited use.
+
+The decision is easy. Link in bio. 👆
+
+${tags5} #designtemplates #${n.niche.replace(/\s+/g,'')}
+
+${'─'.repeat(60)}
+CAPTION 6 — PROMOTIONAL: Social Proof / Transformation
+${'─'.repeat(60)}
+${c.transformation.charAt(0).toUpperCase() + c.transformation.slice(1)}.
+
+That's what ${n.title} gives ${c.audShort}.
+
+Not just nicer-looking ${c.materialWord}. A brand that communicates: "I'm the one worth paying a premium for."
+
+$${n.priceMin} on ${n.platform}. Get it while the launch price holds.
+
+Link → bio. ⬆️
+
+${'─'.repeat(60)}
+CAPTION 7 — STORY: Why I Built This
+${'─'.repeat(60)}
+I kept seeing the same thing in ${n.niche}:
+
+Talented professionals. Great results for their ${c.clientWord}. But their ${c.materialWord} looked like they were built in 2009.
+
+Not because they weren't skilled.
+
+Because they didn't have the right tools.
+
+So I built ${n.title}. A ${n.type} for ${c.audShort} that makes "I'll think about it" a lot rarer.
+
+$${n.priceMin}. Download today. Link in bio.
+
+${tags5}
+
+${'─'.repeat(60)}
+CAPTION 8 — STORY: The Moment It Clicked
+${'─'.repeat(60)}
+There's a moment every ${n.niche} professional has.
+
+You walk out of a meeting knowing you were the most qualified person in the room — and they still went with someone else.
+
+That's ${c.pain.split('.')[0].toLowerCase()}.
+
+${n.title} exists so that moment stops happening.
+
+${c.promise.charAt(0).toUpperCase() + c.promise.slice(1)}.
+
+Link in bio. 🔗
+
+${'─'.repeat(60)}
+CAPTION 9 — URGENCY: Launch Price Ending
+${'─'.repeat(60)}
+Launch price on ${n.title} ends [DATE]. ⏳
+
+After that: $${n.priceMax}.
+
+Right now: $${n.priceMin}.
+
+This is the only time I'll offer it at this price.
+
+${c.materialWord.charAt(0).toUpperCase() + c.materialWord.slice(1)} that make ${c.clientWord} say yes before you've even opened your mouth.
+
+Link in bio. Get it now.
+
+${tags8}
+
+${'─'.repeat(60)}
+CAPTION 10 — URGENCY: Last Chance
+${'─'.repeat(60)}
+Last call for ${n.title} at $${n.priceMin}. 🚨
+
+Price goes to $${n.priceMax} at midnight [DATE].
+
+If you've been thinking about it — this is the sign.
+
+${n.title} — the ${n.type} that makes ${c.audShort} look like the premium option. Every. Single. Time.
+
+Link in bio. ⬆️
+
+${tags8}`;
 };
 
-const LINKEDIN = (p,n) => `LINKEDIN POSTS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nPOST 1 — ANNOUNCEMENT\n${'─'.repeat(60)}\nAfter spending time in ${n.niche}, I kept noticing the same pattern:\n\n${n.problem||'People kept hitting the same wall, over and over.'}\n\nSo I built something to fix it: ${n.title}\n\n${n.promise||''}\n\nBuilt for ${n.audience||'professionals who want real results'}.\n→ $${n.priceMin} | Instant download | No fluff\n\n#${n.keywords.slice(0,3).map(k=>k.replace(/\s+/g,'')).join(' #')}\n\n${'─'.repeat(60)}\nPOST 2 — VALUE\n${'─'.repeat(60)}\n3 things that changed how I approach ${n.niche}:\n\n1. ${n.keywords[0]?'The importance of '+n.keywords[0]:'Systems beat willpower every time.'}\n2. ${n.keywords[1]?n.keywords[1]+' changes everything.':'Clarity is more valuable than effort.'}\n3. ${n.keywords[2]?n.keywords[2]+' is the missing piece.':'Simple always beats complex.'}\n\nI packaged everything into ${n.title} → [link]\n\n#${n.keywords.slice(0,4).map(k=>k.replace(/\s+/g,'')).join(' #')}\n\n${'─'.repeat(60)}\nPOST 3 — LAUNCH\n${'─'.repeat(60)}\nToday I launched ${n.title}.\n\nThis ${n.type} is for ${n.audience||'anyone who wants better results in '+n.niche}.\n\n• ${n.promise||'A complete system — not theory.'}\n• Structured for fast results\n• $${n.priceMin}\n\nGrab it → [link in comments]\n\n#${n.keywords.slice(0,5).map(k=>k.replace(/\s+/g,'')).join(' #')}`;
+
+
+const LINKEDIN = (p,n) => {
+  const c = socialCtx(n);
+  const tags3 = c.kw.slice(0,3).map(k=>'#'+k.replace(/\s+/g,'')).join(' ');
+  const tags5 = c.kw.slice(0,5).map(k=>'#'+k.replace(/\s+/g,'')).join(' ');
+  return `LINKEDIN POSTS — ${n.title}
+${'═'.repeat(60)}
+5 professional posts: authority-building, problem-aware, proof, launch, value.
+Tone: Confident, premium, peer-to-peer. No hype.
+${'═'.repeat(60)}
+
+${'─'.repeat(60)}
+POST 1 — AUTHORITY: The Visual Brand Problem Nobody Talks About
+${'─'.repeat(60)}
+There's a branding problem in ${n.niche} that most professionals refuse to acknowledge:
+
+Your ${c.materialWord} signal your price point before you've said a word.
+
+${c.clientWord.charAt(0).toUpperCase() + c.clientWord.slice(1)} walk into their first interaction having already decided where you sit in the market. They've seen your brochure, your deck, your listing presentation. And they've formed an opinion.
+
+The professionals consistently winning against ${c.competitorPhrase} have one unfair advantage: their brand looks like it cost ten times what it did.
+
+I built ${n.title} to give ${c.audShort} that exact advantage — without a $10,000 design retainer.
+
+${c.promise.charAt(0).toUpperCase() + c.promise.slice(1)}.
+
+$${n.priceMin} on ${n.platform}. Link in comments.
+
+${tags3} #${n.niche.replace(/\s+/g,'')}branding #premiumtemplates
+
+${'─'.repeat(60)}
+POST 2 — VALUE: 3 Things Premium Brands Do Differently
+${'─'.repeat(60)}
+After studying how top-performing ${n.niche} professionals position themselves, I noticed three consistent patterns in their ${c.materialWord}:
+
+1. Every page has intentional hierarchy. The ${c.clientWord}'s eye is guided — never left to wander.
+
+2. Color and typography are consistent. Not just "branded" — *purposefully* limited to 2–3 elements that signal taste.
+
+3. The copy does the emotional work; the design does the trust work. Neither tries to do both.
+
+These are the principles behind every template in ${n.title}.
+
+Not theory. Structured, ready-to-use files for ${c.audShort} who understand that design is sales.
+
+$${n.priceMin} → ${n.platform}. [link in comments]
+
+${tags5}
+
+${'─'.repeat(60)}
+POST 3 — PROBLEM-AWARE: Why Talented Professionals Lose to Weaker Competitors
+${'─'.repeat(60)}
+Here's the pattern I see constantly in ${n.niche}:
+
+Highly skilled professional. Excellent track record. Decades of expertise.
+
+Loses the listing/client to someone with half the experience.
+
+Why?
+
+Because the competitor's ${c.materialWord} communicated "premium" in the first 10 seconds. Yours communicated "competent."
+
+Competent doesn't win in the luxury segment.
+
+Premium wins.
+
+${n.title} was designed specifically to close that gap — for ${c.audShort} who are done letting their visual brand undersell them.
+
+${c.transformation.charAt(0).toUpperCase() + c.transformation.slice(1)}.
+
+$${n.priceMin}. One-time. Yours to keep.
+
+${tags3}
+
+${'─'.repeat(60)}
+POST 4 — LAUNCH: ${n.title} Is Now Available
+${'─'.repeat(60)}
+${n.title} is now live on ${n.platform}.
+
+It's a ${n.type} built for ${c.audShort} who want to walk into every client-facing moment looking like the premium option — not the affordable alternative.
+
+What's included:
+${n.sections.length > 0 ? n.sections.slice(0,5).map((s,i) => `→ ${s.title||s.heading}`).join('\n') : `→ Complete template library for ${n.niche}\n→ Editable layouts — no designer needed\n→ Copy blocks, headlines, and CTAs\n→ Export-ready formats\n→ Customization guide`}
+
+Launch price: $${n.priceMin} (going to $${n.priceMax} on [DATE]).
+
+Link in comments.
+
+${tags5}
+
+${'─'.repeat(60)}
+POST 5 — PROOF: The ROI of Looking Premium in ${n.niche}
+${'─'.repeat(60)}
+Let's talk about the economics of design in ${n.niche}.
+
+One lost ${c.clientWord} to a more polished competitor = [X] in missed commissions/revenue.
+
+One ${n.title} purchase = $${n.priceMin}.
+
+The math is not complicated.
+
+But beyond ROI: there's the compounding effect of consistently looking premium. ${c.clientWord} refer you. They assume you're worth more. They push back less on price.
+
+${c.promise.charAt(0).toUpperCase() + c.promise.slice(1)}.
+
+That's what ${n.title} is for.
+
+$${n.priceMin} on ${n.platform}. [link in comments]
+
+${tags3} #ROI #${n.niche.replace(/\s+/g,'')}`;
+};
 
 const TIKTOK = (p,n) => {
-  const defaultHooks = [
-    `"POV: You finally stopped guessing about ${n.niche}"`,
-    `"Here's what's inside my new ${n.niche} ${n.type}..."`,
-    `"Stop doing this in ${n.niche} 🚫"`,
-    `"3 ${n.niche} things you need to know (save this)"`,
-    `"It's finally here 🎉 ${n.title}"`,
-  ];
-  if(n.scripts.length>0) return `TIKTOK / REEL IDEAS — ${n.title}\n${'═'.repeat(60)}\n\n`+n.scripts.map((vs,i)=>`${'─'.repeat(60)}\nVIDEO ${i+1} — ${(vs.title||'Concept '+(i+1)).toUpperCase()}\n${'─'.repeat(60)}\nHOOK: ${vs.hook&&vs.hook.trim()?vs.hook:defaultHooks[i]||defaultHooks[0]}\n\n${vs.body||'Script: [describe your approach and how '+n.title+' solves it]'}\n\nCTA: ${vs.cta||'Link in bio → grab it now!'}`).join('\n\n');
-  const niche=n.niche,type=n.type;
-  return `TIKTOK / REEL IDEAS — ${n.title}\n${'═'.repeat(60)}\n\n${'─'.repeat(60)}\nVIDEO 1 — POV FORMAT\n${'─'.repeat(60)}\nHook: "POV: You finally stopped guessing about ${niche}"\nScript: "I just dropped my new ${type}. It's called ${n.title}. ${n.promise||''} Link in bio."\nCTA: Link in bio 👆 | Comment 'LINK' for DM\n\n${'─'.repeat(60)}\nVIDEO 2 — WHAT'S INSIDE\n${'─'.repeat(60)}\nHook: "Here's what's inside my new ${niche} ${type}..."\nScript: "I built ${n.title} because most ${niche} resources are vague. Here's what's inside:\n${n.sections.slice(0,3).map(s=>'• '+(s.title||s.heading||'')).join('\n')}\nLink in bio."\nCTA: Save this video!\n\n${'─'.repeat(60)}\nVIDEO 3 — PAIN POINT\n${'─'.repeat(60)}\nHook: "Stop doing this in ${niche} 🚫"\nScript: "${n.problem?n.problem.split('.')[0]:'The biggest mistake in '+niche}. I fixed it in ${n.title}. Comment 'INFO' for the link."\nCTA: Comment 'INFO' 👇\n\n${'─'.repeat(60)}\nVIDEO 4 — VALUE DROP\n${'─'.repeat(60)}\nHook: "3 ${niche} things you need to know (save this)"\nScript: "1. ${n.keywords[0]||'Know your system'} 2. ${n.keywords[1]||'Consistency wins'} 3. ${n.keywords[2]||'Simple beats complex'}. All in ${n.title}. Link in bio."\nCTA: Follow for more ${niche} tips\n\n${'─'.repeat(60)}\nVIDEO 5 — LAUNCH\n${'─'.repeat(60)}\nHook: "It's finally here 🎉 ${n.title}"\nScript: "${n.promise||'This is the '+type+' I wish existed when I started.'}. Built for ${n.audience||'you'}. Live now."\nCTA: Link in bio NOW 🔗`;
+  const c = socialCtx(n);
+  const mat = c.materialWord; const aud = c.audShort; const comp = c.competitorPhrase;
+  const verb = c.resultVerb; const kw0 = c.kw[0]||n.niche; const kw1 = c.kw[1]||'design';
+  return `TIKTOK / REEL IDEAS — ${n.title}
+${'═'.repeat(60)}
+7 complete video ideas with hook, scene-by-scene outline, on-screen text, and CTA.
+Format: 30–60 second Reels or TikToks.
+${'═'.repeat(60)}
+
+${'─'.repeat(60)}
+VIDEO 1 — BEFORE / AFTER REVEAL
+${'─'.repeat(60)}
+HOOK: "I'm going to show you what $${n.priceMin} did for my ${n.niche} brand 👀"
+
+SCENE 1 (0–3s): Open with hands on laptop. On-screen text: "Before ${n.title}"
+SCENE 2 (3–8s): Show a generic-looking ${n.niche} document — DIY, template-style, low-design.
+  On-screen text: "What most ${aud} use right now"
+SCENE 3 (8–16s): Slow reveal of the ${n.title} template — clean, editorial, premium.
+  On-screen text: "After. Same agent. Same content. Different brand."
+SCENE 4 (16–24s): Scroll through 3–4 different templates quickly. Upbeat music.
+  On-screen text: "${n.sections.length || '7'}+ templates included"
+SCENE 5 (24–30s): Face to camera. Speak directly:
+  "This is what ${aud} who consistently ${verb} have that others don't. It's not experience. It's presentation."
+
+CTA: "Link in bio → grab ${n.title} for $${n.priceMin}"
+
+${'─'.repeat(60)}
+VIDEO 2 — REACTION / WHAT'S INSIDE UNBOX
+${'─'.repeat(60)}
+HOOK: "Okay I just downloaded ${n.title} and I need to show you what's inside 🔥"
+
+SCENE 1 (0–4s): Open with download notification or folder reveal.
+  On-screen text: "${n.title} — $${n.priceMin} on ${n.platform}"
+SCENE 2 (4–20s): Screen share / scroll through each template one by one. Narrate:
+  "This one is the [template name]. This is [template name 2]. This is [template name 3]..."
+  On-screen text: Label each template as you scroll.
+SCENE 3 (20–28s): Zoom into one template showing the layout quality.
+  On-screen text: "Fully editable. Customize in 20 minutes or less."
+SCENE 4 (28–35s): Face to camera.
+  Narrate: "For $${n.priceMin}, this is the most obvious investment for ${aud} I've seen."
+
+CTA: "Comment LINK and I'll DM you the direct download page"
+
+${'─'.repeat(60)}
+VIDEO 3 — PAIN POINT DIRECT ADDRESS
+${'─'.repeat(60)}
+HOOK: "If you're losing ${c.clientWord} to ${comp}, your problem isn't your skills. It's your brand."
+
+SCENE 1 (0–5s): Face to camera. Serious tone.
+  On-screen text: "The real reason ${aud} lose to ${comp}"
+SCENE 2 (5–15s): Narrate the problem:
+  "${c.pain.split('.')[0]}. And it has nothing to do with how good you are."
+  On-screen text: "${c.clientWord.charAt(0).toUpperCase() + c.clientWord.slice(1)} judge your credibility in seconds."
+SCENE 3 (15–25s): Introduce the fix.
+  "The fix isn't expensive. It's ${n.title} — a ${n.type} that makes ${aud} look like the premium option in the room."
+  On-screen text: "${n.title} — $${n.priceMin} | ${n.platform}"
+SCENE 4 (25–35s): Close with transformation statement.
+  "${c.promise.charAt(0).toUpperCase() + c.promise.slice(1)}. Without hiring a designer."
+
+CTA: "Link in bio → download instantly"
+
+${'─'.repeat(60)}
+VIDEO 4 — "DID YOU KNOW" EDUCATIONAL
+${'─'.repeat(60)}
+HOOK: "Did you know the top ${n.niche} professionals all share one visual habit?"
+
+SCENE 1 (0–4s): On-screen text: "What top ${n.niche} professionals do differently (that nobody talks about)"
+SCENE 2 (4–18s): 3-point list reveal (one at a time):
+  Point 1: "Their brand has a defined color system — never random."
+  On-screen text: "1. Intentional color palette"
+  Point 2: "Their ${mat} use consistent typography — max 2 fonts."
+  On-screen text: "2. Typography discipline"
+  Point 3: "Every page guides the ${c.clientWord}'s eye toward YES."
+  On-screen text: "3. Visual hierarchy that closes"
+SCENE 3 (18–28s): Show ${n.title} templates as examples.
+  On-screen text: "All of this is built into ${n.title}"
+SCENE 4 (28–35s): CTA.
+
+CTA: "Save this. Then grab the pack at the link in bio."
+
+${'─'.repeat(60)}
+VIDEO 5 — PRICE OBJECTION DESTROYER
+${'─'.repeat(60)}
+HOOK: "Let's talk about why $${n.priceMax} for ${n.title} is the most rational purchase you'll make this year."
+
+SCENE 1 (0–5s): On-screen text: "The ROI of professional ${n.niche} design"
+SCENE 2 (5–20s): Build the math on screen:
+  "One lost ${c.clientWord} to a competitor = [insert your average commission/fee]"
+  "One ${n.title} purchase = $${n.priceMin}"
+  "Break-even: The first time your ${mat} win you a ${c.clientWord.slice(0,-1)} they wouldn't have otherwise."
+  On-screen text: Appear line by line as you narrate.
+SCENE 3 (20–30s): "Stop treating design as an expense. It's a sales tool."
+  On-screen text: "Professional design = professional pricing power"
+SCENE 4 (30–38s): Direct CTA.
+
+CTA: "Link in bio → $${n.priceMin} while the launch price holds"
+
+${'─'.repeat(60)}
+VIDEO 6 — "POV: USING ${n.title.toUpperCase().slice(0,20)}" SPEED BUILD
+${'─'.repeat(60)}
+HOOK: "POV: You have a ${n.niche} presentation tomorrow and you just found ${n.title} 🎯"
+
+SCENE 1 (0–3s): Clock showing "next morning" or calendar.
+  On-screen text: "POV: Big ${c.clientWord} meeting in 24 hours"
+SCENE 2 (3–20s): Time-lapse / sped-up screen recording of opening a template and customizing:
+  Add name → swap colors → add logo → insert property/project details.
+  On-screen text: "Step 1: Open template | Step 2: Add your brand | Step 3: Export"
+SCENE 3 (20–28s): Final result — polished, premium document on screen.
+  On-screen text: "Time spent: 22 minutes. Result: looks like a $2,000 design job."
+SCENE 4 (28–35s): Face to camera.
+  "That's ${n.title}. $${n.priceMin}. Link in bio."
+
+CTA: "Comment 'TEMPLATES' and I'll send you the link directly"
+
+${'─'.repeat(60)}
+VIDEO 7 — LAUNCH URGENCY
+${'─'.repeat(60)}
+HOOK: "I'm raising the price of ${n.title} on [DATE]. Here's why you should grab it now."
+
+SCENE 1 (0–5s): On-screen text: "⚠️ Price increase on ${n.title} — [DATE]"
+SCENE 2 (5–18s): Quick recap of what's included:
+  "${n.sections.length || '7'}+ templates. Built for ${aud}. Ready to customize in minutes."
+  On-screen text: List 3–4 key templates.
+SCENE 3 (18–28s): "Right now it's $${n.priceMin}. Launch price. After [DATE]: $${n.priceMax}."
+  On-screen text: "$${n.priceMin} TODAY → $${n.priceMax} on [DATE]"
+SCENE 4 (28–35s): "If you've been on the fence — this is the moment."
+
+CTA: "Link in bio. Don't wait."`;
 };
 
-const CAROUSEL = (p,n) => `CAROUSEL POST OUTLINES — ${n.title}\n${'═'.repeat(60)}\n\nCARROUSEL 1 — "5 MISTAKES" (7 slides)\nSlide 1: "5 ${n.niche} mistakes keeping you stuck"\nSlide 2: Mistake #1 — Not having a clear system\nSlide 3: Mistake #2 — Relying on willpower instead of structure\nSlide 4: Mistake #3 — Skipping basics and going straight to advanced\nSlide 5: Mistake #4 — Trying to do everything at once\nSlide 6: Mistake #5 — Not reviewing and adjusting your approach\nSlide 7 (CTA): "I cover the fix in ${n.title}. Link in bio 🔗"\n\nCARROUSEL 2 — "WHAT'S INSIDE" (6 slides)\nSlide 1: "What's inside ${n.title} 👀"\n${n.sections.slice(0,4).map((s,i)=>`Slide ${i+2}: ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\nSlide 6 (CTA): "Get ${n.title} for $${n.priceMin} — link in bio"\n\nCARROUSEL 3 — "STEP BY STEP" (5 slides)\nSlide 1: "How to ${n.promise?n.promise.split(' ').slice(0,6).join(' '):'succeed in '+n.niche} — step by step"\nSlide 2: Step 1 — Foundation (${n.keywords[0]||'mindset + system'})\nSlide 3: Step 2 — Process (${n.keywords[1]||'consistency beats motivation'})\nSlide 4: Step 3 — Execute + track (${n.keywords[2]||'measure what matters'})\nSlide 5 (CTA): "I built ${n.title} to guide you through every step. $${n.priceMin} → link in bio"`;
+const CAROUSEL = (p,n) => {
+  const c = socialCtx(n);
+  const mat = c.materialWord; const aud = c.audShort; const comp = c.competitorPhrase;
+  const secs = n.sections.slice(0,6);
+  const secList = secs.length > 0 ? secs : [{title:'Listing Presentation Cover'},{title:'Property Brochure Layout'},{title:'Market Report Page'},{title:'Agent Bio Template'},{title:'Open House Flyer'},{title:'Follow-Up Card'}];
+  return `CAROUSEL POST OUTLINES — ${n.title}
+${'═'.repeat(60)}
+5 carousels with 6–8 slides each. Specific to ${n.niche} branding and ${mat}.
+Use in Instagram, LinkedIn, or Pinterest.
+${'═'.repeat(60)}
+
+${'─'.repeat(60)}
+CAROUSEL 1 — "5 Visual Mistakes Costing ${aud} ${c.clientWord.charAt(0).toUpperCase()+c.clientWord.slice(1)}" (7 slides)
+${'─'.repeat(60)}
+Slide 1 (Cover): "5 visual mistakes costing ${aud} ${c.clientWord}"
+  Design: Dark background, bold white headline, small subtitle: "And how to fix them before your next meeting"
+
+Slide 2 — Mistake #1: Generic fonts
+  Headline: "You're using the same font as everyone else"
+  Body: "Times New Roman and Calibri signal 'I used a template.' Premium brands use 1–2 intentional fonts — usually a serif display + clean sans-serif. Your ${mat} should feel like a design decision, not a default."
+
+Slide 3 — Mistake #2: No hierarchy
+  Headline: "Your page doesn't guide the eye — it overwhelms it"
+  Body: "If ${c.clientWord} have to search for the most important information, they'll decide you're not organized. Premium ${mat} have one dominant element per page. Everything else supports it."
+
+Slide 4 — Mistake #3: Wrong color usage
+  Headline: "Too many colors = zero brand identity"
+  Body: "3+ accent colors look like a DIY job. Top-tier ${n.niche} professionals limit to 2 brand colors — maximum. One dominant, one accent. That restraint is what makes it look expensive."
+
+Slide 5 — Mistake #4: Photos without treatment
+  Headline: "Your photos aren't doing any selling"
+  Body: "Unedited, poorly cropped photos undercut even the best property. Premium ${mat} use consistent photo treatment — cropping ratio, brightness, and a subtle overlay that ties the image to the brand."
+
+Slide 6 — Mistake #5: Inconsistent layout between pages
+  Headline: "Pages that don't match each other = no brand trust"
+  Body: "When each page of your presentation looks like it came from a different document, ${c.clientWord} feel it — even if they can't name it. Consistency = credibility."
+
+Slide 7 (CTA):
+  Headline: "Every template in ${n.title} fixes all 5 of these."
+  Body: "$${n.priceMin} on ${n.platform}. Link in bio."
+
+${'─'.repeat(60)}
+CAROUSEL 2 — "What's Inside ${n.title}" (8 slides)
+${'─'.repeat(60)}
+Slide 1 (Cover): "What's inside ${n.title} 👀"
+  Subtitle: "The ${n.type} built for ${aud}"
+
+${secList.map((s,i) => `Slide ${i+2}: ${s.title||s.heading||'Template '+(i+1)}
+  Visual: Preview of the template layout
+  Caption: "Template ${i+1}: ${s.title||s.heading||'Template '+(i+1)} — editable, export-ready, built for ${n.niche}"`).join('\n\n')}
+
+Slide ${secList.length+2} (CTA):
+  Headline: "$${n.priceMin} for the full pack."
+  Body: "Instant download on ${n.platform}. Link in bio."
+
+${'─'.repeat(60)}
+CAROUSEL 3 — "How to Look Premium in ${n.niche} in 30 Minutes" (6 slides)
+${'─'.repeat(60)}
+Slide 1 (Cover): "How to look premium in ${n.niche} in under 30 minutes"
+  Subtitle: "A step-by-step guide for ${aud}"
+
+Slide 2 — Step 1: Download & Open
+  Headline: "Step 1: Open your ${n.title} template"
+  Body: "Pick the template for your next client interaction. Listing presentation? Market report? Agent bio? You've got dedicated templates for each."
+
+Slide 3 — Step 2: Brand it
+  Headline: "Step 2: Drop in your brand colors + logo"
+  Body: "Every template has clearly labelled brand zones. Replace the placeholder colors with your hex codes. Add your logo to the designated area. Takes under 5 minutes."
+
+Slide 4 — Step 3: Customize the copy
+  Headline: "Step 3: Replace [BRACKETS] with your content"
+  Body: "Every copy block is marked for easy replacement. Your name, your property details, your stats. No design guessing — just fill in the blanks."
+
+Slide 5 — Step 4: Export
+  Headline: "Step 4: Export as PDF or PNG"
+  Body: "Print-ready PDF for physical delivery. High-res PNG for digital sending. Takes 60 seconds."
+
+Slide 6 (CTA):
+  Headline: "That's the 30-minute luxury brand upgrade."
+  Body: "${n.title} — $${n.priceMin} on ${n.platform}. Link in bio."
+
+${'─'.repeat(60)}
+CAROUSEL 4 — "The Hidden Cost of Generic ${mat.charAt(0).toUpperCase()+mat.slice(1)}" (7 slides)
+${'─'.repeat(60)}
+Slide 1 (Cover): "What is your current ${mat} actually costing you?"
+  Subtitle: "The math most ${aud} haven't done"
+
+Slide 2 — The visible cost:
+  Headline: "You see: a free Canva template"
+  Body: "It looks fine. It's passable. You saved a few hours. No big deal, right?"
+
+Slide 3 — The hidden cost #1:
+  Headline: "${c.clientWord.charAt(0).toUpperCase()+c.clientWord.slice(1)} who assume you're mid-market"
+  Body: "When your ${mat} look like everyone else's, ${c.clientWord} assume your fees should be too. You spend the whole meeting fighting a perception you created before you walked in."
+
+Slide 4 — The hidden cost #2:
+  Headline: "${c.clientWord.charAt(0).toUpperCase()+c.clientWord.slice(1)} who go with ${comp}"
+  Body: "Not because the competitor is better. Because their brand communicates premium — and yours communicates 'affordable option.'"
+
+Slide 5 — The hidden cost #3:
+  Headline: "Referrals that never come"
+  Body: "Premium ${c.clientWord} refer premium professionals. Generic presentation = you don't make the mental shortlist when someone asks 'who should I use?'"
+
+Slide 6 — The fix:
+  Headline: "${n.title}"
+  Body: "${c.promise.charAt(0).toUpperCase()+c.promise.slice(1)}. Without a designer. Without a rebrand. In under 30 minutes per project."
+
+Slide 7 (CTA):
+  Headline: "$${n.priceMin} vs. the cost of looking average."
+  Body: "Link in bio → ${n.platform}"
+
+${'─'.repeat(60)}
+CAROUSEL 5 — "Before vs. After: ${n.niche} Brand Transformation" (6 slides)
+${'─'.repeat(60)}
+Slide 1 (Cover): "Before vs. After: What ${n.title} actually does to your ${n.niche} brand"
+  Subtitle: "Real comparison. No fluff."
+
+Slide 2 — Before:
+  Headline: "Before: Generic listing presentation"
+  Body: "Standard formatting. Default fonts. Stock photos with no treatment. Looks like it took 45 minutes to build. ${c.clientWord} can tell."
+
+Slide 3 — After:
+  Headline: "After: ${n.title} listing presentation template"
+  Body: "Editorial layout. Intentional typography. Consistent color system. Looks like a studio spent a week on it. Took 20 minutes to customize."
+
+Slide 4 — Before:
+  Headline: "Before: Agent bio page"
+  Body: "Text block with a headshot. No hierarchy. No brand signal. Forgettable."
+
+Slide 5 — After:
+  Headline: "After: ${n.title} agent bio template"
+  Body: "Name as a design element. Stat callouts that build authority. Brand color stripe. A page that says 'this person is the premium choice.'"
+
+Slide 6 (CTA):
+  Headline: "The transformation is $${n.priceMin}."
+  Body: "${n.title} on ${n.platform}. Link in bio. Download today."`;
+};
 
 const HASHTAGS = (p,n) => {const ni=n.niche.replace(/\s+/g,''),ty=n.type.replace(/\s+/g,''),pl=n.platform.toLowerCase().replace(/\s+/g,''),kw=n.keywords.map(k=>'#'+k.replace(/\s+/g,'')); return `HASHTAG GROUPS — ${n.title}\n${'═'.repeat(60)}\n\nINSTAGRAM — FULL 30\n${hr()}\n${kw.slice(0,8).join(' ')} #${ni} #${ty}\n#digitalproduct #passiveincome #onlinebusiness #sidehustle #digitaldownload #etsy #gumroad #${pl}\n#entrepreneur #smallbusiness #makemoneyonline #workfromhome #creativeentrepreneur #businessowner #solopreneur #contentcreator #digitalmarketing #onlinestore\n\nINSTAGRAM — COMPACT 15\n${hr()}\n${kw.slice(0,5).join(' ')} #${ni} #${ty} #digitalproduct #passiveincome #digitaldownload #onlinebusiness #sidehustle #entrepreneur #smallbusiness\n\nTIKTOK (5–8 tags)\n${hr()}\n${kw.slice(0,3).join(' ')} #digitalproducts #${ni} #sidehustle #passiveincome\n\nLINKEDIN (3–5)\n${hr()}\n#${ni} #${ty} #digitalproducts #entrepreneurship #onlinebusiness\n\nPINTEREST\n${hr()}\n${n.keywords.join(', ')}, digital product, ${n.type}, ${n.platform}`;};
 
 const CALENDAR = (p,n) => {
-  // Validate stored calendar items — each must have a valid day number and message
-  const validCalItems = n.calItems.filter(d => d && Number.isInteger(Number(d.day)) && Number(d.day) > 0 && d.message && String(d.message).trim().length > 10);
-  if(validCalItems.length >= 5) return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\n`+validCalItems.slice(0,7).map(d=>`DAY ${d.day} — ${(d.platform||'Social').toUpperCase()}\nType: ${d.content_type||'Post'}\n${d.message}`).join('\n\n');
-  return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\nDAY 1 — INSTAGRAM + LINKEDIN\nType: Announcement | Use: Caption 1 + LinkedIn Post 1\nGoal: First impressions, link in bio\n\nDAY 2 — TIKTOK / REELS\nType: Short-form video | Use: TikTok Video 1 or 2\nGoal: Reach new audience\n\nDAY 3 — CAROUSEL + EMAIL\nType: What's Inside carousel | Send: Email_2_Educational_Value\nGoal: Build trust with value-first content\n\nDAY 4 — TIKTOK + LINKEDIN\nType: Pain point video + educational post\nUse: TikTok Video 3 + LinkedIn Post 2\n\nDAY 5 — COMMUNITY\nType: Poll + group engagement | Run a story poll\nGoal: Expand reach through engagement\n\nDAY 6 — URGENCY POST + EMAIL\nType: Urgency caption | Send: Email_4_Offer\nGoal: Convert fence-sitters with deadline\n\nDAY 7 — FINAL PUSH — ALL PLATFORMS\nUse: Caption 5 (IG) + Post 3 (LinkedIn) + TikTok Video 5\nSend: Email_5_Last_Call\nGoal: Final conversions + close launch window`;
+  const c = socialCtx(n);
+  const mat = c.materialWord; const aud = c.audShort;
+  // Validate stored calendar items — each must have a valid day number and real message
+  const validCalItems = n.calItems.filter(d => d && Number.isInteger(Number(d.day)) && Number(d.day) > 0 && d.message && String(d.message).trim().length > 30);
+  if (validCalItems.length >= 5) return `7-DAY POSTING CALENDAR — ${n.title}\n${'═'.repeat(60)}\n\n` + validCalItems.slice(0,7).map(d => `DAY ${d.day} — ${(d.platform||'Social').toUpperCase()}\nType: ${d.content_type||'Post'}\n${d.message}`).join('\n\n');
+  return `7-DAY POSTING CALENDAR — ${n.title}
+${'═'.repeat(60)}
+Full 7-day launch calendar for ${n.title}.
+Each day: platform · post type · topic · caption angle · CTA · file reference.
+${'═'.repeat(60)}
+
+DAY 1 — LAUNCH DAY 🚀
+${hr()}
+Platform:     Instagram + LinkedIn
+Post Type:    Static image + announcement caption
+Topic:        "${n.title} is live"
+Caption Angle: Lead with the transformation. "${c.promise.charAt(0).toUpperCase()+c.promise.slice(1)}. Without a designer. Without a rebrand."
+CTA:          "Link in bio → download instantly for $${n.priceMin}"
+Email:        Send Email_1_Announcement.txt to your list
+File Ref:     Instagram_Captions.txt → Caption 4 (Promotional) | LinkedIn_Posts.txt → Post 4 (Launch)
+Goal:         First impressions, announce to warm audience, first sales
+
+DAY 2 — EDUCATION + REACH
+${hr()}
+Platform:     TikTok / Instagram Reels
+Post Type:    Short-form video (30–45 seconds)
+Topic:        "5 visual mistakes costing ${aud} ${c.clientWord}"
+Caption Angle: Pain-point education. Name the specific mistakes without selling first.
+CTA:          "Save this. Then grab ${n.title} at the link in bio."
+File Ref:     TikTok_Reel_Ideas.txt → Video 1 (Before/After Reveal)
+Goal:         Reach new audience through educational content, build authority
+
+DAY 3 — CAROUSEL + VALUE EMAIL
+${hr()}
+Platform:     Instagram + LinkedIn
+Post Type:    Carousel (6–8 slides)
+Topic:        "What's Inside ${n.title}"
+Caption Angle: Curiosity-driven. "You asked what's included. Here's every template — with screenshots."
+CTA:          "Last slide has the link. $${n.priceMin} for the full pack."
+Email:        Send Email_2_Educational_Value.txt
+File Ref:     Carousel_Post_Outlines.txt → Carousel 2 (What's Inside)
+Goal:         Educate warm audience, overcome "what is this?" objection
+
+DAY 4 — AUTHORITY + LINKEDIN PUSH
+${hr()}
+Platform:     LinkedIn (primary) + TikTok (secondary)
+Post Type:    LinkedIn text post (professional angle) + TikTok video
+Topic (LinkedIn): "The visual brand problem nobody in ${n.niche} talks about"
+Topic (TikTok):   "POV: Using ${n.title} for the first time"
+Caption Angle (LinkedIn): Peer-to-peer. Write as a trusted colleague sharing a hard truth.
+CTA:          LinkedIn: "Link in comments" | TikTok: "Comment TEMPLATES for the link"
+File Ref:     LinkedIn_Posts.txt → Post 1 (Authority) | TikTok_Reel_Ideas.txt → Video 6 (Speed Build)
+Goal:         Professional credibility, reach B2B / ${n.niche} community audience
+
+DAY 5 — SOCIAL PROOF + STORY
+${hr()}
+Platform:     Instagram Stories + Instagram Feed
+Post Type:    Story poll + Feed caption
+Topic (Stories): Poll: "Does your current ${mat} represent your brand well?" Yes/No
+Topic (Feed):    Story-based caption about why you built ${n.title}
+Caption Angle: Vulnerable + specific. "I kept seeing talented ${aud} lose ${c.clientWord} to ${c.competitorPhrase}..."
+CTA:          "Full story in the caption. Link to ${n.title} in bio."
+File Ref:     Instagram_Captions.txt → Caption 7 (Story: Why I Built This)
+Goal:         Emotional connection, expand reach via story engagement
+
+DAY 6 — URGENCY + OFFER
+${hr()}
+Platform:     Instagram + LinkedIn + Email
+Post Type:    Static image (price urgency) + email
+Topic:        "Launch price on ${n.title} ends [DATE]"
+Caption Angle: Direct and specific. "$${n.priceMin} now. $${n.priceMax} after [DATE]. Here's what you get for $${n.priceMin}."
+CTA:          "Link in bio. Don't wait."
+Email:        Send Email_4_Offer.txt
+File Ref:     Instagram_Captions.txt → Caption 9 (Urgency) | LinkedIn_Posts.txt → Post 5 (ROI)
+Goal:         Convert fence-sitters, urgency-driven conversions
+
+DAY 7 — FINAL PUSH
+${hr()}
+Platform:     All platforms simultaneously
+Post Type:    TikTok video + Instagram Story + LinkedIn post + Email
+Topic:        "Last call for ${n.title} at $${n.priceMin}"
+Caption Angle: Final urgency. Simple, direct, no fluff. "This is the last email/post about this."
+CTA:          "Link in bio / comments. Download now."
+Email:        Send Email_5_Last_Call.txt
+File Ref:     TikTok_Reel_Ideas.txt → Video 7 (Launch Urgency) | Instagram_Captions.txt → Caption 10 (Last Chance)
+Goal:         Final conversions, close the launch window, raise price after today`;
 };
 
 const EMAIL1 = (p,n) => `EMAIL 1 — LAUNCH ANNOUNCEMENT\n${'═'.repeat(60)}\nSEND ON: Launch Day\nSUBJECT: 🚀 It's here — ${n.title}\nPREVIEW: ${n.promise||'Introducing '+n.title+' — built for '+(n.audience||'you')}\n\n${'─'.repeat(60)}\nHey [First Name],\n\nToday's the day. ${n.title} is officially live.\n\n${n.promise?'"'+n.promise+'"\n\n':''}I built this for ${n.audience||'people like you'} who are ready to stop guessing.\n\nInside:\n• Complete ${n.type} built around your needs\n• Step-by-step structure you can actually follow\n${n.items.slice(0,3).map(b=>'• '+b).join('\n')}\n\nGrab it for $${n.priceMin} → [INSERT LINK]\n\nThis is the launch price — going up after [DATE].\n\nTalk soon,\n[Your Name]\n\nP.S. Forward to a friend struggling with ${n.niche}.`;
