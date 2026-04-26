@@ -1444,15 +1444,231 @@ File Ref:     TikTok_Reel_Ideas.txt → Video 7 (Launch Urgency) | Instagram_Cap
 Goal:         Final conversions, close the launch window, raise price after today`;
 };
 
-const EMAIL1 = (p,n) => `EMAIL 1 — LAUNCH ANNOUNCEMENT\n${'═'.repeat(60)}\nSEND ON: Launch Day\nSUBJECT: 🚀 It's here — ${n.title}\nPREVIEW: ${n.promise||'Introducing '+n.title+' — built for '+(n.audience||'you')}\n\n${'─'.repeat(60)}\nHey [First Name],\n\nToday's the day. ${n.title} is officially live.\n\n${n.promise?'"'+n.promise+'"\n\n':''}I built this for ${n.audience||'people like you'} who are ready to stop guessing.\n\nInside:\n• Complete ${n.type} built around your needs\n• Step-by-step structure you can actually follow\n${n.items.slice(0,3).map(b=>'• '+b).join('\n')}\n\nGrab it for $${n.priceMin} → [INSERT LINK]\n\nThis is the launch price — going up after [DATE].\n\nTalk soon,\n[Your Name]\n\nP.S. Forward to a friend struggling with ${n.niche}.`;
+const EMAIL1 = (p,n) => {
+  const c = socialCtx(n);
+  const audience = n.audience || `${n.niche} professionals`;
+  const promise = n.promise || `transform your ${n.niche} brand with ${n.title}`;
+  const templateList = n.sections.length > 0
+    ? n.sections.slice(0,5).map(s => `• ${s.title||s.heading}`).join('\n')
+    : `• Listing Presentation Templates\n• Property Brochure Layouts\n• Agent Bio Pages\n• Market Report Templates\n• Open House Flyers`;
+  const benefits = n.items.length > 0
+    ? n.items.slice(0,3).map(b => `• ${b}`).join('\n')
+    : `• Fully editable — customize in under 30 minutes\n• Print-ready PDF + digital PNG export\n• Built for ${n.niche} professionals, not generic business use`;
+  return `EMAIL 1 — LAUNCH ANNOUNCEMENT
+${'═'.repeat(60)}
+SEND ON: Launch Day
+SUBJECT: It's live — ${n.title}
+PREVIEW TEXT: ${promise.charAt(0).toUpperCase() + promise.slice(1, 90)}
 
-const EMAIL2 = (p,n) => `EMAIL 2 — EDUCATIONAL VALUE\n${'═'.repeat(60)}\nSEND ON: Day 3\nSUBJECT: The real reason most people fail at ${n.niche}\n\n${'─'.repeat(60)}\nHey [First Name],\n\n${n.problem?'Here\'s what I kept seeing:\n\n'+n.problem+'\n':'A lot of people in '+n.niche+' make the same avoidable mistakes.'}\n\nHere's what actually works:\n\n1. ${n.sections[0]?.title||n.sections[0]?.heading||'Clarity beats complexity.'}\n2. ${n.sections[1]?.title||n.sections[1]?.heading||'Systems outperform willpower.'}\n3. ${n.sections[2]?.title||n.sections[2]?.heading||'Action beats perfection.'}\n\nThese are the principles behind ${n.title}.\n\n→ [INSERT LINK] — $${n.priceMin}\n\n[Your Name]`;
+${'─'.repeat(60)}
 
-const EMAIL3 = (p,n) => `EMAIL 3 — PROBLEM AWARE\n${'═'.repeat(60)}\nSEND ON: Day 5\nSUBJECT: Are you making this ${n.niche} mistake?\n\n${'─'.repeat(60)}\nHey [First Name],\n\n${n.problem||'Most people in '+n.niche+' are stuck — not from lack of effort, but lack of system.'}\n\nYou don't need more motivation. You need a clearer path.\n\nThat's what ${n.title} gives you.\n\n${n.promise?'"'+n.promise+'"':''}\n\n$${n.priceMin} → [INSERT LINK]\n\n[Your Name]`;
+Hey [First Name],
 
-const EMAIL4 = (p,n) => `EMAIL 4 — THE OFFER\n${'═'.repeat(60)}\nSEND ON: Day 6\nSUBJECT: Here's everything you get with ${n.title}\n\n${'─'.repeat(60)}\nHey [First Name],\n\nHere's exactly what you get:\n\n${n.sections.slice(0,6).map((s,i)=>`→ ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\n\n${n.items.slice(0,4).map(b=>'✅ '+b).join('\n')}\n\nAll of that for $${n.priceMin}.\n\nYou pay once. You own it forever.\n\n→ [INSERT LINK]\n\nLaunch price closes [DATE/TIME].\n\n[Your Name]`;
+Today's the day — ${n.title} is officially available.
 
-const EMAIL5 = (p,n) => `EMAIL 5 — LAST CALL\n${'═'.repeat(60)}\nSEND ON: Day 7 (morning)\nSUBJECT: Last chance — ${n.title} launch price ends tonight\n\n${'─'.repeat(60)}\nHey [First Name],\n\nThis is my last email about ${n.title}.\n\nAfter [TIME] tonight, the price goes from $${n.priceMin} to $${n.priceMax}.\n\n${n.promise?'"'+n.promise+'"':''}\n\n→ [GRAB IT BEFORE THE PRICE GOES UP]\n\n[Your Name]\n\nP.S. Questions? Just reply.`;
+${promise.charAt(0).toUpperCase() + promise.slice(1)}.
+
+This ${n.type} was built specifically for ${audience}. Not a generic template pack you've seen recycled a hundred times — every layout, every copy block, and every design choice was made with one goal: to make your ${c.materialWord} look like they came from a studio charging ten times what you paid.
+
+Here's what's inside:
+
+${templateList}
+
+${benefits}
+
+All for $${n.priceMin}. Instant download. Yours to keep and use forever.
+
+→ Grab it now: [INSERT LINK]
+
+This is the launch price. It goes up on [DATE].
+
+Talk soon,
+[Your Name]
+
+P.S. If you know another ${n.niche} professional who's been meaning to upgrade their brand materials — forward this. They'll thank you.`;
+};
+
+const EMAIL2 = (p,n) => {
+  const c = socialCtx(n);
+  const audience = n.audience || `${n.niche} professionals`;
+  const painPoint = n.pa?.painPoint || `losing high-value clients to competitors with more polished ${c.materialWord}`;
+  const transformation = n.pa?.transformation || `look like the premium choice in every client-facing moment`;
+  return `EMAIL 2 — EDUCATIONAL VALUE
+${'═'.repeat(60)}
+SEND ON: Day 3
+SUBJECT: Why luxury ${c.clientWord} judge your marketing before they judge your experience
+PREVIEW TEXT: The uncomfortable truth about what happens before you even open your mouth
+
+${'─'.repeat(60)}
+
+Hey [First Name],
+
+Here's something most ${n.niche} professionals don't want to admit:
+
+Your potential ${c.clientWord} have already made a decision about you before you say a single word.
+
+They've seen your listing presentation. They've looked at your property brochure. They've glanced at your agent bio. And in those first few seconds, they've answered the question that determines whether they'll trust you with a multi-million-dollar transaction:
+
+"Does this person look like the premium option?"
+
+This isn't about being judgmental. It's how the human brain processes credibility. Visual quality signals expertise, attention to detail, and — most critically — whether you're worth a premium commission.
+
+The agents who consistently win high-end listings aren't necessarily the most experienced in the room. They're the ones whose ${c.materialWord} communicate: "I operate at your level."
+
+Here's what separates them visually:
+
+→ A cover page that feels editorial, not assembled from stock elements
+→ Typography that's intentional — one strong serif, one clean sans-serif — never a default
+→ A color palette limited to 2–3 tones that signal restraint and taste
+→ A property brochure where every image has been cropped and treated consistently
+→ An agent bio that reads as authority — statistics, credentials, and a confident tone
+
+Every template in ${n.title} was built around these exact principles. Not generic layouts repurposed from a business toolkit — specific files designed for ${audience} who understand that design is a sales tool.
+
+${transformation.charAt(0).toUpperCase() + transformation.slice(1)}.
+
+→ [INSERT LINK] — $${n.priceMin}
+
+[Your Name]
+
+P.S. Tomorrow I'm sending one more email about what happens when ${c.clientWord} walk into a listing presentation and the brochure on the table doesn't match the quality of the property being sold.`;
+};
+
+const EMAIL3 = (p,n) => {
+  const c = socialCtx(n);
+  const audience = n.audience || `${n.niche} professionals`;
+  const painPoint = n.pa?.painPoint || `losing clients to better-presented competitors`;
+  const promise = n.promise || `transform your visual brand from generic to premium`;
+  return `EMAIL 3 — PROBLEM AWARE
+${'═'.repeat(60)}
+SEND ON: Day 5
+SUBJECT: How dated brochures quietly kill seller trust
+PREVIEW TEXT: It's not that they didn't like you. It's that your materials told a different story.
+
+${'─'.repeat(60)}
+
+Hey [First Name],
+
+Imagine this.
+
+A prospective seller interviews three agents. All three are experienced. All three have strong track records. But when the meeting is over and the seller's family sits down to discuss who they'll list with, one thing comes up:
+
+"Their brochure and presentation looked so much more professional."
+
+That's it. That's the whole deciding factor.
+
+It doesn't matter that you've sold more properties, negotiated better terms, or have a stronger network. If your ${c.materialWord} look dated — if the fonts are default, the layout generic, the property brochure forgettable — the subconscious message to a luxury seller is: "This agent doesn't operate at our level."
+
+${painPoint.charAt(0).toUpperCase() + painPoint.slice(1)}.
+
+And here's the part that makes it worse: you'll never know. The seller won't tell you. They'll send a polite rejection email and list with the agent whose brand looked the part.
+
+This is why ${n.title} exists.
+
+It's a ${n.type} built so that ${audience} never walk into a listing appointment undermined by their own marketing materials. Every template — from the cover page to the property brochure to the market report — is designed to signal one thing to a high-net-worth seller:
+
+"This agent takes presentation as seriously as I take my property."
+
+${promise.charAt(0).toUpperCase() + promise.slice(1)}.
+
+$${n.priceMin} → [INSERT LINK]
+
+[Your Name]
+
+P.S. Tomorrow's email breaks down exactly what's inside — every template, every file, and why each one was built the way it was.`;
+};
+
+const EMAIL4 = (p,n) => {
+  const c = socialCtx(n);
+  const audience = n.audience || `${n.niche} professionals`;
+  const templateList = n.sections.length > 0
+    ? n.sections.slice(0,7).map((s,i) => `${i+1}. ${s.title||s.heading}`).join('\n')
+    : `1. Luxury Listing Presentation Cover
+2. Editorial Property Brochure (4-page)
+3. Agent Bio & Credentials Page
+4. Market Report Summary Page
+5. Open House Invitation Flyer
+6. Seller Follow-Up Card
+7. Private Showing Announcement`;
+  const benefits = n.items.length > 0
+    ? n.items.slice(0,4).map(b => `✅ ${b}`).join('\n')
+    : `✅ Fully editable — works in Canva, Adobe, PowerPoint, and Google Slides
+✅ Print-ready PDF export + high-res PNG for digital delivery
+✅ Every template customizable in under 30 minutes
+✅ One-time purchase — yours to keep, use, and rebrand forever`;
+  return `EMAIL 4 — THE OFFER
+${'═'.repeat(60)}
+SEND ON: Day 6
+SUBJECT: Here's exactly what's inside ${n.title}
+PREVIEW TEXT: Every template, every file — and why each one was built the way it was
+
+${'─'.repeat(60)}
+
+Hey [First Name],
+
+I've been talking about ${n.title} all week. Today I want to show you exactly what's in it.
+
+Here's every template included in the pack:
+
+${templateList}
+
+Each template includes:
+→ A pre-built layout structured for luxury positioning — not generic design
+→ Clearly labelled brand zones (swap your colors and logo in minutes)
+→ Ready-to-customize copy blocks — replace the [BRACKETS] with your details
+→ Export instructions for both print delivery and digital sending
+
+${benefits}
+
+The entire pack is $${n.priceMin}.
+
+To put that in perspective: one hour with a freelance designer in this space runs $75–$150. ${n.title} gives you ${n.sections.length > 3 ? n.sections.length : '7'}+ professionally designed, fully editable templates — ready to use before your next listing appointment.
+
+You pay once. You own it forever. No subscriptions, no recurring fees.
+
+→ Download instantly: [INSERT LINK]
+
+Launch price closes on [DATE].
+
+[Your Name]
+
+P.S. This is the only time I'll offer it at $${n.priceMin}. After [DATE] it goes to $${n.priceMax}. If you're planning to grab it, now is the moment.`;
+};
+
+const EMAIL5 = (p,n) => {
+  const c = socialCtx(n);
+  const promise = n.promise || `transform your ${n.niche} brand from generic to premium`;
+  const priceDiff = n.priceMax - n.priceMin;
+  return `EMAIL 5 — LAST CALL
+${'═'.repeat(60)}
+SEND ON: Day 7 (morning)
+SUBJECT: ${n.title} — price goes to $${n.priceMax} tonight
+PREVIEW TEXT: Last chance to get it at $${n.priceMin}. After [TIME] tonight, it's $${n.priceMax}.
+
+${'─'.repeat(60)}
+
+Hey [First Name],
+
+This is the last email I'll send about ${n.title}.
+
+At [TIME] tonight, the price moves from $${n.priceMin} to $${n.priceMax}. That's a $${priceDiff > 0 ? priceDiff : n.priceMax - n.priceMin} increase — permanent.
+
+If you've been on the fence, here's the short version of what you're getting for $${n.priceMin}:
+
+A ${n.type} built for ${n.niche} professionals who are done watching less experienced agents win listings because their brand looks more polished.
+
+${promise.charAt(0).toUpperCase() + promise.slice(1)}.
+
+One-time purchase. Instant download. Fully editable. Yours forever.
+
+→ [INSERT LINK]
+
+After [TIME] tonight: $${n.priceMax}.
+
+[Your Name]
+
+P.S. Questions before you buy? Just reply to this email — I'll get back to you quickly.`;
+};
 
 const LAUNCH_PLAN = (p,n) => {
   if(n.launchPlan&&n.launchPlan.length>100) return `7-DAY LAUNCH PLAN — ${n.title}\n${'═'.repeat(60)}\n\n${n.launchPlan}\n\nFOR: ${n.audience||'Your audience'} | PROMISE: ${n.promise||n.title}`;
