@@ -96,68 +96,59 @@ function norm(p) {
   const priceMax=Number(ma.price_max??d.price_max??37)||37;
   const keywords=Array.isArray(ma.keywords)&&ma.keywords.length>0?ma.keywords:Array.isArray(d.keywords)&&d.keywords.length>0?d.keywords:[niche,type,'digital product','download'].filter(Boolean);
   const listingTitle=String(ma.listing_title||d.listing_title||title);
-  const shortDesc=String(ma.seo_meta_description||d.seo_meta_description||`${promise||subtitle||title}. Built for ${audience||niche}.`);
-  const longDesc=String(ma.listing_description||d.listing_description||`${promise||subtitle||title}\n\nBuilt for ${audience||niche}.\n\nThis ${type} gives you everything you need to get results fast.\n\n✅ Instant digital download\n✅ Professionally structured\n✅ Ready to use immediately\n\n${pa.finalAngle||''}`);
+  const av0=audienceVars(audience,niche);
+  const shortDesc=String(ma.seo_meta_description||d.seo_meta_description||cs(`${promise||subtitle||title}. Built for ${av0.audienceShort}.`));
+  const longDesc=String(ma.listing_description||d.listing_description||cs(`${promise||subtitle||title}\n\nBuilt for ${av0.audiencePlural}.\n\nThis ${type} gives you everything you need to get results fast.\n\n✅ Instant digital download\n✅ Professionally structured\n✅ Ready to use immediately\n\n${pa.finalAngle||''}`));
   const safe=title.replace(/[^a-z0-9]/gi,'_').slice(0,40)||'Launchora_Product';
   const igCaps=Array.isArray(sm.instagram_captions)&&sm.instagram_captions.length>0?sm.instagram_captions:[];
   const calItems=Array.isArray(sm.content_calendar)&&sm.content_calendar.length>0?sm.content_calendar:[];
   const scripts=Array.isArray(sm.video_scripts)&&sm.video_scripts.length>0?sm.video_scripts:[];
-  const av=audienceVars(audience, niche);
+  const av=av0; // audienceVars already computed above
   return {title,subtitle,promise,audience,buyer,problem,type,niche,platform,tone,launchPlan,items,sections,priceMin,priceMax,keywords,listingTitle,shortDesc,longDesc,safe,pa,ma,pg,sm,igCaps,calItems,scripts,av};
 }
 
 // ── Audience normalizer ───────────────────────────────────────────────────────
 // Converts a raw target_audience string into grammatically safe variables.
+// RULE: Never inject raw target_audience into a sentence. Always use these vars.
 function audienceVars(rawAudience, niche) {
   const raw = String(rawAudience || '').trim();
   if (!raw || raw.length < 4) {
-    const fallback = `${niche} professionals`;
-    return {
-      audiencePlural: fallback,
-      audienceSingular: `a ${niche} professional`,
-      audienceShort: `${niche} professionals`,
-      audienceProblem: `finding tools that fit real ${niche} workflows`,
-      audienceContextSentence: `This is built for ${niche} professionals who want better results.`,
-    };
+    const fb = `${niche} professionals`;
+    return { audiencePlural:fb, audienceSingular:`a ${niche} professional`, audienceShort:`${niche} professionals`, audienceProblem:`finding tools that fit real ${niche} workflows`, audienceContextSentence:`This pack is built for ${niche} professionals who want to work more efficiently.` };
   }
-
-  // Strip trailing punctuation / run-on clauses that break grammar
-  // e.g. "...who are tired of being out-shined by global firms." → stop at "who"
-  // Keep the core noun phrase (everything before "who", "that", "managing", "looking")
-  const corePhraseMatch = raw.match(/^(.*?)(?:\s+who\b|\s+that\b|\s+managing\b|\s+looking\b|\s+wanting\b|\s+tired\b)/i);
-  const corePhrase = corePhraseMatch ? corePhraseMatch[1].trim() : raw.split('.')[0].trim();
-
-  // Remove leading capital-case articles if any, lowercase for embedding
-  const lc = corePhrase.replace(/^(The |A |An )/i, '').toLowerCase().trim();
-
-  // Plural — just the lowercase core noun phrase
+  // Extract core noun phrase — stop at qualifying clauses
+  const corePhraseMatch = raw.match(/^(.*?)(?:\s+who\b|\s+that\b|\s+managing\b|\s+looking\b|\s+wanting\b|\s+tired\b|\s+with\b\s+\$)/i);
+  const corePhrase = (corePhraseMatch ? corePhraseMatch[1] : raw.split(/[.,]/)[0]).trim();
+  // Lowercase, remove leading article
+  const lc = corePhrase.replace(/^(The |A |An )/i,'').toLowerCase().trim().replace(/\s+/g,' ');
   const audiencePlural = lc;
-
-  // Singular — prepend "an" or "a" intelligently
-  const vowelStart = /^[aeiou]/i.test(lc);
-  const audienceSingular = `${vowelStart ? 'an' : 'a'} ${lc}`;
-
-  // Short — first 4 significant words max, no trailing conjunctions
-  const words = lc.split(/\s+/).filter(w => w.length > 1);
-  const stopWords = new Set(['and','or','who','the','a','an','for','of','in','to','with','on','at','by','from']);
-  const shortWords = [];
-  for (const w of words) {
-    if (shortWords.length >= 4) break;
-    if (stopWords.has(w) && shortWords.length >= 2) break;
-    shortWords.push(w);
-  }
-  const audienceShort = shortWords.join(' ') || lc;
-
-  // Problem — extract the "who are [problem]" clause, fall back to niche-generic
-  const problemMatch = raw.match(/who\s+are\s+(.*?)(?:\.|$)/i) || raw.match(/who\s+(.*?)(?:\.|$)/i);
-  const audienceProblem = problemMatch
-    ? problemMatch[1].replace(/^tired of\s+/i, '').trim()
-    : `finding tools that fit real ${niche} workflows`;
-
-  // Context sentence — safe, grammatically complete
-  const audienceContextSentence = `This is built for ${audiencePlural}${audienceProblem ? ' who want to stop ' + audienceProblem : ''}.`;
-
+  // Singular with correct article
+  const audienceSingular = (/^[aeiou]/i.test(lc) ? 'an ' : 'a ') + lc;
+  // Short — up to 4 meaningful words, never end on a conjunction/preposition
+  const stops = new Set(['and','or','who','the','a','an','for','of','in','to','with','on','at','by','from','their','its']);
+  const words = lc.split(/\s+/).filter(w=>w.length>1);
+  const sw = [];
+  for (const w of words) { if(sw.length>=4)break; if(stops.has(w)&&sw.length>=2)break; sw.push(w); }
+  const audienceShort = sw.join(' ') || lc;
+  // Problem — extract "who are [X]" or "who [X]" clause; strip "tired of"
+  const probMatch = raw.match(/who\s+are\s+(.*?)(?:\.|$)/i) || raw.match(/who\s+(.*?)(?:\.|$)/i);
+  const rawProb = probMatch ? probMatch[1].trim() : '';
+  const audienceProblem = rawProb
+    ? rawProb.replace(/^(tired of|struggling with|dealing with)\s+/i,'').replace(/\s+\.$/, '').trim()
+    : `competing without the right tools in ${niche}`;
+  // Context sentence — fully safe, no raw string injection
+  const audienceContextSentence = `This pack is built for ${audiencePlural} who want to stop ${audienceProblem}.`;
   return { audiencePlural, audienceSingular, audienceShort, audienceProblem, audienceContextSentence };
+}
+
+// Remove double punctuation artifacts from sentence-building
+function cs(s) {
+  return String(s||'')
+    .replace(/\.\s*\./g,'.')
+    .replace(/,\s*\./g,'.')
+    .replace(/\.\s*,/g,',')
+    .replace(/\s{2,}/g,' ')
+    .trim();
 }
 
 // ── Template Pack builders ────────────────────────────────────────────────────
@@ -699,7 +690,7 @@ Good luck with your launch! 🚀
 
 const PRODUCT_TXT = (p,n) => {
   const secs=n.sections.map((s,i)=>`${hr()}\n${i+1}. ${s.title||s.heading||'Section '+(i+1)}\n${hr()}\n${s.body||s.content?.body||''}`).join('\n\n');
-  return `${n.title}\n${'═'.repeat(60)}\n${n.subtitle||''}\nTYPE: ${n.type} | NICHE: ${n.niche} | PLATFORM: ${n.platform} | PRICE: $${n.priceMin}–$${n.priceMax}\n\nPROMISE\n${hr()}\n${n.promise||n.subtitle||''}\n\nFOR: ${n.audience||n.niche}\n\n${n.items.length>0?'KEY BENEFITS\n'+hr()+'\n'+n.items.map(b=>'✅ '+b).join('\n')+'\n\n':''}\n${'═'.repeat(60)}\nCONTENT\n${'═'.repeat(60)}\n\n${secs||'(Sections pending)'}\n\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
+  return `${n.title}\n${'═'.repeat(60)}\n${n.subtitle||''}\nTYPE: ${n.type} | NICHE: ${n.niche} | PLATFORM: ${n.platform} | PRICE: $${n.priceMin}–$${n.priceMax}\n\nPROMISE\n${hr()}\n${n.promise||n.subtitle||''}\n\nFOR: ${n.av.audiencePlural}\n\n${n.items.length>0?'KEY BENEFITS\n'+hr()+'\n'+n.items.map(b=>'✅ '+b).join('\n')+'\n\n':''}\n${'═'.repeat(60)}\nCONTENT\n${'═'.repeat(60)}\n\n${secs||'(Sections pending)'}\n\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
 };
 
 const PRODUCT_HTML = (p,n) => {
@@ -712,7 +703,7 @@ const PRODUCT_HTML = (p,n) => {
     return `<section style="margin-bottom:2.5rem;padding-bottom:2rem;border-bottom:1px solid #f3f4f6"><h2 style="font-size:1.25rem;font-weight:700;color:#111;padding-left:.75rem;border-left:4px solid ${a};margin-bottom:.75rem">${i+1}. ${title}</h2><div style="font-size:1rem;line-height:1.8;color:#374151;white-space:pre-wrap">${displayBody.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div></section>`;
   }).join('');
   const bens=n.items.length>0?`<ul style="list-style:none;padding:0;margin-bottom:2rem">${n.items.map(b=>`<li style="padding:.35rem 0;color:#166534">✅ ${b}</li>`).join('')}</ul>`:'';
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>${n.title}</title><style>body{font-family:Georgia,serif;max-width:780px;margin:0 auto;padding:2rem 1.5rem;background:#fafaf9;color:#1a1a1a}h1{font-size:2.1rem;font-weight:800;color:#111;margin-bottom:.5rem}.sub{font-size:1.1rem;color:#6b7280;font-style:italic;margin-bottom:1.5rem}.promise{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:2px solid ${a};border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem}.promise p{margin:0;font-size:1rem;font-weight:600;color:#9a3412}.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem;font-family:sans-serif}.badge{background:#f3f4f6;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;color:#374151}.pb{background:${a};color:#fff;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;font-weight:700}.aud{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:1rem 1.25rem;margin-bottom:2rem;font-family:sans-serif;font-size:.9rem;color:#166534}.kw{font-family:sans-serif;font-size:.8rem;color:#6b7280;margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb}.ft{text-align:center;font-family:sans-serif;font-size:.75rem;color:#9ca3af;margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e7eb}</style></head><body><h1>${n.title}</h1>${n.subtitle?`<p class="sub">${n.subtitle}</p>`:''} ${n.promise?`<div class="promise"><p>✦ ${n.promise}</p></div>`:''}<div class="meta"><span class="badge">${n.type}</span><span class="badge">${n.platform}</span><span class="badge">${n.niche}</span><span class="pb">$${n.priceMin}–$${n.priceMax}</span></div>${n.audience?`<div class="aud"><strong>For:</strong> ${n.audience}</div>`:''} ${bens}${secsHtml}${n.keywords.length?`<div class="kw"><strong>Keywords:</strong> ${n.keywords.join(' · ')}</div>`:''}<div class="ft">Generated by Launchora · ${new Date().getFullYear()}</div></body></html>`;
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>${n.title}</title><style>body{font-family:Georgia,serif;max-width:780px;margin:0 auto;padding:2rem 1.5rem;background:#fafaf9;color:#1a1a1a}h1{font-size:2.1rem;font-weight:800;color:#111;margin-bottom:.5rem}.sub{font-size:1.1rem;color:#6b7280;font-style:italic;margin-bottom:1.5rem}.promise{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:2px solid ${a};border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem}.promise p{margin:0;font-size:1rem;font-weight:600;color:#9a3412}.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem;font-family:sans-serif}.badge{background:#f3f4f6;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;color:#374151}.pb{background:${a};color:#fff;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;font-weight:700}.aud{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:1rem 1.25rem;margin-bottom:2rem;font-family:sans-serif;font-size:.9rem;color:#166534}.kw{font-family:sans-serif;font-size:.8rem;color:#6b7280;margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb}.ft{text-align:center;font-family:sans-serif;font-size:.75rem;color:#9ca3af;margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e7eb}</style></head><body><h1>${n.title}</h1>${n.subtitle?`<p class="sub">${n.subtitle}</p>`:''} ${n.promise?`<div class="promise"><p>✦ ${n.promise}</p></div>`:''}<div class="meta"><span class="badge">${n.type}</span><span class="badge">${n.platform}</span><span class="badge">${n.niche}</span><span class="pb">$${n.priceMin}–$${n.priceMax}</span></div>${n.av.audiencePlural?`<div class="aud"><strong>For:</strong> ${n.av.audiencePlural.charAt(0).toUpperCase()+n.av.audiencePlural.slice(1)}</div>`:''} ${bens}${secsHtml}${n.keywords.length?`<div class="kw"><strong>Keywords:</strong> ${n.keywords.join(' · ')}</div>`:''}<div class="ft">Generated by Launchora · ${new Date().getFullYear()}</div></body></html>`;
 };
 
 const QUICK_START = (p,n) => `BUYER QUICK START GUIDE — ${n.title}\n${'═'.repeat(60)}\n\nWelcome! Here's how to get the most out of ${n.title} as fast as possible.\n\nWHAT THIS IS\n${hr()}\n${n.title} is a ${n.type} for ${n.av.audiencePlural}.\n${n.promise?'\nPROMISE:\n'+n.promise+'\n':''}\nHOW TO USE IT\n${hr()}\nSTEP 1: Skim the entire product once to understand the structure.\nSTEP 2: Work through these sections in order:\n${n.sections.slice(0,6).map((s,i)=>`   ${i+1}. ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\nSTEP 3: Take one action within 24 hours of downloading.\n\n${n.items.length>0?'KEY OUTCOMES\n'+hr()+'\n'+n.items.slice(0,5).map(b=>'✅ '+b).join('\n')+'\n':''}\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
@@ -786,18 +777,18 @@ const PAYHIP = (p,n) => `PAYHIP LISTING — ${n.title}\n${'═'.repeat(60)}\nNAM
 
 const CREATIVE_MARKET = (p,n) => `CREATIVE MARKET LISTING — ${n.title}\n${'═'.repeat(60)}\n⚠️ PLATFORM NOTE: Creative Market buyers typically expect design source files (Canva, PSD, AI, INDD).\nIf your pack contains text blueprints only, consider Gumroad, Etsy, or Payhip as primary platforms.\nUse this listing once you add actual design source files to your delivery.\n\nTITLE: ${n.title} — Template Blueprint Kit for ${n.niche}\nTAGLINE: ${n.subtitle||n.promise||''}\nPRICE: $${n.priceMin}\n\nDESCRIPTION\n${hr()}\n${tpListingBody(n)}\nFOR: ${n.av.audiencePlural}\n\nWHAT'S INCLUDED:\n${n.sections.slice(0,6).map((s,i)=>`• ${s.title||s.heading||'Template '+(i+1)} — Layout Blueprint + Copy Blocks`).join('\n')||`• Template blueprint files (TXT)\n• Layout specs, copy blocks, and field guides per template`}\n\nTAGS: ${n.keywords.slice(0,12).join(', ')}\n\nTIPS:\n• Be explicit that this is a blueprint/copy system, not design source files\n• Show what buyers can build using the blueprints in your listing images`;
 
-const DESC_SHORT = (p,n) => `SHORT DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\nONE PARAGRAPH:\n${n.shortDesc}\n\nTWEET / BIO VERSION:\n${n.title} — ${n.promise?n.promise.slice(0,100):n.subtitle||'Complete '+n.type+' for '+n.niche}. $${n.priceMin}. Download instantly →\n\nHEADLINE VARIATIONS:\n1. ${n.title} — ${n.promise||'The Complete '+n.type}\n2. The ${n.niche} ${n.type} Built for ${n.audience?n.audience.split(' ').slice(0,5).join(' ')+'...':'Real Results'}\n3. ${n.keywords[0]?n.keywords[0].charAt(0).toUpperCase()+n.keywords[0].slice(1)+': ':'' }${n.title}`;
+const DESC_SHORT = (p,n) => `SHORT DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\nONE PARAGRAPH:\n${n.shortDesc}\n\nTWEET / BIO VERSION:\n${n.title} — ${n.promise?n.promise.slice(0,100):n.subtitle||'Complete '+n.type+' for '+n.niche}. $${n.priceMin}. Download instantly →\n\nHEADLINE VARIATIONS:\n1. ${n.title} — ${n.promise||'The Complete '+n.type}\n2. The ${n.niche} ${n.type} Built for ${n.av.audienceShort}\n3. ${n.keywords[0]?n.keywords[0].charAt(0).toUpperCase()+n.keywords[0].slice(1)+': ':'' }${n.title}`;
 
 const DESC_LONG = (p,n) => `LONG-FORM DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\n\nHEADLINE: ${n.promise||n.title}\n\nTHE STORY\n${hr()}\nIf you work in ${n.niche}, you know how hard it is to find resources that actually deliver.\n\n${n.problem?'THE PROBLEM:\n'+n.problem+'\n\n':''}Most options are too generic, too expensive, or too complicated. That changes today.\n\nIntroducing ${n.title} — a ${n.type} built for ${n.av.audiencePlural}.\n\nWHAT'S INSIDE\n${hr()}\n${n.sections.slice(0,8).map((s,i)=>`${i+1}. ${s.title||s.heading||'Module '+(i+1)}`).join('\n')}\n\nWHAT YOU GET\n${hr()}\n✅ Instant digital download\n✅ ${n.type} — professionally structured\n${n.items.slice(0,4).map(b=>'✅ '+b).join('\n')}\n\nPRICE: $${n.priceMin}${n.priceMax>n.priceMin?' (regular: $'+n.priceMax+')':''}\n\n${n.ma.platform_cta||n.ma.cta||'Click the button and download instantly →'}`;
 
 const PRICING = (p,n) => `PRICING STRATEGY — ${n.title}\n${'═'.repeat(60)}\nRECOMMENDED: $${n.priceMin}–$${n.priceMax}\n${n.ma.price_rationale?'\nRATIONALE:\n'+n.ma.price_rationale+'\n':''}\nOPTION A — ENTRY: $${n.priceMin}\nBest for new audiences. Maximum volume. Works on Gumroad, Etsy.\n\nOPTION B — STANDARD: $${Math.round((n.priceMin+n.priceMax)/2)}\nBest for warm audiences. Signals credibility.\n\nOPTION C — PREMIUM: $${n.priceMax}\nBest for existing customers and niche experts. Requires testimonials.\n\nLAUNCH STRATEGY\n${hr()}\n• Launch at $${n.priceMin} for first 72 hours\n• Announce the price increase to create urgency\n• Raise to $${Math.round((n.priceMin+n.priceMax)/2)} after launch window\n• Bundle with another product for $${Math.round(n.priceMax*1.8)}\n\nPLATFORM TIPS\n${hr()}\n• Gumroad: Enable Pay What You Want (min $${n.priceMin})\n• Etsy: Price at $${(n.priceMin-0.01).toFixed(2)} (below round number)\n• Payhip: Use affiliates to drive volume\n• Shopify: Set Compare At to $${n.priceMax}`;
 
-const SEO = (p,n) => {const pg=n.pg,ptags=Array.isArray(pg.tags)?pg.tags:[],all=[...new Set([...n.keywords,...ptags])]; return `SEO KEYWORDS — ${n.title}\n${'═'.repeat(60)}\n\nPRIMARY (highest buyer intent):\n${all.slice(0,5).join('\n')}\n\nSECONDARY:\n${all.slice(5,12).join('\n')}\n\nLONG-TAIL PHRASES:\n${all.slice(0,5).map(k=>`${k} for ${n.niche}\n${k} digital download`).join('\n')}\n\nETSY TAGS (max 20 chars each):\n${all.slice(0,13).map(k=>k.slice(0,20)).join(', ')}\n\nSEO META DESCRIPTION (max 155 chars):\n${(n.ma.seo_meta_description||`${n.promise||n.title}. Built for ${n.audience||n.niche}. Instant download.`).slice(0,155)}`;};
+const SEO = (p,n) => {const pg=n.pg,ptags=Array.isArray(pg.tags)?pg.tags:[],all=[...new Set([...n.keywords,...ptags])]; return `SEO KEYWORDS — ${n.title}\n${'═'.repeat(60)}\n\nPRIMARY (highest buyer intent):\n${all.slice(0,5).join('\n')}\n\nSECONDARY:\n${all.slice(5,12).join('\n')}\n\nLONG-TAIL PHRASES:\n${all.slice(0,5).map(k=>`${k} for ${n.niche}\n${k} digital download`).join('\n')}\n\nETSY TAGS (max 20 chars each):\n${all.slice(0,13).map(k=>k.slice(0,20)).join(', ')}\n\nSEO META DESCRIPTION (max 155 chars):\n${(n.ma.seo_meta_description||cs(`${n.promise||n.title}. Built for ${n.av.audienceShort}. Instant download.`)).slice(0,155)}`;};
 
 // ── Social Media Context Helper ───────────────────────────────────────────────
 // Builds a rich, product-specific social context object for all SM builders
 function socialCtx(n) {
-  const audience = n.audience || `independent ${n.niche} professionals`;
+  // Always use normalized audience variables — never raw n.audience in a sentence
   const promise = n.promise || `transform your ${n.niche} brand from amateur to premium`;
   const pain = n.pa?.painPoint || `losing clients to competitors with more polished ${n.niche} materials`;
   const transformation = n.pa?.transformation || `go from looking like everyone else to commanding premium fees in ${n.niche}`;
@@ -805,8 +796,9 @@ function socialCtx(n) {
   const mechanism = n.pa?.uniqueMechanism || `professionally designed ${n.niche} templates you can customize in minutes`;
   const angle = n.pa?.finalAngle || n.title;
   const kw = n.keywords.length > 0 ? n.keywords : [n.niche.replace(/\s+/g,''), n.type.replace(/\s+/g,''), 'digitalproduct', 'templates'];
-  // Audience shortname — first 4 meaningful words
-  const audShort = audience.split(' ').slice(0,4).join(' ');
+  // Use normalized audience vars — audShort comes from audienceVars(), never raw audience
+  const audShort = n.av.audienceShort;
+  const audience = n.av.audiencePlural; // safe normalized plural for any sentence use
   // Infer what "competitor" looks like for this niche
   const isLuxury = /luxury|premium|high.end|bespoke|editorial/i.test(n.niche + n.title);
   const isRealEstate = /real.estate|realt|property|listing|agent/i.test(n.niche + n.title);
