@@ -102,7 +102,62 @@ function norm(p) {
   const igCaps=Array.isArray(sm.instagram_captions)&&sm.instagram_captions.length>0?sm.instagram_captions:[];
   const calItems=Array.isArray(sm.content_calendar)&&sm.content_calendar.length>0?sm.content_calendar:[];
   const scripts=Array.isArray(sm.video_scripts)&&sm.video_scripts.length>0?sm.video_scripts:[];
-  return {title,subtitle,promise,audience,buyer,problem,type,niche,platform,tone,launchPlan,items,sections,priceMin,priceMax,keywords,listingTitle,shortDesc,longDesc,safe,pa,ma,pg,sm,igCaps,calItems,scripts};
+  const av=audienceVars(audience, niche);
+  return {title,subtitle,promise,audience,buyer,problem,type,niche,platform,tone,launchPlan,items,sections,priceMin,priceMax,keywords,listingTitle,shortDesc,longDesc,safe,pa,ma,pg,sm,igCaps,calItems,scripts,av};
+}
+
+// ── Audience normalizer ───────────────────────────────────────────────────────
+// Converts a raw target_audience string into grammatically safe variables.
+function audienceVars(rawAudience, niche) {
+  const raw = String(rawAudience || '').trim();
+  if (!raw || raw.length < 4) {
+    const fallback = `${niche} professionals`;
+    return {
+      audiencePlural: fallback,
+      audienceSingular: `a ${niche} professional`,
+      audienceShort: `${niche} professionals`,
+      audienceProblem: `finding tools that fit real ${niche} workflows`,
+      audienceContextSentence: `This is built for ${niche} professionals who want better results.`,
+    };
+  }
+
+  // Strip trailing punctuation / run-on clauses that break grammar
+  // e.g. "...who are tired of being out-shined by global firms." → stop at "who"
+  // Keep the core noun phrase (everything before "who", "that", "managing", "looking")
+  const corePhraseMatch = raw.match(/^(.*?)(?:\s+who\b|\s+that\b|\s+managing\b|\s+looking\b|\s+wanting\b|\s+tired\b)/i);
+  const corePhrase = corePhraseMatch ? corePhraseMatch[1].trim() : raw.split('.')[0].trim();
+
+  // Remove leading capital-case articles if any, lowercase for embedding
+  const lc = corePhrase.replace(/^(The |A |An )/i, '').toLowerCase().trim();
+
+  // Plural — just the lowercase core noun phrase
+  const audiencePlural = lc;
+
+  // Singular — prepend "an" or "a" intelligently
+  const vowelStart = /^[aeiou]/i.test(lc);
+  const audienceSingular = `${vowelStart ? 'an' : 'a'} ${lc}`;
+
+  // Short — first 4 significant words max, no trailing conjunctions
+  const words = lc.split(/\s+/).filter(w => w.length > 1);
+  const stopWords = new Set(['and','or','who','the','a','an','for','of','in','to','with','on','at','by','from']);
+  const shortWords = [];
+  for (const w of words) {
+    if (shortWords.length >= 4) break;
+    if (stopWords.has(w) && shortWords.length >= 2) break;
+    shortWords.push(w);
+  }
+  const audienceShort = shortWords.join(' ') || lc;
+
+  // Problem — extract the "who are [problem]" clause, fall back to niche-generic
+  const problemMatch = raw.match(/who\s+are\s+(.*?)(?:\.|$)/i) || raw.match(/who\s+(.*?)(?:\.|$)/i);
+  const audienceProblem = problemMatch
+    ? problemMatch[1].replace(/^tired of\s+/i, '').trim()
+    : `finding tools that fit real ${niche} workflows`;
+
+  // Context sentence — safe, grammatically complete
+  const audienceContextSentence = `This is built for ${audiencePlural}${audienceProblem ? ' who want to stop ' + audienceProblem : ''}.`;
+
+  return { audiencePlural, audienceSingular, audienceShort, audienceProblem, audienceContextSentence };
 }
 
 // ── Template Pack builders ────────────────────────────────────────────────────
@@ -331,7 +386,7 @@ function buildTemplateFile(useCase, index, n) {
   // Section copy blocks — use stored section body if available, otherwise build from structure
   const sectionCopy = sectionBody && sectionBody.trim().length > 50
     ? `SECTION CONTENT (from your product):\n${sectionBody}`
-    : `SECTION BLOCKS TO CUSTOMIZE:\n\n[HEADER BLOCK]\nText: ${useCase}\nSubtext: ${n.subtitle || n.promise || `Professional ${n.niche} template`}\n\n[BODY BLOCK 1]\nLabel: ${n.keywords[0] || 'Key Detail 1'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 2]\nLabel: ${n.keywords[1] || 'Key Detail 2'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 3]\nLabel: ${n.keywords[2] || 'Key Detail 3'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[FOOTER BLOCK]\nText: ${n.title} | ${n.platform} | $${n.priceMin}\nContact: [INSERT YOUR CONTACT INFO]`;
+    : `SECTION BLOCKS TO CUSTOMIZE:\n\n[HEADER BLOCK]\nText: ${useCase}\nSubtext: ${n.subtitle || n.promise || `Professional ${n.niche} template`}\n\n[BODY BLOCK 1]\nLabel: ${n.keywords[0] || 'Key Detail 1'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 2]\nLabel: ${n.keywords[1] || 'Key Detail 2'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 3]\nLabel: ${n.keywords[2] || 'Key Detail 3'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[FOOTER BLOCK]\nText: ${n.title} | ${n.platform} | $${n.priceMin} | For: ${n.av.audienceShort}\nContact: [INSERT YOUR CONTACT INFO]`;
 
   const customizationNotes = `CUSTOMIZATION NOTES
 ${hr()}
@@ -353,7 +408,7 @@ ${'═'.repeat(60)}
 BEST USE CASE
 ${hr()}
 Use this template for: ${useCase}
-Best suited for: ${n.audience || n.niche + ' professionals'}
+Best suited for: ${n.av.audiencePlural}
 When to use: ${isPresentation ? 'Client-facing presentations, pitches, and first impressions'
   : isTracker ? 'Daily/weekly tracking, reporting, and progress monitoring'
   : isForm ? 'Client onboarding, data collection, and official documentation'
@@ -411,7 +466,7 @@ WHAT IS THIS TEMPLATE PACK?
 ${hr()}
 ${n.promise || n.subtitle || `A complete collection of professional ${n.niche} templates — ready to customize and use immediately.`}
 
-FOR: ${n.audience || n.niche + ' professionals'}
+FOR: ${n.av.audiencePlural}
 
 WHAT'S INCLUDED IN THIS PACK
 ${hr()}
@@ -426,11 +481,11 @@ Plus:
 
 WHAT MAKES THIS PACK DIFFERENT
 ${hr()}
-${n.pa?.uniqueMechanism || `Every template is built specifically for ${n.niche} — not generic layouts repurposed from other industries. Each one is structured around the real workflow of ${n.audience || n.niche + ' professionals'}.`}
+${n.pa?.uniqueMechanism || `Every template is built specifically for ${n.niche} — not generic layouts repurposed from other industries. Each one is structured around the real workflow of ${n.av.audiencePlural}.`}
 
 KEY BENEFITS
 ${hr()}
-${n.items.length > 0 ? n.items.map(b => '✅ ' + b).join('\n') : `✅ Save hours of design time per template\n✅ Professional quality without a designer\n✅ Fully editable — make it your own brand\n✅ Designed for ${n.niche} use cases specifically\n✅ Instant download, immediate use`}
+${n.items.length > 0 ? n.items.map(b => '✅ ' + b).join('\n') : `✅ Save hours of design time per template\n✅ Professional quality without a designer\n✅ Fully editable — make it your own brand\n✅ Designed specifically for ${n.av.audiencePlural}\n✅ Instant download, immediate use`}
 
 HOW TO USE THIS PACK
 ${hr()}
@@ -474,7 +529,7 @@ CTA: Download Now → Customize in Minutes
 ABOUT THIS TEMPLATE
 ${hr()}
 Short version (1 sentence):
-"${n.title} gives ${n.audience || n.niche + ' professionals'} professional-grade templates they can customize and use the same day."
+"${n.title} gives ${n.av.audiencePlural} professional-grade templates they can customize and use the same day."
 
 Medium version (2–3 sentences):
 "${n.promise || 'This template pack saves you hours of design work.'}
@@ -482,11 +537,11 @@ Every template is built for ${n.niche} — not generic layouts that need heavy c
 Open the file, add your details, and you're done."
 
 Long version (for listings):
-${n.ma?.listing_description || `Looking for professional ${n.niche} templates that actually fit your workflow?\n\n${n.title} includes ${templateCases.length} ready-to-use templates, each built specifically for ${n.audience || n.niche + ' professionals'}.\n\nNo design experience needed. Open, customize, export, and deliver.\n\n✅ Instant download\n✅ Fully editable\n✅ Built for ${n.niche}\n✅ Professional results in minutes`}
+${n.ma?.listing_description || `Looking for professional ${n.niche} templates that actually fit your workflow?\n\n${n.title} includes ${templateCases.length} ready-to-use templates, each built specifically for ${n.av.audiencePlural}.\n\nNo design experience needed. Open, customize, export, and deliver.\n\n✅ Instant download\n✅ Fully editable\n✅ Built for ${n.niche}\n✅ Professional results in minutes`}
 
 TEMPLATE-SPECIFIC COPY BLOCKS
 ${hr()}
-${templateCases.map((t, i) => `TEMPLATE ${i + 1}: ${t}\n• Headline: "Professional ${t} for ${n.niche}"\n• Subhead: "Customize in minutes — no designer needed"\n• Feature: "Fully editable ${t.toLowerCase()} built for ${n.audience || n.niche}"\n`).join('\n')}
+${templateCases.map((t, i) => `TEMPLATE ${i + 1}: ${t}\n• Headline: "Professional ${t} for ${n.niche}"\n• Subhead: "Customize in minutes — no designer needed"\n• Feature: "Fully editable ${t.toLowerCase()} built for ${n.av.audiencePlural}"\n`).join('\n')}
 
 SOCIAL PROOF / TESTIMONIAL PROMPTS
 ${hr()}
@@ -699,26 +754,26 @@ const PRODUCT_HTML = (p,n) => {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>${n.title}</title><style>body{font-family:Georgia,serif;max-width:780px;margin:0 auto;padding:2rem 1.5rem;background:#fafaf9;color:#1a1a1a}h1{font-size:2.1rem;font-weight:800;color:#111;margin-bottom:.5rem}.sub{font-size:1.1rem;color:#6b7280;font-style:italic;margin-bottom:1.5rem}.promise{background:linear-gradient(135deg,#fff7ed,#ffedd5);border:2px solid ${a};border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:2rem}.promise p{margin:0;font-size:1rem;font-weight:600;color:#9a3412}.meta{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem;font-family:sans-serif}.badge{background:#f3f4f6;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;color:#374151}.pb{background:${a};color:#fff;border-radius:999px;padding:.2rem .75rem;font-size:.8rem;font-weight:700}.aud{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:1rem 1.25rem;margin-bottom:2rem;font-family:sans-serif;font-size:.9rem;color:#166534}.kw{font-family:sans-serif;font-size:.8rem;color:#6b7280;margin-top:2rem;padding-top:1rem;border-top:1px solid #e5e7eb}.ft{text-align:center;font-family:sans-serif;font-size:.75rem;color:#9ca3af;margin-top:3rem;padding-top:1rem;border-top:1px solid #e5e7eb}</style></head><body><h1>${n.title}</h1>${n.subtitle?`<p class="sub">${n.subtitle}</p>`:''} ${n.promise?`<div class="promise"><p>✦ ${n.promise}</p></div>`:''}<div class="meta"><span class="badge">${n.type}</span><span class="badge">${n.platform}</span><span class="badge">${n.niche}</span><span class="pb">$${n.priceMin}–$${n.priceMax}</span></div>${n.audience?`<div class="aud"><strong>For:</strong> ${n.audience}</div>`:''} ${bens}${secsHtml}${n.keywords.length?`<div class="kw"><strong>Keywords:</strong> ${n.keywords.join(' · ')}</div>`:''}<div class="ft">Generated by Launchora · ${new Date().getFullYear()}</div></body></html>`;
 };
 
-const QUICK_START = (p,n) => `BUYER QUICK START GUIDE — ${n.title}\n${'═'.repeat(60)}\n\nWelcome! Here's how to get the most out of ${n.title} as fast as possible.\n\nWHAT THIS IS\n${hr()}\n${n.title} is a ${n.type} for ${n.audience||n.niche+' enthusiasts'}.\n${n.promise?'\nPROMISE:\n'+n.promise+'\n':''}\nHOW TO USE IT\n${hr()}\nSTEP 1: Skim the entire product once to understand the structure.\nSTEP 2: Work through these sections in order:\n${n.sections.slice(0,6).map((s,i)=>`   ${i+1}. ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\nSTEP 3: Take one action within 24 hours of downloading.\n\n${n.items.length>0?'KEY OUTCOMES\n'+hr()+'\n'+n.items.slice(0,5).map(b=>'✅ '+b).join('\n')+'\n':''}\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
+const QUICK_START = (p,n) => `BUYER QUICK START GUIDE — ${n.title}\n${'═'.repeat(60)}\n\nWelcome! Here's how to get the most out of ${n.title} as fast as possible.\n\nWHAT THIS IS\n${hr()}\n${n.title} is a ${n.type} for ${n.av.audiencePlural}.\n${n.promise?'\nPROMISE:\n'+n.promise+'\n':''}\nHOW TO USE IT\n${hr()}\nSTEP 1: Skim the entire product once to understand the structure.\nSTEP 2: Work through these sections in order:\n${n.sections.slice(0,6).map((s,i)=>`   ${i+1}. ${s.title||s.heading||'Section '+(i+1)}`).join('\n')}\nSTEP 3: Take one action within 24 hours of downloading.\n\n${n.items.length>0?'KEY OUTCOMES\n'+hr()+'\n'+n.items.slice(0,5).map(b=>'✅ '+b).join('\n')+'\n':''}\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
 
 const IMPL_CHECKLIST = (p,n) => {
   const list=n.items.length>0?n.items.map(b=>`□ ${b}`):n.sections.map((s,i)=>`□ Complete: ${s.title||s.heading||'Section '+(i+1)}`);
   return `IMPLEMENTATION CHECKLIST — ${n.title}\n${'═'.repeat(60)}\n\nYOUR ACTION LIST\n${hr()}\n${list.join('\n')}\n\nQUICK WINS\n${hr()}\n□ Read through once without acting\n□ Pick the single most relevant section\n□ Complete that section first\n□ Apply one strategy within 48 hours\n□ Share one insight with your network\n\nRESULT TRACKER\n${hr()}\nTarget: _______________\nReview date: _______________\nNotes:\n_______________________________________________\n_______________________________________________\n\nGenerated by Launchora | ${new Date().toLocaleDateString()}`;
 };
 
-const PRIMARY_LISTING = (p,n) => `PRIMARY PLATFORM LISTING — ${n.title}\n${'═'.repeat(60)}\nPlatform: ${n.platform}\n\nTITLE\n${hr()}\n${n.listingTitle}\n\nDESCRIPTION\n${hr()}\n${n.longDesc}\n\nFOR\n${hr()}\n${n.audience||n.niche+' professionals'}\n\nBENEFITS\n${hr()}\n${n.items.length>0?n.items.map(b=>'✅ '+b).join('\n'):'✅ Instant digital download\n✅ Professionally structured '+n.type+'\n✅ Ready to use immediately'}\n\nKEYWORDS\n${hr()}\n${n.keywords.join(', ')}\n\nPRICING: $${n.priceMin}–$${n.priceMax}${n.ma.price_rationale?'\n'+n.ma.price_rationale:''}\n\nCTA: ${n.ma.platform_cta||n.ma.cta||'Download instantly →'}\n${n.pg.pro_tips?.length?'\nPRO TIPS\n'+hr()+'\n'+n.pg.pro_tips.map((t,i)=>`${i+1}. ${t}`).join('\n'):''}`;
+const PRIMARY_LISTING = (p,n) => `PRIMARY PLATFORM LISTING — ${n.title}\n${'═'.repeat(60)}\nPlatform: ${n.platform}\n\nTITLE\n${hr()}\n${n.listingTitle}\n\nDESCRIPTION\n${hr()}\n${n.longDesc}\n\nFOR\n${hr()}\n${n.av.audiencePlural.charAt(0).toUpperCase()+n.av.audiencePlural.slice(1)}\n\nBENEFITS\n${hr()}\n${n.items.length>0?n.items.map(b=>'✅ '+b).join('\n'):'✅ Instant digital download\n✅ Professionally structured '+n.type+'\n✅ Ready to use immediately'}\n\nKEYWORDS\n${hr()}\n${n.keywords.join(', ')}\n\nPRICING: $${n.priceMin}–$${n.priceMax}${n.ma.price_rationale?'\n'+n.ma.price_rationale:''}\n\nCTA: ${n.ma.platform_cta||n.ma.cta||'Download instantly →'}\n${n.pg.pro_tips?.length?'\nPRO TIPS\n'+hr()+'\n'+n.pg.pro_tips.map((t,i)=>`${i+1}. ${t}`).join('\n'):''}`;
 
-const GUMROAD = (p,n) => `GUMROAD LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.title}${n.subtitle?' — '+n.subtitle:''}\nPRICE: $${n.priceMin} (enable Pay What You Want)\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\n\nFOR: ${n.audience||n.niche}\n\nTAGS: ${n.keywords.slice(0,10).join(', ')}\n\nTIPS:\n• Upload cover image (1280×720px)\n• Enable "Let buyers pay more"\n• Add thank-you redirect to your email opt-in`;
+const GUMROAD = (p,n) => `GUMROAD LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.title}${n.subtitle?' — '+n.subtitle:''}\nPRICE: $${n.priceMin} (enable Pay What You Want)\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\n\nFOR: ${n.av.audiencePlural}\n\nTAGS: ${n.keywords.slice(0,10).join(', ')}\n\nTIPS:\n• Upload cover image (1280×720px)\n• Enable "Let buyers pay more"\n• Add thank-you redirect to your email opt-in`;
 
-const ETSY = (p,n) => {const tags=n.keywords.slice(0,13).map(t=>t.slice(0,20));return `ETSY LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.keywords[0]?n.keywords[0]+' — ':''}${n.title}${n.subtitle?' | '+n.subtitle:''}\nPRICE: $${(n.priceMin-0.01).toFixed(2)}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nPerfect for: ${n.audience||n.niche}\n────────────────────\n✅ INSTANT DOWNLOAD | ✅ ${n.type} | ✅ Works on all devices\n────────────────────\n\nTAGS (13 max):\n${tags.map((t,i)=>`${i+1}. ${t}`).join('\n')}\n\nTIPS:\n• Use all 10 listing photos\n• Fill all attributes for search placement\n• Price below round numbers`;};
+const ETSY = (p,n) => {const tags=n.keywords.slice(0,13).map(t=>t.slice(0,20));return `ETSY LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.keywords[0]?n.keywords[0]+' — ':''}${n.title}${n.subtitle?' | '+n.subtitle:''}\nPRICE: $${(n.priceMin-0.01).toFixed(2)}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nPerfect for: ${n.av.audiencePlural}\n────────────────────\n✅ INSTANT DOWNLOAD | ✅ ${n.type} | ✅ Works on all devices\n────────────────────\n\nTAGS (13 max):\n${tags.map((t,i)=>`${i+1}. ${t}`).join('\n')}\n\nTIPS:\n• Use all 10 listing photos\n• Fill all attributes for search placement\n• Price below round numbers`;};
 
-const PAYHIP = (p,n) => `PAYHIP LISTING — ${n.title}\n${'═'.repeat(60)}\nNAME: ${n.title}\nTAGLINE: ${n.subtitle||n.promise||''}\nPRICE: $${n.priceMin}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nFOR: ${n.audience||n.niche}\nKEYWORDS: ${n.keywords.join(', ')}\n\nTIPS:\n• Enable Pay What You Want\n• Set up 30-50% affiliate commissions\n• Use Payhip email marketing for buyer follow-up`;
+const PAYHIP = (p,n) => `PAYHIP LISTING — ${n.title}\n${'═'.repeat(60)}\nNAME: ${n.title}\nTAGLINE: ${n.subtitle||n.promise||''}\nPRICE: $${n.priceMin}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nFOR: ${n.av.audiencePlural}\nKEYWORDS: ${n.keywords.join(', ')}\n\nTIPS:\n• Enable Pay What You Want\n• Set up 30-50% affiliate commissions\n• Use Payhip email marketing for buyer follow-up`;
 
-const CREATIVE_MARKET = (p,n) => `CREATIVE MARKET LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.title}\nTAGLINE: ${n.subtitle||n.promise||''}\nPRICE: $${n.priceMin}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nFOR: ${n.audience||n.niche+' professionals'}\n\nWHAT'S INCLUDED:\n${n.sections.slice(0,6).map((s,i)=>`• ${s.title||s.heading||'Section '+(i+1)}`).join('\n')||`• Complete ${n.type}\n• Ready to use immediately`}\n\nTAGS: ${n.keywords.slice(0,12).join(', ')}\n\nTIPS:\n• Show mockup as first image\n• Include free mini version to build trust`;
+const CREATIVE_MARKET = (p,n) => `CREATIVE MARKET LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.title}\nTAGLINE: ${n.subtitle||n.promise||''}\nPRICE: $${n.priceMin}\n\nDESCRIPTION\n${hr()}\n${n.promise?'✦ '+n.promise+'\n\n':''}${n.longDesc}\nFOR: ${n.av.audiencePlural}\n\nWHAT'S INCLUDED:\n${n.sections.slice(0,6).map((s,i)=>`• ${s.title||s.heading||'Section '+(i+1)}`).join('\n')||`• Complete ${n.type}\n• Ready to use immediately`}\n\nTAGS: ${n.keywords.slice(0,12).join(', ')}\n\nTIPS:\n• Show mockup as first image\n• Include free mini version to build trust`;
 
 const DESC_SHORT = (p,n) => `SHORT DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\nONE PARAGRAPH:\n${n.shortDesc}\n\nTWEET / BIO VERSION:\n${n.title} — ${n.promise?n.promise.slice(0,100):n.subtitle||'Complete '+n.type+' for '+n.niche}. $${n.priceMin}. Download instantly →\n\nHEADLINE VARIATIONS:\n1. ${n.title} — ${n.promise||'The Complete '+n.type}\n2. The ${n.niche} ${n.type} Built for ${n.audience?n.audience.split(' ').slice(0,5).join(' ')+'...':'Real Results'}\n3. ${n.keywords[0]?n.keywords[0].charAt(0).toUpperCase()+n.keywords[0].slice(1)+': ':'' }${n.title}`;
 
-const DESC_LONG = (p,n) => `LONG-FORM DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\n\nHEADLINE: ${n.promise||n.title}\n\nTHE STORY\n${hr()}\nIf you're ${n.audience||'working in '+n.niche}, you know how hard it is to find resources that actually deliver.\n\n${n.problem?'THE PROBLEM:\n'+n.problem+'\n\n':''}Most options are too generic, too expensive, or too complicated. That changes today.\n\nIntroducing ${n.title} — a ${n.type} built for ${n.audience||n.niche+' professionals'}.\n\nWHAT'S INSIDE\n${hr()}\n${n.sections.slice(0,8).map((s,i)=>`${i+1}. ${s.title||s.heading||'Module '+(i+1)}`).join('\n')}\n\nWHAT YOU GET\n${hr()}\n✅ Instant digital download\n✅ ${n.type} — professionally structured\n${n.items.slice(0,4).map(b=>'✅ '+b).join('\n')}\n\nPRICE: $${n.priceMin}${n.priceMax>n.priceMin?' (regular: $'+n.priceMax+')':''}\n\n${n.ma.platform_cta||n.ma.cta||'Click the button and download instantly →'}`;
+const DESC_LONG = (p,n) => `LONG-FORM DESCRIPTION — ${n.title}\n${'═'.repeat(60)}\n\nHEADLINE: ${n.promise||n.title}\n\nTHE STORY\n${hr()}\nIf you work in ${n.niche}, you know how hard it is to find resources that actually deliver.\n\n${n.problem?'THE PROBLEM:\n'+n.problem+'\n\n':''}Most options are too generic, too expensive, or too complicated. That changes today.\n\nIntroducing ${n.title} — a ${n.type} built for ${n.av.audiencePlural}.\n\nWHAT'S INSIDE\n${hr()}\n${n.sections.slice(0,8).map((s,i)=>`${i+1}. ${s.title||s.heading||'Module '+(i+1)}`).join('\n')}\n\nWHAT YOU GET\n${hr()}\n✅ Instant digital download\n✅ ${n.type} — professionally structured\n${n.items.slice(0,4).map(b=>'✅ '+b).join('\n')}\n\nPRICE: $${n.priceMin}${n.priceMax>n.priceMin?' (regular: $'+n.priceMax+')':''}\n\n${n.ma.platform_cta||n.ma.cta||'Click the button and download instantly →'}`;
 
 const PRICING = (p,n) => `PRICING STRATEGY — ${n.title}\n${'═'.repeat(60)}\nRECOMMENDED: $${n.priceMin}–$${n.priceMax}\n${n.ma.price_rationale?'\nRATIONALE:\n'+n.ma.price_rationale+'\n':''}\nOPTION A — ENTRY: $${n.priceMin}\nBest for new audiences. Maximum volume. Works on Gumroad, Etsy.\n\nOPTION B — STANDARD: $${Math.round((n.priceMin+n.priceMax)/2)}\nBest for warm audiences. Signals credibility.\n\nOPTION C — PREMIUM: $${n.priceMax}\nBest for existing customers and niche experts. Requires testimonials.\n\nLAUNCH STRATEGY\n${hr()}\n• Launch at $${n.priceMin} for first 72 hours\n• Announce the price increase to create urgency\n• Raise to $${Math.round((n.priceMin+n.priceMax)/2)} after launch window\n• Bundle with another product for $${Math.round(n.priceMax*1.8)}\n\nPLATFORM TIPS\n${hr()}\n• Gumroad: Enable Pay What You Want (min $${n.priceMin})\n• Etsy: Price at $${(n.priceMin-0.01).toFixed(2)} (below round number)\n• Payhip: Use affiliates to drive volume\n• Shopify: Set Compare At to $${n.priceMax}`;
 
@@ -1446,7 +1501,6 @@ Goal:         Final conversions, close the launch window, raise price after toda
 
 const EMAIL1 = (p,n) => {
   const c = socialCtx(n);
-  const audience = n.audience || `${n.niche} professionals`;
   const promise = n.promise || `transform your ${n.niche} brand with ${n.title}`;
   const templateList = n.sections.length > 0
     ? n.sections.slice(0,5).map(s => `• ${s.title||s.heading}`).join('\n')
@@ -1468,7 +1522,7 @@ Today's the day — ${n.title} is officially available.
 
 ${promise.charAt(0).toUpperCase() + promise.slice(1)}.
 
-This ${n.type} was built specifically for ${audience}. Not a generic template pack you've seen recycled a hundred times — every layout, every copy block, and every design choice was made with one goal: to make your ${c.materialWord} look like they came from a studio charging ten times what you paid.
+This ${n.type} was built specifically for ${n.av.audiencePlural}. Not a generic template pack you've seen recycled a hundred times — every layout, every copy block, and every design choice was made with one goal: to make your ${c.materialWord} look like they came from a studio charging ten times what you paid.
 
 Here's what's inside:
 
@@ -1490,7 +1544,6 @@ P.S. If you know another ${n.niche} professional who's been meaning to upgrade t
 
 const EMAIL2 = (p,n) => {
   const c = socialCtx(n);
-  const audience = n.audience || `${n.niche} professionals`;
   const painPoint = n.pa?.painPoint || `losing high-value clients to competitors with more polished ${c.materialWord}`;
   const transformation = n.pa?.transformation || `look like the premium choice in every client-facing moment`;
   return `EMAIL 2 — EDUCATIONAL VALUE
@@ -1523,7 +1576,7 @@ Here's what separates them visually:
 → A property brochure where every image has been cropped and treated consistently
 → An agent bio that reads as authority — statistics, credentials, and a confident tone
 
-Every template in ${n.title} was built around these exact principles. Not generic layouts repurposed from a business toolkit — specific files designed for ${audience} who understand that design is a sales tool.
+Every template in ${n.title} was built around these exact principles. Not generic layouts repurposed from a business toolkit — specific files designed for ${n.av.audiencePlural} who understand that design is a sales tool.
 
 ${transformation.charAt(0).toUpperCase() + transformation.slice(1)}.
 
@@ -1536,7 +1589,6 @@ P.S. Tomorrow I'm sending one more email about what happens when ${c.clientWord}
 
 const EMAIL3 = (p,n) => {
   const c = socialCtx(n);
-  const audience = n.audience || `${n.niche} professionals`;
   const painPoint = n.pa?.painPoint || `losing clients to better-presented competitors`;
   const promise = n.promise || `transform your visual brand from generic to premium`;
   return `EMAIL 3 — PROBLEM AWARE
@@ -1565,7 +1617,7 @@ And here's the part that makes it worse: you'll never know. The seller won't tel
 
 This is why ${n.title} exists.
 
-It's a ${n.type} built so that ${audience} never walk into a listing appointment undermined by their own marketing materials. Every template — from the cover page to the property brochure to the market report — is designed to signal one thing to a high-net-worth seller:
+It's a ${n.type} built so that ${n.av.audiencePlural} never walk into a listing appointment undermined by their own marketing materials. Every template — from the cover page to the property brochure to the market report — is designed to signal one thing to a high-net-worth seller:
 
 "This agent takes presentation as seriously as I take my property."
 
@@ -1580,7 +1632,6 @@ P.S. Tomorrow's email breaks down exactly what's inside — every template, ever
 
 const EMAIL4 = (p,n) => {
   const c = socialCtx(n);
-  const audience = n.audience || `${n.niche} professionals`;
   const templateList = n.sections.length > 0
     ? n.sections.slice(0,7).map((s,i) => `${i+1}. ${s.title||s.heading}`).join('\n')
     : `1. Luxury Listing Presentation Cover
@@ -1655,7 +1706,7 @@ At [TIME] tonight, the price moves from $${n.priceMin} to $${n.priceMax}. That's
 
 If you've been on the fence, here's the short version of what you're getting for $${n.priceMin}:
 
-A ${n.type} built for ${n.niche} professionals who are done watching less experienced agents win listings because their brand looks more polished.
+A ${n.type} built for ${n.av.audiencePlural} who are done losing ground to competitors whose brand looks more polished.
 
 ${promise.charAt(0).toUpperCase() + promise.slice(1)}.
 
@@ -1736,9 +1787,9 @@ const READINESS = (p,n) => {
   return `LAUNCH READINESS REPORT — ${n.title}\n${'═'.repeat(60)}\nGenerated: ${new Date().toLocaleDateString()}\n${'═'.repeat(60)}\n\nOVERALL READINESS: ${pct}% (${score}/${total} checks passed)\n${bar}\n\n${'═'.repeat(60)}\nCHECKS BY CATEGORY\n${'═'.repeat(60)}\n${allChecksBlock}\n${failedBlock}\n${'═'.repeat(60)}\nPRODUCT SUMMARY\n${hr()}\nTitle:    ${n.title}\nType:     ${n.type} | Niche: ${n.niche} | Platform: ${n.platform}\nPrice:    $${n.priceMin} (launch) → $${n.priceMax} (post-launch)\nSections: ${st} total | ${swc.length} with substantial content\nKeywords: ${n.keywords.length} | Product Angle: ${!!(n.pa.finalAngle||n.pa.painPoint)?'Yes':'No'}\nPlaceholder Issues: ${globalPH?'Yes — '+phFound.length+' instance(s) found':'None detected'}\n\n${'═'.repeat(60)}\nVERDICT\n${hr()}\n${verdict}\n`;
 };
 
-const AVATAR = (p,n) => `CUSTOMER AVATAR — ${n.title}\n${'═'.repeat(60)}\n\nWHO THEY ARE\n${hr()}\n${n.audience||n.niche+' enthusiasts and professionals'}\n\n${n.buyer?'DETAILED PROFILE:\n'+n.buyer+'\n\n':''}\nPAIN POINT\n${hr()}\n${n.pa.painPoint||n.problem||'Struggling to find clear, actionable guidance in '+n.niche+' that actually moves the needle.'}\n\nWHAT THEY WANT\n${hr()}\n${n.pa.transformation||n.promise||'To go from overwhelmed to confident in '+n.niche+'.'}\n\nWHAT MAKES THEM BUY\n${hr()}\nEmotional hook: ${n.pa.emotionalHook||'Feeling in control and having a trusted system'}\n• They've tried other options and been disappointed\n• They trust the creator\n• The price is a no-brainer vs staying stuck\n\nWHERE TO FIND THEM\n${hr()}\n• Instagram/TikTok: #${n.niche.replace(/\s+/g,'')}\n• Pinterest: "${n.niche} tips", "${n.type} ${n.niche}"\n• Etsy: "${n.keywords[0]||n.niche} ${n.type}"\n• Reddit/Facebook Groups: ${n.niche} communities`;
+const AVATAR = (p,n) => `CUSTOMER AVATAR — ${n.title}\n${'═'.repeat(60)}\n\nWHO THEY ARE\n${hr()}\n${n.av.audiencePlural.charAt(0).toUpperCase()+n.av.audiencePlural.slice(1)}\n\n${n.buyer?'DETAILED PROFILE:\n'+n.buyer+'\n\n':''}\nPAIN POINT\n${hr()}\n${n.pa.painPoint||n.problem||'Struggling to find clear, actionable guidance in '+n.niche+' that actually moves the needle.'}\n\nWHAT THEY WANT\n${hr()}\n${n.pa.transformation||n.promise||'To go from overwhelmed to confident in '+n.niche+'.'}\n\nWHAT MAKES THEM BUY\n${hr()}\nEmotional hook: ${n.pa.emotionalHook||'Feeling in control and having a trusted system'}\n• They've tried other options and been disappointed\n• They trust the creator\n• The price is a no-brainer vs staying stuck\n\nWHERE TO FIND THEM\n${hr()}\n• Instagram/TikTok: #${n.niche.replace(/\s+/g,'')}\n• Pinterest: "${n.niche} tips", "${n.type} ${n.niche}"\n• Etsy: "${n.keywords[0]||n.niche} ${n.type}"\n• Reddit/Facebook Groups: ${n.niche} communities`;
 
-const FAQ = (p,n) => `FAQ — ${n.title}\n${'═'.repeat(60)}\n\nQ: What is ${n.title}?\nA: A ${n.type} for ${n.audience||n.niche+' enthusiasts'}. ${n.promise||'It gives you everything you need to get results in '+n.niche+'.'}\n\nQ: Who is this for?\nA: ${n.audience||'Anyone working in '+n.niche+' who wants a clearer, more structured approach.'}\n\nQ: Is this a physical product?\nA: No — it's a digital download. You receive your link immediately after purchase.\n\nQ: How do I access it after purchase?\nA: You'll get an email with your download link immediately. You can also re-download anytime from your receipt.\n\nQ: Do I need special software?\nA: No. The files work with standard apps on any device.\n\nQ: What if I'm not satisfied?\nA: Contact the seller directly. Most sellers offer a satisfaction guarantee.\n\nQ: Can I share this with others?\nA: For personal use only. Please don't share or resell the file.\n\nQ: How is this better than free content?\nA: ${n.title} is specifically structured for ${n.audience||n.niche+' professionals'} and goes far deeper. ${n.promise||'Designed to save you time and get faster results.'}`;
+const FAQ = (p,n) => `FAQ — ${n.title}\n${'═'.repeat(60)}\n\nQ: What is ${n.title}?\nA: A ${n.type} for ${n.av.audiencePlural}. ${n.promise||'It gives you everything you need to get results in '+n.niche+'.'}\n\nQ: Who is this for?\nA: ${n.av.audienceContextSentence}\n\nQ: Is this a physical product?\nA: No — it's a digital download. You receive your link immediately after purchase.\n\nQ: How do I access it after purchase?\nA: You'll get an email with your download link immediately. You can also re-download anytime from your receipt.\n\nQ: Do I need special software?\nA: No. The files work with standard apps on any device.\n\nQ: What if I'm not satisfied?\nA: Contact the seller directly. Most sellers offer a satisfaction guarantee.\n\nQ: Can I share this with others?\nA: For personal use only. Please don't share or resell the file.\n\nQ: How is this better than free content?\nA: ${n.title} is structured specifically for ${n.av.audiencePlural} and goes far deeper than generic resources. ${n.promise||'Designed to save you time and get faster results.'}`;
 
 const UPSELL = (p,n) => {
   const isRE=/real.estate|realt|property|listing|agent/i.test(n.niche+n.title);
