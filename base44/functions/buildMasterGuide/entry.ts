@@ -1015,6 +1015,703 @@ export function buildMasterGuideMarkdown(n, product) {
   return lines.join('\n');
 }
 
+// ── HTML Builder ───────────────────────────────────────────────────────────────
+export function buildMasterGuideHTML(n, product) {
+  const combined = (n.niche || '').toLowerCase() + ' ' + (n.title || '').toLowerCase();
+  const isRE = /real.estate|realt|property|listing|agent|luxury/.test(combined);
+  const isTP = (n.type || '').toLowerCase().includes('template');
+  const vs = getVisualStyle(n);
+  const qsSteps = getQuickStartSteps(n);
+  const checklistRows = getChecklistRows(n);
+  const templateCases = isTP ? deriveTemplateNames(n) : [];
+  const reCopy = isRE ? getRECopyBank() : null;
+  const now = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  const safe = s => String(s || '').replace(/\bnull\b/g,'').replace(/\bundefined\b/g,'').replace(/\bNaN\b/g,'').trim();
+  const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const cap = s => s && s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  const aud = n.av || {};
+  const pa = n.pa || {};
+  const ma = n.ma || {};
+
+  // Niche-driven palette
+  const accent = isRE ? '#C8B89A' : vs.colors[0]?.hex || '#C8B89A';
+  const accentDark = isRE ? '#8C6D4F' : '#7A5C3A';
+  const accentBg = isRE ? '#F7E7CE' : '#FEF3E2';
+  const headingFont = isRE
+    ? "'Playfair Display', 'Cormorant Garamond', Georgia, serif"
+    : vs.colors[0] ? "'Lora', Georgia, serif" : "'Lora', Georgia, serif";
+  const bodyFont = "'Inter', 'Montserrat', -apple-system, sans-serif";
+
+  const css = `
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500;600&family=Montserrat:wght@300;400;500;600&display=swap');
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #FAF9F6;
+      --surface: #FFFFFF;
+      --text: #2C2C2C;
+      --muted: #6B6B6B;
+      --border: #E0DDD8;
+      --accent: ${accent};
+      --accent-dark: ${accentDark};
+      --accent-bg: ${accentBg};
+      --heading-font: ${headingFont};
+      --body-font: ${bodyFont};
+    }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      font-family: var(--body-font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      font-weight: 400;
+      -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 860px; margin: 0 auto; padding: 0 2rem 6rem; }
+
+    /* ── Cover ── */
+    .cover {
+      background: var(--surface);
+      border-bottom: 3px solid var(--accent);
+      padding: 5rem 3rem 4rem;
+      margin-bottom: 0;
+      text-align: center;
+    }
+    .cover-eyebrow {
+      font-family: var(--body-font);
+      font-size: 0.7rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent-dark);
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+    }
+    .cover h1 {
+      font-family: var(--heading-font);
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      line-height: 1.15;
+      color: #1A1A1A;
+      margin-bottom: 1rem;
+      letter-spacing: -0.01em;
+    }
+    .cover .subtitle {
+      font-family: var(--body-font);
+      font-size: 1.05rem;
+      color: var(--muted);
+      font-weight: 300;
+      margin-bottom: 2.5rem;
+      font-style: italic;
+    }
+    .cover-meta {
+      display: inline-grid;
+      grid-template-columns: auto auto;
+      gap: 0.4rem 2rem;
+      text-align: left;
+      background: var(--accent-bg);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 1.25rem 2rem;
+      margin-top: 1rem;
+    }
+    .cover-meta dt { font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-dark); font-weight: 600; }
+    .cover-meta dd { font-size: 0.9rem; color: var(--text); font-weight: 500; }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 2rem 2.5rem;
+      margin: 2.5rem 0;
+    }
+    .toc h2 { font-family: var(--heading-font); font-size: 1rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; font-weight: 600; }
+    .toc ol { list-style: none; counter-reset: toc; }
+    .toc li { counter-increment: toc; display: flex; align-items: baseline; gap: 0.75rem; padding: 0.3rem 0; border-bottom: 1px dotted var(--border); }
+    .toc li:last-child { border-bottom: none; }
+    .toc li::before { content: counter(toc, decimal-leading-zero); font-size: 0.7rem; color: var(--accent-dark); font-weight: 700; min-width: 1.5rem; }
+    .toc a { color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; }
+    .toc a:hover { color: var(--accent-dark); }
+
+    /* ── Sections ── */
+    section { padding: 3.5rem 0 0; }
+    section + section { border-top: 1px solid var(--border); }
+    .section-label {
+      font-size: 0.65rem;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--accent-dark);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+    h2 {
+      font-family: var(--heading-font);
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 700;
+      color: #1A1A1A;
+      line-height: 1.2;
+      margin-bottom: 2rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 2px solid var(--accent-bg);
+    }
+    h3 {
+      font-family: var(--heading-font);
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #1A1A1A;
+      margin: 2rem 0 0.75rem;
+    }
+    h4 { font-size: 0.85rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin: 1.5rem 0 0.5rem; }
+    p { margin-bottom: 1rem; color: var(--text); }
+    strong { font-weight: 600; color: #1A1A1A; }
+    em { font-style: italic; }
+
+    /* ── Callout / Blockquote ── */
+    blockquote, .callout {
+      background: var(--accent-bg);
+      border-left: 4px solid var(--accent-dark);
+      border-radius: 0 8px 8px 0;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0;
+      font-style: italic;
+      color: #3A2A1A;
+    }
+    blockquote strong, .callout strong { font-style: normal; }
+    .callout-note {
+      background: #F0F4FF;
+      border-left: 4px solid #6B7FD7;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.5rem;
+      margin: 1.25rem 0;
+      font-size: 0.9rem;
+      color: #2A3060;
+    }
+    .callout-warn {
+      background: #FFF8E7;
+      border-left: 4px solid #D4A017;
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.5rem;
+      margin: 1.25rem 0;
+      font-size: 0.9rem;
+      color: #5C4000;
+    }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; margin: 1.25rem 0; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    thead tr { background: #2C2C2C; color: #FFFFFF; }
+    thead th { padding: 0.75rem 1rem; text-align: left; font-weight: 600; letter-spacing: 0.04em; font-size: 0.75rem; text-transform: uppercase; }
+    tbody tr:nth-child(even) { background: #F7F5F2; }
+    tbody td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    tbody tr:last-child td { border-bottom: none; }
+    .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.15); vertical-align: middle; margin-right: 6px; }
+    code { background: #F0EDEA; color: #5C3D1E; border-radius: 4px; padding: 0.1em 0.4em; font-size: 0.82em; font-family: 'SF Mono', 'Fira Code', monospace; }
+
+    /* ── Lists ── */
+    ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.4rem; }
+    ul.checklist { list-style: none; padding-left: 0; }
+    ul.checklist li { display: flex; align-items: flex-start; gap: 0.6rem; padding: 0.4rem 0; border-bottom: 1px dotted var(--border); }
+    ul.checklist li:last-child { border-bottom: none; }
+    ul.checklist .check-box { width: 18px; height: 18px; min-width: 18px; border: 2px solid var(--accent); border-radius: 4px; display: inline-block; margin-top: 2px; }
+
+    /* ── Step cards ── */
+    .steps { display: flex; flex-direction: column; gap: 1rem; margin: 1.5rem 0; }
+    .step-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .step-num {
+      background: #1A1A1A;
+      color: #FFFFFF;
+      font-size: 0.75rem;
+      font-weight: 700;
+      min-width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+    }
+    .step-card h4 { margin: 0 0 0.35rem; text-transform: none; letter-spacing: 0; color: #1A1A1A; font-size: 0.95rem; }
+    .step-card p { margin: 0; font-size: 0.875rem; color: var(--muted); }
+
+    /* ── Template card ── */
+    .template-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 4px solid var(--accent);
+      border-radius: 0 0 10px 10px;
+      padding: 1.75rem 2rem;
+      margin: 2rem 0;
+    }
+    .template-card h3 { margin: 0 0 0.25rem; }
+    .template-badge { display: inline-block; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; background: var(--accent-bg); color: var(--accent-dark); border-radius: 4px; padding: 0.2em 0.6em; font-weight: 700; margin-bottom: 1rem; }
+    .template-copy { background: #F7F5F2; border-radius: 8px; padding: 1rem 1.25rem; margin: 0.75rem 0; font-size: 0.875rem; font-style: italic; color: #3A2A1A; border-left: 3px solid var(--accent); }
+    .tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+    .tag { background: var(--accent-bg); color: var(--accent-dark); border-radius: 100px; padding: 0.25em 0.8em; font-size: 0.72rem; font-weight: 600; }
+
+    /* ── Copy bank ── */
+    .copy-list { list-style: none; padding: 0; }
+    .copy-list li {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1.1rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+      position: relative;
+      padding-left: 2.5rem;
+    }
+    .copy-list li::before {
+      content: attr(data-n);
+      position: absolute;
+      left: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--accent-dark);
+    }
+
+    /* ── Day cards ── */
+    .day-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem 1.75rem;
+      margin: 1.25rem 0;
+    }
+    .day-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+    .day-num { background: #1A1A1A; color: #FFF; font-size: 0.75rem; font-weight: 700; padding: 0.35em 0.75em; border-radius: 100px; letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+    .day-title { font-family: var(--heading-font); font-size: 1.05rem; font-weight: 600; }
+    .day-objective { background: var(--accent-bg); border-radius: 6px; padding: 0.6rem 0.9rem; font-size: 0.85rem; color: var(--accent-dark); font-style: italic; margin-bottom: 1rem; }
+    .day-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .day-col h4 { margin-top: 0; }
+    .day-cta { background: #1A1A1A; color: #FFF; border-radius: 6px; padding: 0.6rem 0.9rem; font-size: 0.82rem; margin-top: 0.75rem; font-style: italic; }
+    .metric { font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px dotted var(--border); }
+
+    /* ── FAQ ── */
+    .faq-item { border-bottom: 1px solid var(--border); padding: 1.25rem 0; }
+    .faq-q { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.925rem; }
+    .faq-a { font-size: 0.875rem; color: var(--muted); }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 3rem 0; }
+    .divider-ornament { text-align: center; color: var(--accent); font-size: 1.2rem; margin: 2.5rem 0; user-select: none; }
+
+    /* ── Footer ── */
+    .doc-footer { text-align: center; font-size: 0.75rem; color: var(--muted); padding: 3rem 0 1rem; border-top: 1px solid var(--border); margin-top: 4rem; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #FFF; font-size: 11pt; }
+      .container { max-width: 100%; padding: 0; }
+      .cover { padding: 2rem 1.5rem; }
+      section.page-break { page-break-before: always; }
+      .template-card, .day-card, .step-card { break-inside: avoid; }
+      table { break-inside: auto; }
+      thead { display: table-header-group; }
+      .toc { page-break-after: always; }
+      a { text-decoration: none; color: inherit; }
+    }
+    @media (max-width: 640px) {
+      .cover { padding: 3rem 1.25rem 2rem; }
+      .container { padding: 0 1rem 4rem; }
+      .cover-meta { grid-template-columns: 1fr; gap: 0.3rem; padding: 1rem 1.25rem; }
+      .day-grid { grid-template-columns: 1fr; }
+      h2 { font-size: 1.35rem; }
+    }
+  `;
+
+  // ── helpers ──
+  const rows = (arr, cols) => `<div class="table-wrap"><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${arr.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  const checklistTable = (items) => `<div class="table-wrap"><table><thead><tr><th>Phase</th><th>Task</th><th style="width:70px;text-align:center">Done</th></tr></thead><tbody>${items.map(r=>`<tr><td><strong>${esc(r.phase)}</strong></td><td>${esc(r.task)}</td><td style="text-align:center;font-size:1.1rem">☐</td></tr>`).join('')}</tbody></table></div>`;
+  const faqHTML = (faqs) => faqs.map(([q,a])=>`<div class="faq-item"><div class="faq-q">${esc(q)}</div><div class="faq-a">${esc(a).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')}</div></div>`).join('');
+  const stepCards = (steps) => `<div class="steps">${steps.map((s,i)=>`<div class="step-card"><div class="step-num">${i+1}</div><div><h4>${esc(s.title)}</h4><p>${esc(s.body)}</p></div></div>`).join('')}</div>`;
+
+  // ── TOC items ──
+  const tocSections = ['Product Overview','Visual Style Guide','Customer Avatar','Buyer Quick Start Guide','Implementation Checklist'];
+  if (isTP) tocSections.push('Template Assets');
+  tocSections.push('Copy Banks','Platform Listing Copy','Pricing Strategy','FAQ','Upsell Ideas','7-Day Launch Plan');
+  const tocId = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  const tocHTML = `<nav class="toc"><h2>Contents</h2><ol>${tocSections.map(s=>`<li><a href="#${tocId(s)}">${esc(s)}</a></li>`).join('')}</ol></nav>`;
+
+  // ── Cover meta ──
+  const metaRows = [
+    ['Product Type', safe(n.type)],
+    ['Niche', safe(n.niche)],
+    ['Platform', safe(n.platform)],
+    ['Launch Price', `$${n.priceMin}`],
+    ['Standard Price', `$${Math.round((n.priceMin+n.priceMax)/2)}`],
+    ['Premium Price', `$${n.priceMax}`],
+    ['For', cap(safe(aud.audiencePlural||''))],
+    ['Generated', now],
+  ];
+  const coverMeta = `<dl class="cover-meta">${metaRows.map(([k,v])=>`<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>`;
+
+  // ── Color palette swatches ──
+  const colorRows = vs.colors.map(c=>[`<span class="swatch" style="background:${c.hex}"></span><strong>${esc(c.name)}</strong>`,`<code>${esc(c.hex)}</code>`,esc(c.usage)]);
+  const colorTable = rows(colorRows,['Color','Hex','Usage']);
+
+  // ── Template assets section ──
+  let templateAssetsHTML = '';
+  if (isTP && templateCases.length > 0) {
+    templateAssetsHTML = templateCases.map((useCase, idx) => {
+      const isPresentation = /pitch|deck|slide|presentation|cover/i.test(useCase);
+      const isFlyer = /flyer|poster|card|invitation|certificate/i.test(useCase);
+      const isReport = /report|summary|analysis|audit|profile|bio/i.test(useCase);
+      const primaryHeadline = isRE ? (RE_TEMPLATE_HEADLINES[idx]||'Presented with Distinction') : `${n.niche} ${useCase} — Professional Blueprint`;
+      const qcRows = getTemplateQCRows(useCase, n);
+      const bestUse = isPresentation ? `Client-facing presentations and new business pitches in ${n.niche}` : isFlyer ? `Promotions, events, and marketing announcements in ${n.niche}` : isReport ? `Professional reports, summaries, and data presentations for ${n.niche} clients` : `Day-to-day professional documentation and client-facing materials in ${n.niche}`;
+      const exportFmt = isPresentation ? 'PDF (print-ready, 300 DPI) + PNG (digital)' : isFlyer ? 'PDF (A5 or A4) + PNG + JPG' : 'PDF (professional delivery)';
+      const slug = useCase.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+      return `<div class="template-card">
+        <span class="template-badge">Template ${idx+1}</span>
+        <h3>${esc(useCase)}</h3>
+        <p style="font-size:.8rem;color:var(--muted);margin-bottom:.75rem"><code>${slug}</code> &nbsp;·&nbsp; Best use: ${esc(bestUse)}</p>
+        <div class="callout"><strong>Primary Headline:</strong> ${esc(primaryHeadline)}</div>
+        <h4>Quality Control Checklist</h4>
+        ${rows(qcRows.map(r=>[esc(r),'☐']),['Check','Verified'])}
+        <h4>Export Format</h4>
+        <p style="font-size:.875rem">${esc(exportFmt)}</p>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Copy bank ──
+  let copyBankHTML = '';
+  if (isRE && reCopy) {
+    const salesHeads = [
+      `${templateCases.length} ${n.niche} Template Blueprints — Layout + Copy, Instantly Buildable`,
+      `Stop Presenting with Generic Templates — Here's the Blueprint System Built for ${aud.audienceShort}`,
+      `$${n.priceMin} for ${templateCases.length} ${n.niche} Template Blueprints. Download and Build Today.`,
+      `The ${n.niche} Blueprint Kit That Tells You Exactly What to Build, Write, and Deliver`,
+      `Look Like the Premium Option Before You Say a Word — ${n.title}`,
+    ];
+    copyBankHTML = `
+      <h3>A) Selling This Product — Headline Bank</h3>
+      <ul class="copy-list">${salesHeads.map((h,i)=>`<li data-n="${i+1}">${esc(h)}</li>`).join('')}</ul>
+      <h3>B) Client-Facing Headline Bank</h3>
+      <ul class="copy-list">${reCopy.headlines.map((h,i)=>`<li data-n="${i+1}">${esc(h)}</li>`).join('')}</ul>
+      <h3>Property Description Copy</h3>
+      ${reCopy.propertyDesc.map((d,i)=>`<blockquote><strong>Option ${i+1}:</strong> ${esc(d)}</blockquote>`).join('')}
+      <h3>Agent Bio Copy</h3>
+      ${reCopy.agentBio.map((b,i)=>`<blockquote><strong>Option ${i+1}:</strong> ${esc(b)}</blockquote>`).join('')}
+      <h3>Seller Pitch Copy</h3>
+      ${reCopy.sellerPitch.map((s,i)=>`<blockquote><strong>Option ${i+1}:</strong> ${esc(s)}</blockquote>`).join('')}`;
+  } else {
+    const heads = [
+      `${n.title} — The Complete ${n.type} Built for ${aud.audienceShort||n.niche}`,
+      `Stop Guessing. Start Building. ${n.title} Gives You the Blueprint.`,
+      `$${n.priceMin} for Everything You Need to Look Like the Premium Option`,
+      `${n.title}: ${templateCases.length||(n.sections||[]).length}+ Templates. Instant Download. Professional Results.`,
+      `The ${n.niche} ${n.type} That Saves You Hours of Design Guesswork`,
+    ];
+    copyBankHTML = `<h3>Headline Bank</h3><ul class="copy-list">${heads.map((h,i)=>`<li data-n="${i+1}">${esc(h)}</li>`).join('')}</ul>`;
+  }
+
+  // ── Platform tips table ──
+  const platTips = [
+    ['Gumroad',`$${n.priceMin}`,`Enable Pay What You Want (minimum $${n.priceMin}). Buyers often pay more.`],
+    ['Etsy',`$${(n.priceMin-0.01).toFixed(2)}`,`Fill all 13 tags. Showcase blueprint content in listing photos.`],
+    ['Payhip',`$${n.priceMin}`,`Set up 30–50% affiliate commissions to drive volume.`],
+    ['Creative Market',`$${n.priceMin}`,`Clearly state this is a blueprint system, not design source files.`],
+  ].map(r=>r.map(esc));
+  const platTable = rows(platTips,['Platform','Price','Key Tip']);
+
+  // ── Pricing table ──
+  const pricingRows = [
+    [`<strong>Launch Price</strong>`,`$${n.priceMin}`,`First 72 hours only — maximum momentum`],
+    [`<strong>Standard Price</strong>`,`$${Math.round((n.priceMin+n.priceMax)/2)}`,`Post-launch — warm audience`],
+    [`<strong>Premium Price</strong>`,`$${n.priceMax}`,`Established position, with testimonials`],
+  ];
+  const pricingTable = `<div class="table-wrap"><table><thead><tr><th>Price Point</th><th>Amount</th><th>Context</th></tr></thead><tbody>${pricingRows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+
+  // ── FAQ ──
+  const faqs = [
+    ['What files are included?', isTP ? `${templateCases.length} template blueprint files plus Copy_Bank, Headline_Bank, CTA_Bank, platform listing copy, social media content, 5-email launch sequence, 7-day launch plan, and bonus strategy files.` : `The complete ${n.type} in multiple formats, plus platform listing copy, social media content, email launch sequence, 7-day launch plan, and bonus files.`],
+    ['Is this a Canva / InDesign / Figma file?', isTP ? `No. This is a **template blueprint system** — layout specs, copy blocks, field guides. Not Canva source files. You build the templates in your preferred design tool using the blueprints.` : `This is a ${n.type} delivered as a digital download. Not a design source file.`],
+    ['Do I need design software?', `Basic familiarity with Canva, PowerPoint, or any document editor is sufficient. Each blueprint provides step-by-step layout guidance.`],
+    ['Are fonts included?', `Font recommendations are in the Visual Style Guide. All recommended fonts are available free via Google Fonts (fonts.google.com).`],
+    ['Are images included?', `No stock photography is included. Required image specs are listed in each template's Required Assets section. Free photography: Unsplash, Pexels.`],
+    ['Can I use this commercially?', `Yes — for your own professional use. You may not redistribute or resell the original files.`],
+    ['Can I resell the files?', `No. This product is for personal and professional use only.`],
+  ];
+
+  // ── Launch days ──
+  const launchDays = [
+    { day:1, title:'Launch Day', objective:'Go live and capture first-buyer momentum', tasks:[`Publish product on ${n.platform}`,`Update bio link on all social platforms`,`Send Email 1 (Announcement)`], platform:['Instagram: Launch Announcement post','LinkedIn: Post 4 — announce to professional network'], cta:`"Download at [LINK] — launch price $${n.priceMin}, going up [DATE]"`, metric:`3+ sales. 50+ bio link clicks.` },
+    { day:2, title:'Education + Reach', objective:'Reach new audience through value-first content', tasks:['Post short-form video on TikTok or Reels','Reply to Day 1 comments and DMs','Share behind-the-scenes story'], platform:['TikTok/Reels: Before/After Reveal (no selling)','Stories: Quick scroll of templates'], cta:`"Save this post — grab the pack at the link in bio"`, metric:`500+ video views. 10+ saves.` },
+    { day:3, title:'Value + Email', objective:'Build trust and overcome objections', tasks:['Send Email 2 (Educational Value)','Post "What\'s Inside" carousel','Reply to product DMs'], platform:['Instagram + LinkedIn: Carousel — show every template'], cta:`"Last slide has the link. $${n.priceMin} for the full pack."`, metric:`3%+ email click rate. 5+ saves.` },
+    { day:4, title:'Authority + Professional Reach', objective:'Build credibility; reach B2B segment', tasks:['Post LinkedIn authority piece','Post TikTok pain-point video',`Engage in 2–3 ${n.niche} communities`], platform:['LinkedIn: Authority post','TikTok: Pain Point Direct Address'], cta:`"Link in comments (LinkedIn) · Comment TEMPLATES (TikTok)"`, metric:`10+ LinkedIn reactions. 1 sale from LinkedIn.` },
+    { day:5, title:'Story + Social Proof', objective:'Emotional connection and early testimonials', tasks:['Send Email 3 (Problem Aware)','Post story-based caption','Run Instagram Stories poll','DM early buyers for testimonials'], platform:['Instagram Feed: Story caption','Stories: Poll — does your current material represent you?'], cta:`"Full story in the caption. Link in bio."`, metric:`40%+ poll response. 1+ testimonial.` },
+    { day:6, title:'Offer + Urgency', objective:'Convert fence-sitters with a clear deadline', tasks:['Send Email 4 (The Offer)','Post urgency content on all platforms','Announce price increase tomorrow'], platform:[`Instagram: Urgency post`,`LinkedIn: ROI post`,`Stories: "Price goes to $${n.priceMax} tomorrow" countdown`], cta:`"$${n.priceMin} tonight. $${n.priceMax} from tomorrow."`, metric:`Highest single-day sales. 20%+ email click rate.` },
+    { day:7, title:'Final Push + Close', objective:'Capture last-minute buyers, raise price', tasks:['Send Email 5 (Last Call)','Post final urgency on all platforms',`Raise price to $${n.priceMax} at [TIME]`,'Thank every buyer from Days 1–6'], platform:['Instagram: Last Chance post','TikTok: Launch Urgency video','LinkedIn: Brief last-call note'], cta:`"Last chance at $${n.priceMin}. Going to $${n.priceMax} at [TIME]."`, metric:`10+ total sales. Price raised by end of day.` },
+  ];
+  const launchHTML = launchDays.map(d=>`<div class="day-card">
+    <div class="day-header"><span class="day-num">Day ${d.day}</span><span class="day-title">${esc(d.title)}</span></div>
+    <div class="day-objective">${esc(d.objective)}</div>
+    <div class="day-grid">
+      <div class="day-col">
+        <h4>Tasks</h4>
+        <ul>${d.tasks.map(t=>`<li>${esc(t)}</li>`).join('')}</ul>
+      </div>
+      <div class="day-col">
+        <h4>Platform</h4>
+        <ul>${d.platform.map(p=>`<li>${esc(p)}</li>`).join('')}</ul>
+      </div>
+    </div>
+    <div class="day-cta">CTA: ${esc(d.cta)}</div>
+    <div class="metric">Success metric: ${esc(d.metric)}</div>
+  </div>`).join('');
+
+  // ── Upsell ──
+  const base = Math.max(n.priceMax, n.priceMin, 17);
+  const uPrice = Math.max(base+20, Math.round(base*1.8));
+  const bPrice = Math.round(base*1.5);
+  const obPrice = Math.max(9, Math.round(base*0.3));
+  const mPrice = Math.max(12, Math.round(base*0.4));
+  const upsellProd = isRE ? 'Luxury Agent Brand System Vol. 2 — 10 Advanced Presentation Templates' : `${n.title} Extended Pack — 10 Additional Templates`;
+  const b1 = isRE ? 'Luxury Real Estate Copywriting Swipe File' : `${n.niche} Copywriting Swipe File`;
+  const b2 = isRE ? 'Listing Appointment Conversion Toolkit' : `${n.niche} Client Conversion Toolkit`;
+  const ob = isRE ? 'Luxury Color & Font Pairing Guide' : `${n.niche} Brand Style Guide`;
+  const mem = isRE ? 'Monthly Luxury Real Estate Design Drop' : `Monthly ${n.niche} Design & Copy Drop`;
+
+  // ── Assemble HTML ──
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>${esc(n.title)} — Master Product Guide</title>
+<style>${css}</style>
+</head>
+<body>
+
+<header class="cover">
+  <p class="cover-eyebrow">Launchora · Master Product Guide</p>
+  <h1>${esc(n.title)}</h1>
+  ${(n.subtitle||n.promise) ? `<p class="subtitle">${esc(safe(n.subtitle||n.promise))}</p>` : ''}
+  ${coverMeta}
+</header>
+
+<div class="container">
+
+${tocHTML}
+
+<!-- ═══════════════════ PRODUCT OVERVIEW ═══════════════════ -->
+<section id="${tocId('Product Overview')}">
+  <span class="section-label">Section 01</span>
+  <h2>Product Overview</h2>
+
+  <h3>What This Product Is</h3>
+  ${isTP ? `<blockquote><strong>What this is:</strong> A Template Blueprint System — layout specifications, copy blocks, field guides, and headline options for each professional template in this pack.</blockquote>
+  <div class="callout-note"><strong>What this is NOT:</strong> Canva source files, InDesign files, PSD files, or Figma files. You build the templates in your preferred design tool using the layout specifications and copy blocks provided.</div>` : `<p>${esc(safe(n.promise||n.subtitle||''))}</p>`}
+
+  <h3>Who It Is For</h3>
+  <p>${esc(safe(aud.audienceContextSentence||`This product is built for ${aud.audiencePlural}.`))}</p>
+
+  <h3>The Problem It Solves</h3>
+  <p>${esc(safe(pa.painPoint||''))}</p>
+
+  <h3>Core Promise</h3>
+  <blockquote>${esc(safe(n.promise||`${n.title} gives ${aud.audiencePlural} the visual system, copy framework, and implementation guide to look like the premium option — without hiring a designer.`))}</blockquote>
+
+  <h3>What Makes It Different</h3>
+  <p>${esc(safe(pa.uniqueMechanism||`Every element of ${n.title} was built for ${n.niche} specifically — not generic templates repurposed from a business toolkit.`))}</p>
+
+  <h3>What Is Included</h3>
+  <ul>
+    ${isTP && templateCases.length > 0
+      ? templateCases.map((t,i)=>`<li><strong>Template ${i+1}:</strong> ${esc(t)}</li>`).join('')
+      : (n.sections||[]).slice(0,8).map(s=>`<li>${esc(s.title||'Section')}</li>`).join('')}
+  </ul>
+  ${(n.items||[]).length > 0 ? `<h4>Key Benefits</h4><ul>${n.items.map(b=>`<li>✅ ${esc(b)}</li>`).join('')}</ul>` : ''}
+</section>
+
+<!-- ═══════════════════ VISUAL STYLE GUIDE ═══════════════════ -->
+<section class="page-break" id="${tocId('Visual Style Guide')}">
+  <span class="section-label">Section 02</span>
+  <h2>Visual Style Guide</h2>
+
+  <h3>Typography</h3>
+  ${rows([['Primary (Headlines)', esc(vs.primaryFont)],['Secondary (Body Text)', esc(vs.secondaryFont)]],['Role','Font Recommendation'])}
+
+  <h3>Color Palette</h3>
+  ${colorTable}
+
+  <h3>Photography Style</h3>
+  <p>${esc(vs.photoStyle)}</p>
+
+  <h3>Layout Principles</h3>
+  <p>${esc(vs.layout)}</p>
+
+  <h3>Export Formats</h3>
+  <p>${esc(vs.exportFormats)}</p>
+</section>
+
+<!-- ═══════════════════ CUSTOMER AVATAR ═══════════════════ -->
+<section class="page-break" id="${tocId('Customer Avatar')}">
+  <span class="section-label">Section 03</span>
+  <h2>Customer Avatar</h2>
+
+  <h3>Who They Are</h3>
+  <p>${esc(cap(safe(aud.audiencePlural||'Your target audience')))}</p>
+  ${n.buyer ? `<blockquote>${esc(safe(n.buyer))}</blockquote>` : ''}
+
+  <h3>Psychographic Profile</h3>
+  <ul>
+    <li>They value professionalism and visual credibility above almost everything else in their business</li>
+    <li>They are performance-driven and results-oriented</li>
+    <li>They are frustrated by the gap between their expertise and how their materials present them</li>
+    <li>They have tried generic templates before and been disappointed by how "off-brand" they look</li>
+    <li>They are willing to invest in tools that save time and elevate their positioning</li>
+  </ul>
+
+  <h3>Core Problem</h3>
+  <p>${esc(safe(pa.painPoint||''))}</p>
+
+  <h3>Desired Outcome</h3>
+  <p>${esc(safe(pa.transformation||'To be seen immediately as the premium option — before they open their mouth, before the meeting starts, before the negotiation begins.'))}</p>
+
+  <h3>Purchase Motivation</h3>
+  <blockquote>${esc(safe(pa.emotionalHook||'They buy when they connect the cost of looking generic to the revenue they are losing. The price of this product is always less than the cost of one lost client.'))}</blockquote>
+
+  <h3>Where to Find Them</h3>
+  <ul>
+    <li><strong>Instagram:</strong> Following niche accounts, searching industry hashtags</li>
+    <li><strong>LinkedIn:</strong> Active in professional communities and ${esc(n.niche)} groups</li>
+    <li><strong>Pinterest:</strong> Researching design inspiration and professional templates</li>
+    <li><strong>Etsy:</strong> Actively searching for professional digital tools in ${esc(n.niche)}</li>
+    <li><strong>Industry Podcasts:</strong> Business growth shows for ${esc(n.av.audienceShort||n.niche)} professionals</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════ QUICK START ═══════════════════ -->
+<section class="page-break" id="${tocId('Buyer Quick Start Guide')}">
+  <span class="section-label">Section 04</span>
+  <h2>Buyer Quick Start Guide</h2>
+  ${stepCards(qsSteps)}
+</section>
+
+<!-- ═══════════════════ IMPLEMENTATION CHECKLIST ═══════════════════ -->
+<section class="page-break" id="${tocId('Implementation Checklist')}">
+  <span class="section-label">Section 05</span>
+  <h2>Implementation Checklist</h2>
+  ${checklistTable(checklistRows)}
+</section>
+
+${isTP && templateCases.length > 0 ? `
+<!-- ═══════════════════ TEMPLATE ASSETS ═══════════════════ -->
+<section class="page-break" id="${tocId('Template Assets')}">
+  <span class="section-label">Section 06</span>
+  <h2>Template Assets</h2>
+  ${templateAssetsHTML}
+</section>` : ''}
+
+<!-- ═══════════════════ COPY BANKS ═══════════════════ -->
+<section class="page-break" id="${tocId('Copy Banks')}">
+  <span class="section-label">Section ${isTP ? '07' : '06'}</span>
+  <h2>Copy Banks</h2>
+  ${copyBankHTML}
+</section>
+
+<!-- ═══════════════════ PLATFORM LISTING COPY ═══════════════════ -->
+<section class="page-break" id="${tocId('Platform Listing Copy')}">
+  <span class="section-label">Section ${isTP ? '08' : '07'}</span>
+  <h2>Platform Listing Copy</h2>
+
+  <h3>Primary Listing</h3>
+  <h4>Title</h4>
+  <p><strong>${esc(safe(ma.listing_title||n.title))}</strong></p>
+  <h4>Description</h4>
+  <blockquote style="font-style:normal">${esc(safe(ma.listing_description||n.longDesc||'')).replace(/\n/g,'<br>')}</blockquote>
+  <h4>Keywords</h4>
+  <div class="tag-row">${(n.keywords||[]).slice(0,10).map(k=>`<span class="tag">${esc(k)}</span>`).join('')}</div>
+
+  <h3>Platform-Specific Tips</h3>
+  ${platTable}
+</section>
+
+<!-- ═══════════════════ PRICING STRATEGY ═══════════════════ -->
+<section class="page-break" id="${tocId('Pricing Strategy')}">
+  <span class="section-label">Section ${isTP ? '09' : '08'}</span>
+  <h2>Pricing Strategy</h2>
+  ${pricingTable}
+  <h3>Price Rationale</h3>
+  <blockquote>${esc(safe(ma.price_rationale||`At $${n.priceMin}, ${n.title} costs less than one hour of a freelance designer's time — yet delivers ${isTP ? templateCases.length : (n.sections||[]).length}+ professional ${n.niche} blueprints with ready-to-paste copy.`))}</blockquote>
+  <h3>Platform Tips</h3>
+  <ul>
+    <li><strong>Gumroad:</strong> Enable Pay What You Want (minimum $${n.priceMin}). Buyers often pay more during launch week.</li>
+    <li><strong>Etsy:</strong> Price at $${(n.priceMin-0.01).toFixed(2)} — below round numbers performs better in search.</li>
+    <li><strong>Payhip:</strong> Build an affiliate network at 30–50% commission to drive volume.</li>
+    <li><strong>All platforms:</strong> Announce the price increase publicly before raising — this drives urgency-based conversions.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════ FAQ ═══════════════════ -->
+<section class="page-break" id="${tocId('FAQ')}">
+  <span class="section-label">Section ${isTP ? '10' : '09'}</span>
+  <h2>FAQ</h2>
+  ${faqHTML(faqs)}
+</section>
+
+<!-- ═══════════════════ UPSELL IDEAS ═══════════════════ -->
+<section class="page-break" id="${tocId('Upsell Ideas')}">
+  <span class="section-label">Section ${isTP ? '11' : '10'}</span>
+  <h2>Upsell Ideas</h2>
+
+  <h3>Immediate Upsell — Show on Thank-You Page</h3>
+  <div class="template-card">
+    <p><strong>Product:</strong> ${esc(upsellProd)}</p>
+    <p><strong>Price:</strong> $${uPrice}</p>
+    <p><strong>Tip:</strong> Show immediately on the thank-you/download page — strike when buyer intent is highest.</p>
+  </div>
+
+  <h3>Bundle Ideas</h3>
+  ${rows([
+    [`"${esc(n.title)}" + "${esc(b1)}"`, `$${bPrice}`, 'Gumroad or Payhip'],
+    [`"${esc(n.title)}" + "${esc(b2)}"`, `$${Math.round(bPrice*1.3)}`, 'Payhip or ThriveCart'],
+  ],['Bundle','Price','Best Platform'])}
+
+  <h3>Order Bump</h3>
+  <p><strong>${esc(ob)}</strong> — $${obPrice} added at checkout.</p>
+
+  <h3>Subscription / Membership</h3>
+  <p><strong>${esc(mem)}</strong> — $${mPrice}/month. Offer 1 free month to buyers to build the habit before the first charge.</p>
+</section>
+
+<!-- ═══════════════════ 7-DAY LAUNCH PLAN ═══════════════════ -->
+<section class="page-break" id="${tocId('7-Day Launch Plan')}">
+  <span class="section-label">Section ${isTP ? '12' : '11'}</span>
+  <h2>7-Day Launch Plan</h2>
+  ${launchHTML}
+
+  <h3>Post-Launch — Week 2+</h3>
+  <ul class="checklist">
+    ${['Collect and publish buyer testimonials','Set up an automated email welcome sequence for new buyers','Repurpose buyer results into social proof content','Plan your first bundle or upsell product','List on additional platforms if launched on only one'].map(t=>`<li><span class="check-box"></span>${esc(t)}</li>`).join('')}
+  </ul>
+</section>
+
+<footer class="doc-footer">
+  Generated by Launchora &nbsp;·&nbsp; ${esc(now)} &nbsp;·&nbsp; launchora.com
+</footer>
+
+</div>
+</body>
+</html>`;
+}
+
 // ── HTTP Handler ───────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   try {
@@ -1025,7 +1722,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing normalized product data (n)' }, { status: 400 });
     }
     const markdown = buildMasterGuideMarkdown(n, product);
-    return Response.json({ ok: true, markdown, length: markdown.length });
+    const html = buildMasterGuideHTML(n, product);
+    return Response.json({ ok: true, markdown, html, length: markdown.length, htmlLength: html.length });
   } catch(e) {
     return Response.json({ ok: false, error: e.message }, { status: 500 });
   }

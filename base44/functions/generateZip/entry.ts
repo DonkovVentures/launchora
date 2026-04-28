@@ -1851,7 +1851,7 @@ Deno.serve(async (req) => {
 
     // ── Master Product Guide (Markdown) ─────────────────────────────────────
     currentStep = 'master_guide';
-    let masterGuideMd = null;
+    let masterGuideMd = null, masterGuideHtml = null;
     try {
       const mgResult = await base44.asServiceRole.functions.invoke('buildMasterGuide', { productId, n: {
         title: n.title, subtitle: n.subtitle, promise: n.promise, type: n.type, niche: n.niche,
@@ -1863,10 +1863,12 @@ Deno.serve(async (req) => {
       }});
       if (mgResult?.data?.markdown && mgResult.data.markdown.length > 200) {
         masterGuideMd = mgResult.data.markdown;
-        console.log(`[generateZip] ✅ Master Guide MD built: ${masterGuideMd.length} chars`);
-      } else {
-        warnings.push('Master Product Guide returned empty content from buildMasterGuide function');
-      }
+        console.log(`[generateZip] ✅ Master Guide MD: ${masterGuideMd.length} chars`);
+      } else warnings.push('Master Product Guide MD empty');
+      if (mgResult?.data?.html && mgResult.data.html.length > 500) {
+        masterGuideHtml = mgResult.data.html;
+        console.log(`[generateZip] ✅ Master Guide HTML: ${masterGuideHtml.length} chars`);
+      } else warnings.push('Master Product Guide HTML empty');
     } catch(e) {
       warnings.push('Master Product Guide generation failed: ' + e.message);
       console.warn('[generateZip] Master Guide failed:', e.message);
@@ -1933,11 +1935,8 @@ Deno.serve(async (req) => {
 
     const files = [], filesIncluded = [];
 
-    // Add Master Product Guide MD first (top of 01_Product)
-    if (masterGuideMd) {
-      files.push({ name: '01_Product/Master_Product_Guide.md', data: masterGuideMd });
-      filesIncluded.push('01_Product/Master_Product_Guide.md');
-    }
+    if (masterGuideMd) { files.push({ name: '01_Product/Master_Product_Guide.md', data: masterGuideMd }); filesIncluded.push('01_Product/Master_Product_Guide.md'); }
+    if (masterGuideHtml) { files.push({ name: '01_Product/Master_Product_Guide.html', data: masterGuideHtml }); filesIncluded.push('01_Product/Master_Product_Guide.html'); }
 
     for(const def of fileDefs){
       const r = safeFile(def.name, def.fn, warnings);
@@ -1946,11 +1945,7 @@ Deno.serve(async (req) => {
     // README always last
     const rm = safeFile('README.txt', ()=>README(product,n), warnings);
     if(rm){ files.push(rm); filesIncluded.push('README.txt'); }
-    // Debug only when requested
-    if(debugMode){
-      const dbg=`DEBUG\n${'─'.repeat(40)}\nproductId: ${productId}\ngenerationStatus: ${product.generationStatus||'—'}\nsections: ${n.sections.length}\nkeywords: ${n.keywords.length}\nfilesBuilt: ${files.length}\nwarnings: ${warnings.length}\ngeneratedAt: ${new Date().toISOString()}\n`;
-      files.push({name:'DEBUG_Info.txt',data:dbg}); filesIncluded.push('DEBUG_Info.txt');
-    }
+    if(debugMode){ const dbg=`DEBUG\n${'-'.repeat(40)}\nproductId: ${productId}\nstatus: ${product.generationStatus||'—'}\nsections: ${n.sections.length} | keywords: ${n.keywords.length} | files: ${files.length} | warnings: ${warnings.length}\n`; files.push({name:'DEBUG_Info.txt',data:dbg}); filesIncluded.push('DEBUG_Info.txt'); }
 
     console.log(`[generateZip] built ${files.length} files | warnings: ${warnings.length}`);
     if(files.length===0) return fail('build_files','No files could be built');
