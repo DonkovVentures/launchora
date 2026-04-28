@@ -311,10 +311,24 @@ function getRECopyBank() {
   };
 }
 
-// ── Template case derivation (mirrors generateZip) ────────────────────────────
+// ── Canonical RE template list (Issues 1 + 4) ────────────────────────────────
+const CANONICAL_RE_TEMPLATES = [
+  'Luxury Listing Presentation Cover',
+  'Editorial Property Brochure',
+  'Seller Pitch Deck Slide',
+  'Market Report Summary Page',
+  'Agent Bio & Credentials Page',
+  'Open House Invitation Flyer',
+  'Private Showing Follow-Up Card',
+  'Just Listed / Just Sold Announcement',
+  'Social Media Property Teaser',
+  'Buyer Lifestyle Guide Page',
+];
+
+// ── Template case derivation — must use same canonical list as generateZip ────
 function deriveTemplateNames(n) {
   const nicheMap = {
-    'real estate': ['Luxury Listing Presentation Cover', 'Editorial Property Brochure', 'Market Report Summary Page', 'Agent Bio & Credentials Page', 'Open House Invitation Flyer', 'Seller Pitch Deck Slide', 'Private Showing Follow-Up Card'],
+    'real estate': CANONICAL_RE_TEMPLATES,
     'fitness': ['Weekly Workout Program Schedule', 'Client Progress Tracking Sheet', 'Meal Plan & Macro Template', 'Exercise Instruction Card', 'Transformation Challenge Poster', '30-Day Challenge Tracker', 'Workout Completion Certificate'],
     'coaching': ['Discovery Call Prep Sheet', 'Client Intake Questionnaire', 'Weekly Goal-Setting Template', 'Session Notes & Action Items', 'Progress Review Summary', 'Testimonial Request Template', 'Program Welcome Packet Cover'],
     'finance': ['Monthly Budget Tracker', 'Debt Payoff Calculator Sheet', 'Investment Portfolio Summary', 'Net Worth Snapshot Template', 'Bill Payment Calendar', 'Savings Goal Progress Tracker', 'Income & Expense Log'],
@@ -331,15 +345,18 @@ function deriveTemplateNames(n) {
   ];
 }
 
-// ── RE template headline mapping ──────────────────────────────────────────────
+// ── RE template headline mapping (10 entries for canonical list) ─────────────
 const RE_TEMPLATE_HEADLINES = [
   'The Art of the Sale',
   'A Curated Approach to Extraordinary Real Estate',
+  'In Today\'s Market, Your Pitch Starts Before You Speak',
   'The State of the Luxury Market',
   'Local Expertise. Global Resonance.',
   'You Are Cordially Invited',
   'A Note of Thanks',
+  'Presented with Distinction',
   'The Neighborhood Edit',
+  'A Lifestyle Worth Presenting',
 ];
 
 // ── Main builder ───────────────────────────────────────────────────────────────

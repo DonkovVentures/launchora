@@ -188,6 +188,7 @@ function cs(s) {
 // Derive 4–7 template use-cases from niche + sections + keywords
 function deriveTemplateCases(n) {
   // Niche-specific curated template names
+  // Use the same canonical list injected from the calling scope if available
   const nicheTemplates = {
     'real estate': [
       'Luxury Listing Presentation Cover',
@@ -542,29 +543,40 @@ const IMPL_CHECKLIST = (p,n) => {
 
 const PRIMARY_LISTING = (p,n) => `PRIMARY PLATFORM LISTING — ${n.title}\n${'═'.repeat(60)}\nPlatform: ${n.platform}\n\nTITLE\n${hr()}\n${n.listingTitle}\n\nDESCRIPTION\n${hr()}\n${n.longDesc}\n\nFOR\n${hr()}\n${n.av.audiencePlural.charAt(0).toUpperCase()+n.av.audiencePlural.slice(1)}\n\nBENEFITS\n${hr()}\n${n.items.length>0?n.items.map(b=>'✅ '+b).join('\n'):'✅ Instant digital download\n✅ Professionally structured '+n.type+'\n✅ Ready to use immediately'}\n\nKEYWORDS\n${hr()}\n${n.keywords.join(', ')}\n\nPRICING: $${n.priceMin}–$${n.priceMax}${n.ma.price_rationale?'\n'+n.ma.price_rationale:''}\n\nCTA: ${n.ma.platform_cta||n.ma.cta||'Download instantly →'}\n${n.pg.pro_tips?.length?'\nPRO TIPS\n'+hr()+'\n'+n.pg.pro_tips.map((t,i)=>`${i+1}. ${t}`).join('\n'):''}`;
 
-// Honest description for Template Pack listings — no false "editable design files" claims
+// Fixed listing body — canonical 10-template list, accurate deliverables, safe claims (Issues 1,2,5,6)
+const _CANONICAL_RE_10 = ['Luxury Listing Presentation Cover','Editorial Property Brochure','Seller Pitch Deck Slide','Market Report Summary Page','Agent Bio & Credentials Page','Open House Invitation Flyer','Private Showing Follow-Up Card','Just Listed / Just Sold Announcement','Social Media Property Teaser','Buyer Lifestyle Guide Page'];
 function tpListingBody(n) {
   if (!isTemplatePack(n)) return n.longDesc;
-  const sl = n.sections.length > 0
-    ? n.sections.slice(0,6).map(s=>`→ ${s.title||s.heading} Blueprint`).join('\n')
-    : `→ Luxury Listing Presentation Cover Blueprint\n→ Editorial Property Brochure Blueprint\n→ Market Report Summary Page Blueprint\n→ Agent Bio & Credentials Page Blueprint\n→ Open House Invitation Flyer Blueprint\n→ Seller Pitch Deck Slide Blueprint\n→ Private Showing Follow-Up Card Blueprint`;
-  return `${n.promise?n.promise+'\n\n':''}This is a Template Blueprint Kit — text-based layout specs and copy systems, not Canva or InDesign source files.
+  const isRE = /real.estate|realt|property|listing|agent|luxury/i.test(n.niche+n.title);
+  const templateList = isRE
+    ? _CANONICAL_RE_10.map((t,i)=>`- Template ${i+1}: ${t}`).join('\n')
+    : n.sections.length > 0
+      ? n.sections.slice(0,10).map((s,i)=>`- Template ${i+1}: ${s.title||s.heading}`).join('\n')
+      : `- Template 1 through Template 10 — professional layout blueprints for ${n.niche}`;
+  const audience = n.av.audiencePlural || `${n.niche} professionals`;
+  // Issue 6: No unsupported quantified claims — use safe premium positioning
+  const promiseLine = (n.promise||'').replace(/win \d+%[^.]*listings?[^.]*/gi, 'increase your chances of winning premium listing presentations').replace(/\d+%\s*(more|win|higher)[^.]*/gi, 'more authority in every client-facing moment');
+  return `${promiseLine ? promiseLine+'\n\n' : ''}This is a Template Blueprint System — layout specifications, copy blocks, and field guides. Not Canva, InDesign, Figma, or PowerPoint source files.
 
-What's included for each template:
-${sl}
+TEMPLATES IN THIS PACK
+${templateList}
 
-Each blueprint contains:
-✅ Exact layout specification — sections, columns, hierarchy, dimensions
-✅ Required assets checklist — photos, logos, fonts, data fields
-✅ 3 ready-to-paste copy blocks specific to that template's use case
-✅ 5 client-ready headline options
-✅ Field-by-field customization guide — every [BRACKET] explained
-✅ Print and digital export recommendations
-✅ Design tool notes for Canva, Adobe, PowerPoint, and Google Slides
+EVERYTHING INCLUDED IN THIS DOWNLOAD
+- Master_Product_Guide.pdf — premium product manual (layout specs, copy, brand guide, launch plan)
+- Master_Product_Guide.html — browser-viewable version
+- Master_Product_Guide.md — editable Markdown source
+- Copy_Bank.txt, Headline_Bank.txt, CTA_Bank.txt — copy systems
+- Implementation_Checklist.txt + Buyer_Quick_Start_Guide.txt
+- 5-email launch sequence (ready to send)
+- 7-Day Launch Plan + Launch Checklist
+- Social media content — hooks, captions, LinkedIn posts, TikTok scripts, carousels
+- Platform listings — Gumroad, Etsy, Payhip, Creative Market
+- Bonus: customer avatar, FAQ, upsell ideas, next product roadmap
 
-You follow the blueprint in your preferred design tool. The hard work — knowing what to write, how to structure it, and what assets you need — is already done for you.
+HOW IT WORKS
+Each blueprint file tells you exactly what to build in Canva, Adobe, PowerPoint, or Google Slides — layout spec, copy blocks, required assets, and field-by-field guidance. All done for you. You bring the design tool.
 
-Built for ${n.av.audiencePlural} who want to look professional without starting from a blank page.`;
+Built for ${audience} who want to present their services with more authority — without starting from a blank page.`;
 }
 
 const GUMROAD = (p,n) => `GUMROAD LISTING — ${n.title}\n${'═'.repeat(60)}\nTITLE: ${n.title}${n.subtitle?' — '+n.subtitle:''}\nPRICE: $${n.priceMin} (enable Pay What You Want)\n\nDESCRIPTION\n${hr()}\n${tpListingBody(n)}\n\nFOR: ${n.av.audiencePlural}\n\nTAGS: ${n.keywords.slice(0,10).join(', ')}\n\nTIPS:\n• Upload cover image (1280×720px)\n• Enable "Let buyers pay more"\n• Add thank-you redirect to your email opt-in`;
@@ -619,7 +631,14 @@ const DESC_LONG = (p,n) => `LONG-FORM DESCRIPTION — ${n.title}\n${'═'.repeat
 
 const PRICING = (p,n) => `PRICING STRATEGY — ${n.title}\n${'═'.repeat(60)}\nRECOMMENDED: $${n.priceMin}–$${n.priceMax}\n${n.ma.price_rationale?'\nRATIONALE:\n'+n.ma.price_rationale+'\n':''}\nOPTION A — ENTRY: $${n.priceMin}\nBest for new audiences. Maximum volume. Works on Gumroad, Etsy.\n\nOPTION B — STANDARD: $${Math.round((n.priceMin+n.priceMax)/2)}\nBest for warm audiences. Signals credibility.\n\nOPTION C — PREMIUM: $${n.priceMax}\nBest for existing customers and niche experts. Requires testimonials.\n\nLAUNCH STRATEGY\n${hr()}\n• Launch at $${n.priceMin} for first 72 hours\n• Announce the price increase to create urgency\n• Raise to $${Math.round((n.priceMin+n.priceMax)/2)} after launch window\n• Bundle with another product for $${Math.round(n.priceMax*1.8)}\n\nPLATFORM TIPS\n${hr()}\n• Gumroad: Enable Pay What You Want (min $${n.priceMin})\n• Etsy: Price at $${(n.priceMin-0.01).toFixed(2)} (below round number)\n• Payhip: Use affiliates to drive volume\n• Shopify: Set Compare At to $${n.priceMax}`;
 
-const SEO = (p,n) => {const pg=n.pg,ptags=Array.isArray(pg.tags)?pg.tags:[],all=[...new Set([...n.keywords,...ptags])]; return `SEO KEYWORDS — ${n.title}\n${'═'.repeat(60)}\n\nPRIMARY (highest buyer intent):\n${all.slice(0,5).join('\n')}\n\nSECONDARY:\n${all.slice(5,12).join('\n')}\n\nLONG-TAIL PHRASES:\n${all.slice(0,5).map(k=>`${k} for ${n.niche}\n${k} digital download`).join('\n')}\n\nETSY TAGS (max 20 chars each):\n${all.slice(0,13).map(k=>k.slice(0,20)).join(', ')}\n\nSEO META DESCRIPTION (max 155 chars):\n${(n.ma.seo_meta_description||cs(`${n.promise||n.title}. Built for ${n.av.audienceShort}. Instant download.`)).slice(0,155)}`;};
+// Issue 7: Fixed SEO — canonical pre-validated Etsy tags, never .slice(0,20) on dynamic strings
+const _RE_ETSY_TAGS_13 = ['realtor templates','luxury realtor','listing template','real estate kit','property flyer','broker branding','open house flyer','seller pitch','agent bio','market report','realty brochure','home listing','agent templates'];
+const SEO = (p,n) => {
+  const pg=n.pg, ptags=Array.isArray(pg.tags)?pg.tags:[], all=[...new Set([...n.keywords,...ptags])];
+  const isREseo = /real.estate|realt|property|listing|agent|luxury/i.test(n.niche+n.title);
+  const etsyTags = isREseo ? _RE_ETSY_TAGS_13 : all.filter(k=>k.length<=20).slice(0,13);
+  return `SEO KEYWORDS — ${n.title}\n${'═'.repeat(60)}\n\nPRIMARY (highest buyer intent):\n${all.slice(0,5).join('\n')}\n\nSECONDARY:\n${all.slice(5,12).join('\n')}\n\nLONG-TAIL PHRASES:\n${all.slice(0,5).map(k=>`${k} for ${n.niche}\n${k} digital download`).join('\n')}\n\nETSY TAGS (13 tags, natural phrases under 20 chars):\n${etsyTags.map((t,i)=>`${i+1}. ${t}`).join('\n')}\n\nSEO META DESCRIPTION (max 155 chars):\n${(n.ma.seo_meta_description||cs(`${n.promise||n.title}. Built for ${n.av.audienceShort}. Instant download.`)).slice(0,155)}`;
+};
 
 // ── Social Media Context Helper ───────────────────────────────────────────────
 // Builds a rich, product-specific social context object for all SM builders
@@ -1475,15 +1494,13 @@ P.S. Tomorrow's email breaks down exactly what's inside — every template, ever
 
 const EMAIL4 = (p,n) => {
   const c = socialCtx(n);
-  const templateList = n.sections.length > 0
-    ? n.sections.slice(0,7).map((s,i) => `${i+1}. ${s.title||s.heading}`).join('\n')
-    : `1. Luxury Listing Presentation Cover
-2. Editorial Property Brochure (4-page)
-3. Agent Bio & Credentials Page
-4. Market Report Summary Page
-5. Open House Invitation Flyer
-6. Seller Follow-Up Card
-7. Private Showing Announcement`;
+  // Issue 1: Use canonical RE templates in email — not n.sections which may have old names
+  const _isREEmail = /real.estate|realt|property|listing|agent|luxury/i.test(n.niche+n.title);
+  const templateList = _isREEmail
+    ? _CANONICAL_RE_10.slice(0,7).map((t,i)=>`${i+1}. ${t}`).join('\n')
+    : n.sections.length > 0
+      ? n.sections.slice(0,7).map((s,i) => `${i+1}. ${s.title||s.heading}`).join('\n')
+      : `1. Template Blueprint 1\n2. Template Blueprint 2\n3. Template Blueprint 3\n4. Template Blueprint 4\n5. Template Blueprint 5\n6. Template Blueprint 6\n7. Template Blueprint 7`;
   const benefits = n.items.length > 0
     ? n.items.slice(0,4).map(b => `✅ ${b}`).join('\n')
     : `✅ Layout spec + copy blocks — no guesswork on what to build or write
@@ -1698,6 +1715,20 @@ Deno.serve(async (req) => {
       if (pdfResult?.data?.ok && pdfResult.data.pdfBase64) { const b=atob(pdfResult.data.pdfBase64),u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); masterGuidePdf=u; console.log(`[generateZip] ✅ Master Guide PDF: ${u.length} bytes`); }
       else warnings.push('Master Guide PDF empty: '+(pdfResult?.data?.error||'unknown'));
     } catch(e) { warnings.push('Master Guide PDF failed (non-blocking): '+e.message); console.warn('[generateZip] PDF failed:', e.message); }
+
+    // Canonical RE template list — must be identical across all files (Issue 1)
+    const CANONICAL_RE_TEMPLATES = [
+      'Luxury Listing Presentation Cover',
+      'Editorial Property Brochure',
+      'Seller Pitch Deck Slide',
+      'Market Report Summary Page',
+      'Agent Bio & Credentials Page',
+      'Open House Invitation Flyer',
+      'Private Showing Follow-Up Card',
+      'Just Listed / Just Sold Announcement',
+      'Social Media Property Teaser',
+      'Buyer Lifestyle Guide Page',
+    ];
 
     // Detect Template Pack and build its specialized 01_Product files
     const templatePack = isTemplatePack(n);

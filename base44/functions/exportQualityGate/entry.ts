@@ -194,24 +194,97 @@ Deno.serve(async (req) => {
       'Listings claim editable source files (Canva/Figma/PSD/InDesign) but no such files are in the ZIP',
       'Remove all "editable Canva/Figma/PSD" language; replace with "template blueprint system"', true);
 
+    // ── New semantic quality checks (Issue 9) ────────────────────────────────
+
+    // 14. Canonical template list consistency — old template names must not appear in sales listings
+    const OLD_TEMPLATE_NAMES = ['cover & welcome', "what's included blueprint", 'how to use these templates blueprint', "the 'curator'", "the 'architectural'", "the 'boutique'"];
+    const salesListingsText = [
+      getFile('02_Sales_Page/Platform_Listing_Primary.txt'),
+      getFile('02_Sales_Page/Gumroad_Listing.txt'),
+      getFile('02_Sales_Page/Etsy_Listing.txt'),
+    ].filter(Boolean).join(' ').toLowerCase();
+    const oldNameFound = OLD_TEMPLATE_NAMES.find(name => salesListingsText.includes(name.toLowerCase()));
+    check('Sales listings use current canonical template names (no old placeholders)',
+      !oldNameFound,
+      '02_Sales_Page/ (listings)',
+      `Old template name found in sales listing: "${oldNameFound}"`,
+      'Sales listings must use the canonical 10-template list — re-export to regenerate', true);
+
+    // 15. Unsupported numeric performance claims removed
+    const allFilesText = Object.values(fileMap).join(' ');
+    const hasQuantifiedClaim = /win \d+%[^.]*listings?|achieve \d+% (more|higher)|(\d{2,}% (win|success|close|listing))/i.test(allFilesText);
+    check('No unsupported quantified performance claims (e.g. "win 80% more listings")',
+      !hasQuantifiedClaim,
+      '(all files)',
+      'File contains unsupported quantified claim (e.g. "win 80% more listings") — replace with safe premium positioning',
+      'Replace with: "increase your chances of winning premium listing presentations" or similar');
+
+    // 16. No double periods or "sellers\'s" grammar issues
+    const grammarIssues = [
+      { pat: /sellers's/gi, label: '"sellers\'s" (wrong possessive)' },
+      { pat: /\b\w+s's\b/g, label: 'double possessive -s\'s pattern' },
+      { pat: /\.\s*\./g, label: 'double period (..)' },
+    ];
+    const socialEmailText = [
+      getFile('03_Social_Media/Instagram_Captions.txt'),
+      getFile('03_Social_Media/LinkedIn_Posts.txt'),
+      getFile('04_Email_Launch/Email_1_Announcement.txt'),
+      getFile('04_Email_Launch/Email_3_Problem_Aware.txt'),
+    ].filter(Boolean).join(' ');
+    const foundGrammar = grammarIssues.find(g => g.pat.test(socialEmailText));
+    check('No grammar issues in social/email copy (double periods, broken possessives)',
+      !foundGrammar,
+      '03_Social_Media/ + 04_Email_Launch/',
+      `Grammar issue found: ${foundGrammar?.label || 'unknown'}`,
+      'Check social and email files for double periods and broken possessives like "sellers\'s"');
+
+    // 17. Master Guide contains full template sections (not just a summary)
+    const mdTemplateDepth = masterGuideMd ? (masterGuideMd.match(/### Template \d+:/gi) || []).length : 0;
+    const isTPProduct = (n.type || '').toLowerCase().includes('template');
+    if (isTPProduct) {
+      check('Master Guide contains full template sections (not just a list)',
+        mdTemplateDepth >= 3,
+        '01_Product/Master_Product_Guide.md',
+        `Master Guide has only ${mdTemplateDepth} "### Template N:" entries — expected 3+ for full template documentation`,
+        'buildMasterGuide must generate a full "## Template Assets" section with ### subheadings per template');
+    } else {
+      passed.push({ label: 'Master Guide template depth check skipped (not a template pack)', file: '—' });
+    }
+
+    // 18. PDF safe characters — detect common broken unicode in PDF text (heuristic via markdown)
+    const pdfBrokenChars = masterGuideMd ? /[\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u2605\u2714\u2718\u26A0\uFFFD]/.test(masterGuideMd) : false;
+    // Only flag if the markdown itself has curly quotes/em-dashes that won't survive PDF encoding
+    check('Master Guide markdown uses PDF-safe characters (no curly quotes or em-dashes in critical fields)',
+      !pdfBrokenChars,
+      '01_Product/Master_Product_Guide.md',
+      'Master Guide markdown contains curly quotes or Unicode dashes that may render as broken characters in PDF',
+      'Use straight quotes and hyphens in buildMasterGuide — PDF renderer requires ASCII-safe characters');
+
     // ── Score + verdict ───────────────────────────────────────────────────────
     const total = passed.length + failed.length;
     let score = total > 0 ? Math.round((passed.length / total) * 100) : 100;
 
-    // Critical mismatch: cap score at 79%
+    // Cap score based on severity of issues (Issue 9)
+    const hasTemplateMismatch = criticalIssues.some(c => c.label.includes('canonical template') || c.label.includes('old placeholder'));
+    const hasWrongDeliverables = criticalIssues.some(c => c.label.includes('deliverables') || c.label.includes('source file'));
+    const hasUnsupportedClaims = failed.some(c => c.label.includes('quantified performance'));
+    const hasBrokenPDF = failed.some(c => c.label.includes('PDF-safe'));
+
+    if ((hasTemplateMismatch || hasWrongDeliverables) && score > 79) score = 79;
+    if ((hasUnsupportedClaims || hasBrokenPDF) && score > 84) score = 84;
     if (criticalIssues.length > 0 && score > 79) score = 79;
 
     let readinessVerdict;
     if (criticalIssues.length > 0) {
-      readinessVerdict = '🛑 Not launchable — critical issues must be resolved first';
+      readinessVerdict = 'NOT LAUNCHABLE — critical issues must be resolved first';
     } else if (score >= 95) {
-      readinessVerdict = '🚀 Ready to launch';
+      readinessVerdict = 'READY TO LAUNCH';
     } else if (score >= 85) {
-      readinessVerdict = '⚠️ Beta ready — needs polish before paid launch';
+      readinessVerdict = 'BETA READY — needs polish before paid launch';
     } else if (score >= 70) {
-      readinessVerdict = '🔍 Internal review only — not ready for paid customers';
+      readinessVerdict = 'INTERNAL REVIEW ONLY — not ready for paid customers';
     } else {
-      readinessVerdict = '🛑 Not launchable — resolve failed checks before publishing';
+      readinessVerdict = 'NOT LAUNCHABLE — resolve failed checks before publishing';
     }
 
     console.log(`[exportQualityGate] score=${score}% passed=${passed.length} failed=${failed.length} critical=${criticalIssues.length} verdict="${readinessVerdict}"`);

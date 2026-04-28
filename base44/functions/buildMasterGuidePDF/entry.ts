@@ -41,10 +41,33 @@ function docToBuffer(doc) {
   });
 }
 
-// ── Text helpers ──────────────────────────────────────────────────────────────
-const safe = s => String(s || '').replace(/\bnull\b/g,'').replace(/\bundefined\b/g,'').replace(/\bNaN\b/g,'').trim();
-const cap  = s => s && s.length > 0 ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-const trunc = (s, n) => { const t = safe(s); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+// ── Text helpers — PDF-safe only (Issue 3) ────────────────────────────────────
+// PDFKit standard fonts (Helvetica, Times) only support Latin-1/WinAnsi.
+// ALL Unicode outside that range must be replaced or stripped before passing to PDFKit.
+const pdfSafe = s => String(s || '')
+  .replace(/\bnull\b/g,'').replace(/\bundefined\b/g,'').replace(/\bNaN\b/g,'')
+  // Curly quotes -> straight
+  .replace(/[\u2018\u2019]/g, "'")
+  .replace(/[\u201C\u201D]/g, '"')
+  // Em/en dashes -> hyphen
+  .replace(/[\u2013\u2014]/g, '-')
+  // Ellipsis -> three dots
+  .replace(/\u2026/g, '...')
+  // Checkmarks, crosses, warnings, stars -> ASCII safe
+  .replace(/[\u2714\u2705]/g, '[x]')
+  .replace(/[\u2718\u274C]/g, '[ ]')
+  .replace(/[\u26A0\uFFFD]/g, 'NOTE:')
+  .replace(/[\u2605\u2606]/g, '*')
+  // Arrows -> simple ASCII
+  .replace(/[\u2192]/g, '->')
+  .replace(/[\u2190]/g, '<-')
+  .replace(/[\u2022]/g, '-')
+  // Remove any remaining non-Latin1 characters
+  .replace(/[^\x00-\xFF]/g, '')
+  .trim();
+const safe = pdfSafe;
+const cap  = s => { const t = safe(s); return t.length > 0 ? t.charAt(0).toUpperCase() + t.slice(1) : t; };
+const trunc = (s, n) => { const t = safe(s); return t.length > n ? t.slice(0, n - 1) + '...' : t; };
 
 // ── Layout helpers ────────────────────────────────────────────────────────────
 function needsPage(doc, requiredPts = 60) {
@@ -203,7 +226,7 @@ function drawTable(doc, headers, rows, colWidths) {
 function checklistTable(doc, items) {
   if (!items || items.length === 0) return;
   const phaseW = 110, checkW = 30, taskW = CONTENT_W - phaseW - checkW;
-  drawTable(doc, ['Phase', 'Task', 'Done'], items.map(r => [r.phase, r.task, '☐']), [phaseW, taskW, checkW]);
+  drawTable(doc, ['Phase', 'Task', 'Done'], items.map(r => [r.phase, r.task, '[ ]']), [phaseW, taskW, checkW]);
 }
 
 // ── Step cards ────────────────────────────────────────────────────────────────
@@ -294,7 +317,7 @@ function dayCard(doc, d) {
 
   // Metric
   doc.fontSize(8).fillColor(C.muted).font('Helvetica')
-     .text('✓  ' + safe(d.metric), ML + 4, cy, { width: CONTENT_W - 8 });
+     .text('[*]  ' + safe(d.metric), ML + 4, cy, { width: CONTENT_W - 8 });
   cy += 18;
 
   // Border around whole card
@@ -447,9 +470,12 @@ function getChecklistRows(n) {
   ];
 }
 
+// Canonical RE template list — must match generateZip and buildMasterGuide exactly (Issue 1)
+const CANONICAL_RE_PDF = ['Luxury Listing Presentation Cover','Editorial Property Brochure','Seller Pitch Deck Slide','Market Report Summary Page','Agent Bio & Credentials Page','Open House Invitation Flyer','Private Showing Follow-Up Card','Just Listed / Just Sold Announcement','Social Media Property Teaser','Buyer Lifestyle Guide Page'];
+
 function deriveTemplateNames(n) {
   const nicheMap = {
-    'real estate': ['Luxury Listing Presentation Cover','Editorial Property Brochure','Market Report Summary Page','Agent Bio & Credentials Page','Open House Invitation Flyer','Seller Pitch Deck Slide','Private Showing Follow-Up Card'],
+    'real estate': CANONICAL_RE_PDF,
     'fitness': ['Weekly Workout Program Schedule','Client Progress Tracking Sheet','Meal Plan & Macro Template','Exercise Instruction Card','Transformation Challenge Poster','30-Day Challenge Tracker','Workout Completion Certificate'],
     'coaching': ['Discovery Call Prep Sheet','Client Intake Questionnaire','Weekly Goal-Setting Template','Session Notes & Action Items','Progress Review Summary','Testimonial Request Template','Program Welcome Packet Cover'],
     'finance': ['Monthly Budget Tracker','Debt Payoff Calculator Sheet','Investment Portfolio Summary','Net Worth Snapshot Template','Bill Payment Calendar','Savings Goal Progress Tracker','Income & Expense Log'],
@@ -506,7 +532,7 @@ async function buildPDF(n) {
   doc.moveDown(2);
 
   // Divider ornament
-  doc.fontSize(14).fillColor(C.accent).text('— ✦ —', ML, doc.y, { align: 'center', width: CONTENT_W });
+  doc.fontSize(14).fillColor(C.accent).text('- * -', ML, doc.y, { align: 'center', width: CONTENT_W });
   doc.moveDown(2);
 
   // Meta table (2-col)
