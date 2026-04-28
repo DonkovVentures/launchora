@@ -631,6 +631,7 @@ function isTemplatePack(n) {
 
 const README = (p,n) => {
   const isTP = isTemplatePack(n);
+  const hasMasterGuide = true; // always generated now
   const productNote = isTP
     ? `   Product_Overview.txt — What's included and how to use this blueprint kit
    Template_N_[Name].txt — Layout spec + copy blocks + field guide per template
@@ -678,11 +679,21 @@ ${'═'.repeat(60)}
 ${'═'.repeat(60)}
 SUGGESTED FIRST STEPS
 ${'═'.repeat(60)}
-1. Open 01_Product/Product_Content.html in your browser — review your content
+1. Open 01_Product/Master_Product_Guide.md — your complete premium product manual
 2. Copy your listing from 02_Sales_Page/Platform_Listing_Primary.txt → paste into your store
 3. Schedule 03_Social_Media/7_Day_Posting_Calendar.txt posts for launch week
 4. Send 04_Email_Launch/Email_1_Announcement.txt to your list on launch day
 5. Follow 05_Launch_Plan/7_Day_Launch_Plan.txt day by day
+
+FILE GUIDE
+${'═'.repeat(60)}
+📄 Master_Product_Guide.md — Central premium product manual. Start here.
+📋 Individual TXT files — Copy/paste-ready assets for each template and section.
+🛒 02_Sales_Page/ — Ready-to-paste listings for Gumroad, Etsy, Payhip, Creative Market.
+📱 03_Social_Media/ — Captions, hooks, video scripts, posting calendar.
+📧 04_Email_Launch/ — 5-email launch sequence, ready to send.
+🚀 05_Launch_Plan/ — Day-by-day plan, readiness report, checklist.
+🎁 06_Bonus/ — Customer avatar, FAQ, upsell ideas, next product strategy.
 
 Good luck with your launch! 🚀
 `;
@@ -1838,6 +1849,29 @@ Deno.serve(async (req) => {
     currentStep = 'build_files';
     const buildStart = Date.now();
 
+    // ── Master Product Guide (Markdown) ─────────────────────────────────────
+    currentStep = 'master_guide';
+    let masterGuideMd = null;
+    try {
+      const mgResult = await base44.asServiceRole.functions.invoke('buildMasterGuide', { productId, n: {
+        title: n.title, subtitle: n.subtitle, promise: n.promise, type: n.type, niche: n.niche,
+        platform: n.platform, priceMin: n.priceMin, priceMax: n.priceMax, tone: n.tone,
+        buyer: n.buyer, problem: n.problem, launchPlan: n.launchPlan,
+        items: n.items, sections: n.sections, keywords: n.keywords,
+        longDesc: n.longDesc, shortDesc: n.shortDesc,
+        av: n.av, pa: n.pa, ma: n.ma, pg: n.pg,
+      }});
+      if (mgResult?.data?.markdown && mgResult.data.markdown.length > 200) {
+        masterGuideMd = mgResult.data.markdown;
+        console.log(`[generateZip] ✅ Master Guide MD built: ${masterGuideMd.length} chars`);
+      } else {
+        warnings.push('Master Product Guide returned empty content from buildMasterGuide function');
+      }
+    } catch(e) {
+      warnings.push('Master Product Guide generation failed: ' + e.message);
+      console.warn('[generateZip] Master Guide failed:', e.message);
+    }
+
     // Detect Template Pack and build its specialized 01_Product files
     const templatePack = isTemplatePack(n);
     const templateCases = templatePack ? deriveTemplateCases(n) : [];
@@ -1898,6 +1932,13 @@ Deno.serve(async (req) => {
     ];
 
     const files = [], filesIncluded = [];
+
+    // Add Master Product Guide MD first (top of 01_Product)
+    if (masterGuideMd) {
+      files.push({ name: '01_Product/Master_Product_Guide.md', data: masterGuideMd });
+      filesIncluded.push('01_Product/Master_Product_Guide.md');
+    }
+
     for(const def of fileDefs){
       const r = safeFile(def.name, def.fn, warnings);
       if(r){ files.push(r); filesIncluded.push(def.name); }
