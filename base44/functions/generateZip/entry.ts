@@ -109,35 +109,67 @@ function norm(p) {
 
 // ── Audience normalizer ───────────────────────────────────────────────────────
 // Converts a raw target_audience string into grammatically safe variables.
-// RULE: Never inject raw target_audience into a sentence. Always use these vars.
+// RULE: Never inject raw target_audience directly into a sentence. Always use these vars.
 function audienceVars(rawAudience, niche) {
   const raw = String(rawAudience || '').trim();
   if (!raw || raw.length < 4) {
     const fb = `${niche} professionals`;
-    return { audiencePlural:fb, audienceSingular:`a ${niche} professional`, audienceShort:`${niche} professionals`, audienceProblem:`finding tools that fit real ${niche} workflows`, audienceContextSentence:`This pack is built for ${niche} professionals who want to work more efficiently.` };
+    return {
+      audiencePlural: fb,
+      audienceSingular: `a ${niche} professional`,
+      audienceShort: `${niche} professionals`,
+      audienceProblem: `finding tools that fit real ${niche} workflows`,
+      audienceContextSentence: `This pack is built for ${niche} professionals who want to work more efficiently.`,
+    };
   }
-  // Extract core noun phrase — stop at qualifying clauses
+
+  // ── Step 1: Extract core noun phrase — stop at qualifying/relative clauses ──
   const corePhraseMatch = raw.match(/^(.*?)(?:\s+who\b|\s+that\b|\s+managing\b|\s+looking\b|\s+wanting\b|\s+tired\b|\s+with\b\s+\$)/i);
   const corePhrase = (corePhraseMatch ? corePhraseMatch[1] : raw.split(/[.,]/)[0]).trim();
-  // Lowercase, remove leading article
-  const lc = corePhrase.replace(/^(The |A |An )/i,'').toLowerCase().trim().replace(/\s+/g,' ');
-  const audiencePlural = lc;
-  // Singular with correct article
-  const audienceSingular = (/^[aeiou]/i.test(lc) ? 'an ' : 'a ') + lc;
-  // Short — up to 4 meaningful words, never end on a conjunction/preposition
-  const stops = new Set(['and','or','who','the','a','an','for','of','in','to','with','on','at','by','from','their','its']);
-  const words = lc.split(/\s+/).filter(w=>w.length>1);
+
+  // ── Step 2: Lowercase, strip leading article ────────────────────────────────
+  const audiencePlural = corePhrase.replace(/^(The |A |An )/i, '').toLowerCase().trim().replace(/\s+/g, ' ');
+
+  // ── Step 3: Singular — correct article ─────────────────────────────────────
+  const audienceSingular = (/^[aeiou]/i.test(audiencePlural) ? 'an ' : 'a ') + audiencePlural;
+
+  // ── Step 4: Short label — take up to 5 words; never end on a stop word ──────
+  // Using 5 words (not 4) to preserve meaningful multi-word niche nouns like
+  // "luxury real estate professionals" or "independent fitness coaches".
+  const stopWords = new Set(['and','or','who','the','a','an','for','of','in','to','with','on','at','by','from','their','its','&']);
+  const words = audiencePlural.split(/\s+/).filter(w => w.length > 0);
   const sw = [];
-  for (const w of words) { if(sw.length>=4)break; if(stops.has(w)&&sw.length>=2)break; sw.push(w); }
-  const audienceShort = sw.join(' ') || lc;
-  // Problem — extract "who are [X]" or "who [X]" clause; strip "tired of"
+  for (const w of words) {
+    if (sw.length >= 5) break;
+    // Stop before a coordinating conjunction mid-phrase (e.g. "agents and brokers" → "agents")
+    // but only after we already have at least 2 words
+    if (stopWords.has(w) && sw.length >= 2) break;
+    sw.push(w);
+  }
+  // If the short label still ends on a stop word, trim it
+  while (sw.length > 1 && stopWords.has(sw[sw.length - 1])) sw.pop();
+  const audienceShort = sw.join(' ') || audiencePlural;
+
+  // ── Step 5: Problem — extract the "who [are] X" qualifying clause ───────────
   const probMatch = raw.match(/who\s+are\s+(.*?)(?:\.|$)/i) || raw.match(/who\s+(.*?)(?:\.|$)/i);
   const rawProb = probMatch ? probMatch[1].trim() : '';
   const audienceProblem = rawProb
-    ? rawProb.replace(/^(tired of|struggling with|dealing with)\s+/i,'').replace(/\s+\.$/, '').trim()
+    ? rawProb
+        .replace(/^(tired of|struggling with|dealing with|being|compete|competing against)\s+/i, '')
+        .replace(/\s+\.$/, '')
+        .trim()
     : `competing without the right tools in ${niche}`;
-  // Context sentence — fully safe, no raw string injection
-  const audienceContextSentence = `This pack is built for ${audiencePlural} who want to stop ${audienceProblem}.`;
+
+  // ── Step 6: Context sentence — grammatically safe full sentence ──────────────
+  // Pattern: "This pack is built for [plural] who [do X]."
+  // We derive the action from audienceProblem — frame it as a positive goal.
+  const goalPhrase = audienceProblem.startsWith('competing')
+    ? `compete visually with larger, well-resourced firms`
+    : audienceProblem.startsWith('finding')
+    ? `find the right tools for their ${niche} workflow`
+    : `stand out professionally in ${niche}`;
+  const audienceContextSentence = `This pack is built for ${audiencePlural} who want to ${goalPhrase}.`;
+
   return { audiencePlural, audienceSingular, audienceShort, audienceProblem, audienceContextSentence };
 }
 
@@ -606,16 +638,33 @@ const ETSY = (p,n) => {
     const isFitness = /fitness|gym|workout|training/i.test(ni);
     const isCoach = /coach|consult|mentor/i.test(ni);
     const isMarketing = /market|brand|social|content/i.test(ni);
+    // All tags are pre-validated natural English phrases ≤20 chars.
+    // NEVER use .slice(0,20) on a dynamically built string — that truncates words mid-letter.
     let niche_tags;
-    if (isRE) niche_tags=['realtor templates','luxury realtor','listing template','real estate kit','property flyer','broker branding','open house flyer','seller pitch deck','agent bio','market report','blueprint kit','realty brochure','home listing kit'];
-    else if (isFitness) niche_tags=['fitness templates','workout planner','gym program kit','client tracker','fitness branding','training schedule','meal plan template','fitness planner','gym bundle','coach templates','blueprint system','workout bundle','client program'];
-    else if (isCoach) niche_tags=['coaching templates','coach branding','client workbook','session notes','onboarding kit','blueprint system','intake form','proposal template','coaching bundle','discovery call','client toolkit','coach planner','business coach'];
-    else if (isMarketing) niche_tags=['marketing kit','brand templates','content planner','social media kit','brand blueprint','brand guide','campaign brief','content calendar','marketing bundle','brand toolkit','social templates','caption templates','brand strategy'];
-    else niche_tags=[`${ni} templates`,`${ni} planner`,`${ni} kit`,`${ni} bundle`,`${ni} blueprint`,`${ni} branding`].map(t=>t.slice(0,20));
-    const universal=['digital download','blueprint system','instant download','layout guide','professional kit','template bundle','done for you','digital template','copy kit','small biz kit'];
-    const seen=new Set(),result=[];
-    for(const tag of [...niche_tags,...universal]){const c=tag.trim().toLowerCase();if(c.length<=20&&!seen.has(c)){seen.add(c);result.push(c);}if(result.length===13)break;}
-    while(result.length<13)result.push(`${ni} template`.slice(0,20));
+    if (isRE) niche_tags=['realtor templates','luxury realtor','listing template','real estate kit','property flyer','broker branding','open house flyer','seller pitch','agent bio','market report','realty brochure','home listing','agent templates'];
+    else if (isFitness) niche_tags=['fitness templates','workout planner','gym program kit','client tracker','fitness branding','training schedule','meal plan template','fitness planner','gym bundle','coach templates','workout bundle','client program','fitness kit'];
+    else if (isCoach) niche_tags=['coaching templates','coach branding','client workbook','session notes','onboarding kit','intake form','proposal template','coaching bundle','discovery call','client toolkit','coach planner','business coach','coach kit'];
+    else if (isMarketing) niche_tags=['marketing kit','brand templates','content planner','social media kit','brand blueprint','brand guide','campaign brief','content calendar','marketing bundle','social templates','caption templates','brand strategy','marketing planner'];
+    else if (/nutrition|meal|food|diet/i.test(ni)) niche_tags=['nutrition templates','meal plan kit','food journal','macro tracker','diet planner','recipe template','client meal plan','nutrition planner','wellness kit','health tracker','nutrition bundle','coach templates','wellness planner'];
+    else if (/wedding|bride/i.test(ni)) niche_tags=['wedding planner','wedding templates','bride kit','venue checklist','wedding budget','seating chart','vendor tracker','wedding timeline','guest list','event planner kit','wedding bundle','wedding checklist','wedding day kit'];
+    else if (/photo|portrait|photographer/i.test(ni)) niche_tags=['photography kit','client booking','shot list','photo contract','studio templates','invoice template','photo planner','portfolio template','model release','photographer kit','booking templates','photo bundle','photo session kit'];
+    else if (/financ|budget|money|invest/i.test(ni)) niche_tags=['budget template','finance planner','money tracker','debt payoff plan','budget kit','savings tracker','net worth tracker','finance bundle','expense tracker','investment tracker','bill pay planner','financial planner','budget planner'];
+    else if (/educat|teacher|lesson|classroom/i.test(ni)) niche_tags=['teacher templates','lesson planner','classroom kit','student tracker','course outline','education bundle','teacher planner','quiz template','grade tracker','homework tracker','classroom planner','teacher bundle','lesson plan kit'];
+    else {
+      // Generic fallback: build from niche words that fit ≤20 chars naturally — no mid-word cuts
+      const safe = ni.split(/\s+/).slice(0,2).join(' ');
+      niche_tags=[`${safe} templates`,`${safe} planner`,`${safe} kit`,`${safe} bundle`,`${safe} blueprint`,`${safe} branding`].filter(t=>t.length<=20);
+    }
+    const universal=['digital download','blueprint system','instant download','layout guide','professional kit','template bundle','digital template','copy kit','small biz kit','done for you'];
+    const seen=new Set(), result=[];
+    for (const tag of [...niche_tags,...universal]) {
+      const t=tag.trim().toLowerCase();
+      if (t.length>20||seen.has(t)) continue; // hard guard — never >20 chars
+      seen.add(t); result.push(t);
+      if (result.length===13) break;
+    }
+    const pads=['digital kit','template kit','pro templates','design kit','print kit'];
+    for (const pd of pads) { if(result.length>=13)break; if(!seen.has(pd)){seen.add(pd);result.push(pd);} }
     return result.slice(0,13);
   }
   const tags=buildEtsyTags(n);
@@ -1175,7 +1224,7 @@ Slide 1 (Cover): "What's inside ${n.title} 👀"
 
 ${secList.map((s,i) => `Slide ${i+2}: ${s.title||s.heading||'Template '+(i+1)}
   Visual: Preview of the template layout
-  Caption: "Template ${i+1}: ${s.title||s.heading||'Template '+(i+1)} — editable, export-ready, built for ${n.niche}"`).join('\n\n')}
+  Caption: "Template ${i+1}: ${s.title||s.heading||'Template '+(i+1)} — layout blueprint + copy blocks, built for ${n.niche}"`).join('\n\n')}
 
 Slide ${secList.length+2} (CTA):
   Headline: "$${n.priceMin} for the full pack."
