@@ -1851,7 +1851,7 @@ Deno.serve(async (req) => {
 
     // ── Master Product Guide (Markdown) ─────────────────────────────────────
     currentStep = 'master_guide';
-    let masterGuideMd = null, masterGuideHtml = null;
+    let masterGuideMd = null, masterGuideHtml = null, masterGuidePdf = null;
     try {
       const mgResult = await base44.asServiceRole.functions.invoke('buildMasterGuide', { productId, n: {
         title: n.title, subtitle: n.subtitle, promise: n.promise, type: n.type, niche: n.niche,
@@ -1865,14 +1865,14 @@ Deno.serve(async (req) => {
         masterGuideMd = mgResult.data.markdown;
         console.log(`[generateZip] ✅ Master Guide MD: ${masterGuideMd.length} chars`);
       } else warnings.push('Master Product Guide MD empty');
-      if (mgResult?.data?.html && mgResult.data.html.length > 500) {
-        masterGuideHtml = mgResult.data.html;
-        console.log(`[generateZip] ✅ Master Guide HTML: ${masterGuideHtml.length} chars`);
-      } else warnings.push('Master Product Guide HTML empty');
-    } catch(e) {
-      warnings.push('Master Product Guide generation failed: ' + e.message);
-      console.warn('[generateZip] Master Guide failed:', e.message);
-    }
+      if (mgResult?.data?.html && mgResult.data.html.length > 500) { masterGuideHtml = mgResult.data.html; console.log(`[generateZip] ✅ Master Guide HTML: ${masterGuideHtml.length} chars`); } else warnings.push('Master Product Guide HTML empty');
+    } catch(e) { warnings.push('Master Product Guide failed: '+e.message); console.warn('[generateZip] MasterGuide failed:', e.message); }
+    try {
+      const pdfPayload = { n: { title:n.title,subtitle:n.subtitle,promise:n.promise,type:n.type,niche:n.niche,platform:n.platform,priceMin:n.priceMin,priceMax:n.priceMax,tone:n.tone,buyer:n.buyer,problem:n.problem,launchPlan:n.launchPlan,items:n.items,sections:n.sections,keywords:n.keywords,longDesc:n.longDesc,shortDesc:n.shortDesc,av:n.av,pa:n.pa,ma:n.ma,pg:n.pg } };
+      const pdfResult = await base44.asServiceRole.functions.invoke('buildMasterGuidePDF', pdfPayload);
+      if (pdfResult?.data?.ok && pdfResult.data.pdfBase64) { const b=atob(pdfResult.data.pdfBase64),u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); masterGuidePdf=u; console.log(`[generateZip] ✅ Master Guide PDF: ${u.length} bytes`); }
+      else warnings.push('Master Guide PDF empty: '+(pdfResult?.data?.error||'unknown'));
+    } catch(e) { warnings.push('Master Guide PDF failed (non-blocking): '+e.message); console.warn('[generateZip] PDF failed:', e.message); }
 
     // Detect Template Pack and build its specialized 01_Product files
     const templatePack = isTemplatePack(n);
@@ -1937,6 +1937,7 @@ Deno.serve(async (req) => {
 
     if (masterGuideMd) { files.push({ name: '01_Product/Master_Product_Guide.md', data: masterGuideMd }); filesIncluded.push('01_Product/Master_Product_Guide.md'); }
     if (masterGuideHtml) { files.push({ name: '01_Product/Master_Product_Guide.html', data: masterGuideHtml }); filesIncluded.push('01_Product/Master_Product_Guide.html'); }
+    if (masterGuidePdf) { files.push({ name: '01_Product/Master_Product_Guide.pdf', data: masterGuidePdf }); filesIncluded.push('01_Product/Master_Product_Guide.pdf'); }
 
     for(const def of fileDefs){
       const r = safeFile(def.name, def.fn, warnings);
