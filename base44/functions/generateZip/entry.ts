@@ -501,72 +501,10 @@ function isTemplatePack(n) {
 
 const README = (p,n) => {
   const isTP = isTemplatePack(n);
-  const hasMasterGuide = true; // always generated now
-  const productNote = isTP
-    ? `   Product_Overview.txt — What's included and how to use this blueprint kit
-   Template_N_[Name].txt — Layout spec + copy blocks + field guide per template
-   Copy_Bank.txt — Ready-to-paste copy for all templates
-   Headline_Bank.txt — 30+ headlines per use case
-   CTA_Bank.txt — 20+ calls-to-action
-   ⚠️  NOTE: These are template blueprints (layout specs + copy), not Canva/InDesign source files.
-       Open each template file in any text editor. Build the template in your design tool
-       using the layout spec provided. The copy blocks paste directly into your design.`
-    : `   Product_Content.txt / .html — Full product content
-   Buyer_Quick_Start_Guide.txt — What buyers do first
-   Implementation_Checklist.txt — Action checklist`;
-  return `LAUNCHORA DIGITAL PRODUCT LAUNCH KIT
-${'═'.repeat(60)}
-PRODUCT: ${n.title}
-TYPE: ${n.type} | PLATFORM: ${n.platform} | PRICE: $${n.priceMin}–$${n.priceMax}
-GENERATED: ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}
-${'═'.repeat(60)}
-WHAT'S IN YOUR LAUNCH KIT
-${'═'.repeat(60)}
-📁 01_Product/
-   ${productNote}
-
-
-📁 02_Sales_Page/
-   Platform_Listing_Primary.txt — Ready-to-paste listing
-   Gumroad / Etsy / Payhip / Creative_Market listings
-   Product_Description_Short/Long.txt
-   Pricing_Strategy.txt | SEO_Keywords.txt
-
-📁 03_Social_Media/
-   Hooks.txt | Instagram_Captions.txt | LinkedIn_Posts.txt
-   TikTok_Reel_Ideas.txt | Carousel_Post_Outlines.txt
-   Hashtag_Groups.txt | 7_Day_Posting_Calendar.txt
-
-📁 04_Email_Launch/
-   Emails 1–5: Announcement → Value → Problem → Offer → Last Call
-
-📁 05_Launch_Plan/
-   7_Day_Launch_Plan.txt | Launch_Checklist.txt
-   Platform_Recommendation.txt | Launch_Readiness_Report.txt
-
-📁 06_Bonus/
-   Customer_Avatar.txt | FAQ.txt | Upsell_Ideas.txt | Next_Product_Ideas.txt
-${'═'.repeat(60)}
-SUGGESTED FIRST STEPS
-${'═'.repeat(60)}
-1. Open 01_Product/Master_Product_Guide.md — your complete premium product manual
-2. Copy your listing from 02_Sales_Page/Platform_Listing_Primary.txt → paste into your store
-3. Schedule 03_Social_Media/7_Day_Posting_Calendar.txt posts for launch week
-4. Send 04_Email_Launch/Email_1_Announcement.txt to your list on launch day
-5. Follow 05_Launch_Plan/7_Day_Launch_Plan.txt day by day
-
-FILE GUIDE
-${'═'.repeat(60)}
-📄 Master_Product_Guide.md — Central premium product manual. Start here.
-📋 Individual TXT files — Copy/paste-ready assets for each template and section.
-🛒 02_Sales_Page/ — Ready-to-paste listings for Gumroad, Etsy, Payhip, Creative Market.
-📱 03_Social_Media/ — Captions, hooks, video scripts, posting calendar.
-📧 04_Email_Launch/ — 5-email launch sequence, ready to send.
-🚀 05_Launch_Plan/ — Day-by-day plan, readiness report, checklist.
-🎁 06_Bonus/ — Customer avatar, FAQ, upsell ideas, next product strategy.
-
-Good luck with your launch! 🚀
-`;
+  const p01 = isTP
+    ? `   Master_Product_Guide.pdf  — ⭐ START HERE — premium customer-facing product manual\n   Master_Product_Guide.html — browser-friendly version\n   Master_Product_Guide.md   — clean editable source (Markdown)\n   Product_Overview.txt      — what's included and how to use this blueprint kit\n   Template_N_[Name].txt     — layout spec + copy blocks + field guide per template\n   Copy_Bank.txt | Headline_Bank.txt | CTA_Bank.txt — copy systems\n   Implementation_Checklist.txt | Buyer_Quick_Start_Guide.txt\n   PRODUCT_CLAIMS_AUDIT.txt  — deliverable transparency report\n   ⚠️  Template_N_*.txt are blueprint specs, not Canva/InDesign source files.`
+    : `   Master_Product_Guide.pdf  — ⭐ START HERE — premium customer-facing product manual\n   Master_Product_Guide.html — browser-friendly version\n   Master_Product_Guide.md   — clean editable source (Markdown)\n   Product_Content.txt / .html — full content, quick copy/paste\n   Buyer_Quick_Start_Guide.txt | Implementation_Checklist.txt\n   PRODUCT_CLAIMS_AUDIT.txt  — deliverable transparency report`;
+  return `LAUNCHORA DIGITAL PRODUCT LAUNCH KIT\n${'═'.repeat(60)}\nPRODUCT: ${n.title}\nTYPE: ${n.type} | PLATFORM: ${n.platform} | PRICE: $${n.priceMin}–$${n.priceMax}\nGENERATED: ${new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'})}\n${'═'.repeat(60)}\nRECOMMENDED FIRST STEP\n${'═'.repeat(60)}\n▶ Open 01_Product/Master_Product_Guide.pdf\n\n   This is the premium, fully-formatted product manual for ${n.title}.\n   It contains the complete product content, visual brand guidance,\n   implementation instructions, and launch context in one polished document.\n\n   Browser version: Master_Product_Guide.html\n   Editable source: Master_Product_Guide.md\n\n${'═'.repeat(60)}\nWHAT'S IN YOUR LAUNCH KIT\n${'═'.repeat(60)}\n📁 01_Product/\n${p01}\n\n📁 02_Sales_Page/\n   Platform_Listing_Primary.txt — ready-to-paste listing for ${n.platform}\n   Gumroad / Etsy / Payhip / Creative_Market listings\n   Product_Description_Short/Long.txt | Pricing_Strategy.txt | SEO_Keywords.txt\n\n📁 03_Social_Media/   ← launch assets\n   Hooks.txt | Instagram_Captions.txt | LinkedIn_Posts.txt\n   TikTok_Reel_Ideas.txt | Carousel_Post_Outlines.txt\n   Hashtag_Groups.txt | 7_Day_Posting_Calendar.txt\n\n📁 04_Email_Launch/   ← launch assets\n   Email_1_Announcement → Email_2_Educational_Value → Email_3_Problem_Aware\n   → Email_4_Offer → Email_5_Last_Call\n\n📁 05_Launch_Plan/    ← launch assets\n   7_Day_Launch_Plan.txt | Launch_Checklist.txt\n   Platform_Recommendation.txt | Launch_Readiness_Report.txt\n\n📁 06_Bonus/          ← product ecosystem planning\n   Customer_Avatar.txt | FAQ.txt | Upsell_Ideas.txt | Next_Product_Ideas.txt\n\n${'═'.repeat(60)}\nFILE GUIDE\n${'═'.repeat(60)}\n📄 Master_Product_Guide.pdf  — Premium product manual. Open this first.\n🌐 Master_Product_Guide.html — Same content, readable in any browser.\n✏️  Master_Product_Guide.md   — Editable Markdown source. Customise freely.\n📋 Individual TXT files      — Quick copy/paste for every section and asset.\n🛒 02_Sales_Page/            — Copy → paste → publish to your store.\n📱 03_Social_Media/          — Schedule for launch week.\n📧 04_Email_Launch/          — Send Email_1 on launch day, one per day after.\n🚀 05_Launch_Plan/           — Follow 7_Day_Launch_Plan.txt step by step.\n🎁 06_Bonus/                 — Upsell ideas, avatar, FAQ, next product roadmap.\n\n${'═'.repeat(60)}\nLAUNCH SEQUENCE\n${'═'.repeat(60)}\n1. ▶ Open 01_Product/Master_Product_Guide.pdf\n2. 🛒 Paste listing from 02_Sales_Page/Platform_Listing_Primary.txt into your store\n3. 📅 Schedule 03_Social_Media/7_Day_Posting_Calendar.txt for launch week\n4. 📧 Send 04_Email_Launch/Email_1_Announcement.txt on launch day\n5. 🚀 Follow 05_Launch_Plan/7_Day_Launch_Plan.txt day by day\n\nGood luck with your launch! 🚀\nGenerated by Launchora | launchora.com\n`;
 };
 
 const PRODUCT_TXT = (p,n) => {
@@ -1701,10 +1639,10 @@ Deno.serve(async (req) => {
   let productId = null, currentStep = 'init';
   const exportStart = Date.now(), warnings = [];
 
-  const fail = async (step, msg, details='') => {
+  const fail = async (step, msg, details='', failedQualityChecks=[]) => {
     console.error(`[generateZip] ❌ step=${step}: ${msg}`);
     try { if(productId) await base44.asServiceRole.entities.Product.update(productId,{export_status:'failed',export_error:`[${step}] ${msg}`}); } catch(_){}
-    return Response.json({success:false,error:msg,details:String(details),step,warnings});
+    return Response.json({success:false,error:msg,details:String(details),step,warnings,failedQualityChecks});
   };
 
   try {
@@ -1980,17 +1918,20 @@ Generated by Launchora | launchora.com`;
     };
 
     return Response.json({
-      success:true, fileUrl, fileName, fileSize:zipBytes.length,
-      generatedAt, export_status:'ready', filesIncluded, warnings,
-      timings:{totalMs,fetchMs,buildMs,uploadMs},
-      product_claims_check,
-      // Quality Gate results — always present (null if gate failed to run)
+      success: true,
+      fileUrl,
+      fileName,
+      fileSize: zipBytes.length,
+      generatedAt,
+      export_status: 'ready',
+      filesIncluded,
+      masterGuideIncluded: !!(masterGuideMd || masterGuideHtml || masterGuidePdf),
+      visualAssetsIncluded: false, // image generation not yet enabled
       qualityScore: qualityGateResult?.qualityScore ?? null,
       readinessVerdict: qualityGateResult?.readinessVerdict ?? null,
+      warnings,
       failedQualityChecks: qualityGateResult?.failedQualityChecks ?? [],
-      criticalMismatch: qualityGateResult?.criticalMismatch ?? false,
-      criticalIssues: qualityGateResult?.criticalIssues ?? [],
-      passedChecks: qualityGateResult?.passedChecks ?? [],
+      productClaimsCheck: product_claims_check,
     });
 
   } catch(error){
