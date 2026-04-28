@@ -1,10 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import OpenAI from 'npm:openai@4.86.2';
 
-const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
-
 // Try gpt-image-1 first, fall back to dall-e-3
 async function generateImage(prompt, size, quality) {
+  const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY') });
   const models = ['gpt-image-1', 'dall-e-3'];
   for (const model of models) {
     try {
