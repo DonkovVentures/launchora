@@ -160,11 +160,14 @@ function deriveTemplateCases(n) {
     'real estate': [
       'Luxury Listing Presentation Cover',
       'Editorial Property Brochure',
+      'Seller Pitch Deck Slide',
       'Market Report Summary Page',
       'Agent Bio & Credentials Page',
       'Open House Invitation Flyer',
-      'Seller Pitch Deck Slide',
       'Private Showing Follow-Up Card',
+      'Just Listed / Just Sold Announcement',
+      'Social Media Property Teaser',
+      'Buyer Lifestyle Guide Page',
     ],
     'fitness': [
       'Weekly Workout Program Schedule',
@@ -271,177 +274,12 @@ function deriveTemplateCases(n) {
   ];
 }
 
-// Build a single rich template file
-function buildTemplateFile(useCase, index, n) {
-  const slug = useCase.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
-  const sectionBody = n.sections[index] ? (n.sections[index].body || '') : '';
-
-  // Derive layout, required assets, and CTA from use case name
-  const isPresentation = /pitch|deck|slide|presentation|cover/i.test(useCase);
-  const isTracker = /track|log|calendar|planner|sheet|budget|schedule|plan/i.test(useCase);
-  const isForm = /form|questionnaire|intake|checklist|invoice|receipt/i.test(useCase);
-  const isFlyer = /flyer|poster|card|invitation|certificate/i.test(useCase);
-  const isReport = /report|summary|analysis|audit|portfolio|profile|bio/i.test(useCase);
-
-  let layoutStructure, requiredAssets, exportFormat;
-
-  if (isPresentation) {
-    layoutStructure = `Full-bleed cover layout
-• Top 60%: Hero image or brand graphic (placeholder: [INSERT HERO IMAGE])
-• Bottom 40%: Dark overlay with title block
-• Title (H1): [INSERT MAIN HEADLINE] — large, bold, centered
-• Subtitle (H2): [INSERT TAGLINE] — smaller, lighter weight
-• Logo area: Bottom-left corner | Contact info: Bottom-right corner
-• Accent bar: 4px color bar across top (brand color)
-• Background: Deep navy (#0D1B2A) or brand dark color`;
-    requiredAssets = `• 1 hero/property image (min 1920×1080px, JPEG)
-• Logo (SVG or PNG, transparent background)
-• Brand color hex codes (primary + accent)
-• Font files if using custom typography
-• Agent/team headshot (if bio variant)`;
-    exportFormat = 'PDF (print-ready, 300 DPI) + PNG (social sharing) | Canva or Adobe InDesign';
-  } else if (isTracker) {
-    layoutStructure = `Grid/table layout optimized for data entry
-• Header row: Dark background + white text labels
-• Data rows: Alternating light/white stripes for readability
-• Column widths: Label column 30% | Data columns equal-split
-• Totals/summary row: Accent color background at bottom
-• Month/period label: Top-left header block
-• Notes section: 3-line area at bottom of each page
-• Page size: A4 or US Letter landscape`;
-    requiredAssets = `• Brand colors (2 max for clean data tables)
-• Logo (optional — top-right corner)
-• Company/creator name for footer`;
-    exportFormat = 'PDF (fillable) + Excel/Google Sheets compatible | Notion template optional';
-  } else if (isForm) {
-    layoutStructure = `Clean single-column form layout
-• Header: Title + logo + date field (top)
-• Section dividers: Thin rule lines with section labels
-• Input fields: Underline style or bordered boxes (22px height)
-• Checkboxes: Left-aligned, 16px squares
-• Multi-line fields: 3–5 lines each
-• Signature line: Bottom, with date field beside it
-• Footer: Contact info + branding`;
-    requiredAssets = `• Logo (top-right, 80×80px recommended)
-• Business name + contact details
-• Any legally required disclaimers (consult your legal advisor)`;
-    exportFormat = 'PDF (fillable form) + DOCX (editable) | Google Forms link optional';
-  } else if (isFlyer) {
-    layoutStructure = `Single-page visual-first layout
-• Top third: Bold headline in display font (min 48pt)
-• Middle section: Key details — date, time, location in scannable format
-• Visual accent: 1 strong image or graphic element
-• Info hierarchy: H1 headline → H2 subhead → body details → CTA button
-• Whitespace: 20px minimum margins all sides
-• CTA area: Contrasting color button or call-out box at bottom
-• QR code placeholder: Bottom corner (optional)`;
-    requiredAssets = `• Hero image or background texture
-• Logo or brand mark
-• Key event/offer details (date, time, address, URL)
-• QR code (generate at qr-code-generator.com)`;
-    exportFormat = 'PDF (print A5/A4) + PNG (digital sharing) + JPG (social media)';
-  } else {
-    // Report / summary / profile
-    layoutStructure = `Professional document layout with sidebar
-• Left sidebar (25% width): Brand color panel with key stats or photo
-• Main content area (75% width): White background
-• Top header: Full-width banner with title + period/date
-• Section headers: Color-accented H2 with thin rule below
-• Data callouts: Large number + label in accent boxes
-• Body text: 10–11pt serif or sans-serif, 1.5 line height
-• Page footer: Page number + logo + confidentiality note`;
-    requiredAssets = `• Brand colors + fonts
-• Logo (sidebar + footer)
-• Data/statistics to populate callout boxes
-• Profile photo (if biography variant)`;
-    exportFormat = 'PDF (professional print) + interactive PDF | PowerPoint/Keynote if slideshow variant';
-  }
-
-  const primaryHeadline = `${useCase} — Professional ${n.niche} Template`;
-  const altHeadlines = [
-    `The ${n.niche} ${useCase} That Makes You Look Like a Pro`,
-    `Ready-to-Use ${useCase} for ${n.niche} Professionals`,
-    `${useCase}: The ${n.niche} Template Built for Results`,
-    `Plug-and-Play ${useCase} — Just Add Your Details`,
-    `${n.niche} ${useCase} That Closes More Deals`,
-  ];
-
-  const ctaExamples = [
-    `Download Now → Customize in Minutes`,
-    `Get Your ${useCase} Template →`,
-    `Grab This Template — $${n.priceMin} Instant Access`,
-    `Use This Template Today →`,
-    `Start Customizing Now — It's Instant →`,
-  ];
-
-  // Section copy blocks — use stored section body if available, otherwise build from structure
-  const sectionCopy = sectionBody && sectionBody.trim().length > 50
-    ? `SECTION CONTENT (from your product):\n${sectionBody}`
-    : `SECTION BLOCKS TO CUSTOMIZE:\n\n[HEADER BLOCK]\nText: ${useCase}\nSubtext: ${n.subtitle || n.promise || `Professional ${n.niche} template`}\n\n[BODY BLOCK 1]\nLabel: ${n.keywords[0] || 'Key Detail 1'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 2]\nLabel: ${n.keywords[1] || 'Key Detail 2'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[BODY BLOCK 3]\nLabel: ${n.keywords[2] || 'Key Detail 3'}\nContent: [INSERT YOUR SPECIFIC CONTENT HERE]\n\n[FOOTER BLOCK]\nText: ${n.title} | ${n.platform} | $${n.priceMin} | For: ${n.av.audienceShort}\nContact: [INSERT YOUR CONTACT INFO]`;
-
-  const customizationNotes = `CUSTOMIZATION NOTES
-${hr()}
-1. COLORS: Replace all placeholder brand colors with your hex codes. Use a tool like coolors.co to find complementary shades.
-2. FONTS: Primary headline font should be display/bold weight. Body text: 10–12pt regular weight. Max 2 font families total.
-3. IMAGES: All image placeholders are set to the recommended dimensions above. Use Unsplash.com or your own photography.
-4. LOGO: Place logo in the designated area — never stretch. Maintain padding of at least 16px around the logo.
-5. CONTENT: Replace all [BRACKETED] text with your real content before publishing.
-6. BRANDING: Apply your brand colors consistently — use the same 2–3 colors throughout the entire template pack.
-7. PRINT BLEED: If printing, add 3mm bleed on all sides. Export as PDF/X-1a for professional printers.
-8. DIGITAL: For online use, export at 72–150 DPI PNG. Compress with TinyPNG before uploading.`;
-
-  return `TEMPLATE ${index + 1}: ${useCase.toUpperCase()}
-${'═'.repeat(60)}
-Part of: ${n.title}
-Type: ${n.niche} Template | Format: Editable + Export-ready
-${'═'.repeat(60)}
-
-BEST USE CASE
-${hr()}
-Use this template for: ${useCase}
-Best suited for: ${n.av.audiencePlural}
-When to use: ${isPresentation ? 'Client-facing presentations, pitches, and first impressions'
-  : isTracker ? 'Daily/weekly tracking, reporting, and progress monitoring'
-  : isForm ? 'Client onboarding, data collection, and official documentation'
-  : isFlyer ? 'Promotions, events, announcements, and marketing campaigns'
-  : 'Professional reports, summaries, and client-facing documents'}
-
-LAYOUT STRUCTURE
-${hr()}
-${layoutStructure}
-
-REQUIRED ASSETS BEFORE CUSTOMIZING
-${hr()}
-${requiredAssets}
-
-READY-TO-COPY HEADLINE
-${hr()}
-PRIMARY: ${primaryHeadline}
-
-5 ALTERNATIVE HEADLINES
-${hr()}
-${altHeadlines.map((h, i) => `${i + 1}. ${h}`).join('\n')}
-
-${sectionCopy}
-
-CTA EXAMPLES
-${hr()}
-${ctaExamples.map((c, i) => `${i + 1}. ${c}`).join('\n')}
-
-${customizationNotes}
-
-EXPORT FORMAT RECOMMENDATION
-${hr()}
-${exportFormat}
-
-DESIGNER NOTES
-${hr()}
-• Minimum canvas size: 1080×1080px (social) | 8.5×11in (print) | 1920×1080px (presentation)
-• Color mode: RGB for digital | CMYK for print
-• Test on mobile before publishing digital versions
-• Always keep the original source file — export a copy for delivery
-
-Generated by Launchora for ${n.title} | ${new Date().toLocaleDateString()}`;
+// buildTemplateFile is now handled by the dedicated buildTemplateFile backend function.
+// Invoked asynchronously from the template pack build section.
+async function buildTemplateFileRemote(useCase, index, n, base44) {
+  const result = await base44.asServiceRole.functions.invoke('buildTemplateFile', { useCase, index, n });
+  if (result?.data?.ok && result.data.content) return result.data.content;
+  throw new Error(result?.data?.error || 'buildTemplateFile returned empty content');
 }
 
 // Product overview for Template Packs
@@ -1880,13 +1718,26 @@ Deno.serve(async (req) => {
     console.log(`[generateZip] isTemplatePack=${templatePack} templateCount=${templateCases.length}`);
 
     // 01_Product file list — switches entirely for Template Pack
+    // For Template Packs, fetch each template file remotely in parallel
+    let templateFileResults = [];
+    if (templatePack && templateCases.length > 0) {
+      const nSlim = { title:n.title,subtitle:n.subtitle,promise:n.promise,type:n.type,niche:n.niche,platform:n.platform,priceMin:n.priceMin,priceMax:n.priceMax,tone:n.tone,items:n.items,sections:n.sections,keywords:n.keywords,av:n.av,pa:n.pa,ma:n.ma };
+      templateFileResults = await Promise.all(templateCases.slice(0,7).map(async (tc, i) => {
+        const slug = tc.replace(/[^a-z0-9]/gi,'_').replace(/_+/g,'_').slice(0,40);
+        const name = `01_Product/Template_${i+1}_${slug}.txt`;
+        try {
+          const content = await buildTemplateFileRemote(tc, i, nSlim, base44);
+          return { name, data: cleanText(content) };
+        } catch(e) {
+          warnings.push(`Skipped ${name}: ${e.message}`);
+          return null;
+        }
+      }));
+    }
+
     const product01Files = templatePack
       ? [
           { name:'01_Product/Product_Overview.txt',             fn:()=>buildTemplateOverview(n, templateCases) },
-          ...templateCases.slice(0, 7).map((tc, i) => {
-            const slug = tc.replace(/[^a-z0-9]/gi, '_').replace(/_+/g, '_').slice(0, 40);
-            return { name:`01_Product/Template_${i+1}_${slug}.txt`, fn:()=>buildTemplateFile(tc, i, n) };
-          }),
           { name:'01_Product/Copy_Bank.txt',                    fn:()=>buildCopyBank(n, templateCases) },
           { name:'01_Product/Headline_Bank.txt',                fn:()=>buildHeadlineBank(n, templateCases) },
           { name:'01_Product/CTA_Bank.txt',                     fn:()=>buildCTABank(n) },
@@ -1938,6 +1789,9 @@ Deno.serve(async (req) => {
     if (masterGuideMd) { files.push({ name: '01_Product/Master_Product_Guide.md', data: masterGuideMd }); filesIncluded.push('01_Product/Master_Product_Guide.md'); }
     if (masterGuideHtml) { files.push({ name: '01_Product/Master_Product_Guide.html', data: masterGuideHtml }); filesIncluded.push('01_Product/Master_Product_Guide.html'); }
     if (masterGuidePdf) { files.push({ name: '01_Product/Master_Product_Guide.pdf', data: masterGuidePdf }); filesIncluded.push('01_Product/Master_Product_Guide.pdf'); }
+
+    // Add template files (already fetched remotely in parallel)
+    for (const tf of templateFileResults) { if(tf){ files.push(tf); filesIncluded.push(tf.name); } }
 
     for(const def of fileDefs){
       const r = safeFile(def.name, def.fn, warnings);
