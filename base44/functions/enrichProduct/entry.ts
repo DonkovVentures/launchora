@@ -29,42 +29,53 @@ async function expandSection(base44, sec, context) {
   const { productType, niche, tone, audience, promise: productPromise } = context;
   const isTemplate = (productType || '').toLowerCase().includes('template');
 
+  // RULE: The core product content must deliver standalone value.
+  // Marketing materials (emails, social, launch plan) are support — not the product.
+  // Each section must be fully self-contained and actionable without any marketing context.
   const prompt = isTemplate
-    ? `You are a professional ${niche} designer creating a ready-to-use template specification document.
-The buyer is purchasing a Template Pack for ${niche}. They need ACTUAL template files, not advice.
+    ? `You are a professional ${niche} designer creating a complete, standalone template specification.
+The buyer purchased a Template Pack for ${niche}. They need ACTUAL, COMPLETE template specifications — not summaries or advice.
 
 Template name: "${sec.title}"
 Niche: ${niche}. Audience: ${audience}. Tone: ${tone}.
 
-Write a detailed template specification that includes:
-1. BEST USE CASE — one sentence on when to use this template
-2. LAYOUT STRUCTURE — describe the visual layout (sections, columns, header/footer, hierarchy)
-3. COPY BLOCKS — write the actual ready-to-customize copy for each section (use [BRACKETS] for buyer to replace)
-4. HEADLINE OPTIONS — 3 ready-to-use headline variations
-5. CTA — 2 call-to-action options
-6. CUSTOMIZATION TIPS — 3 specific tips for this template
+Write a COMPLETE template specification with ALL of the following. Do not abbreviate or truncate any section:
+
+1. BEST USE CASE — one specific sentence on when to use this template
+2. LAYOUT STRUCTURE — describe the exact visual layout (page dimensions, sections, columns, spacing, header/footer, visual hierarchy)
+3. REQUIRED ASSETS — list every asset the buyer needs before customizing (photos, logos, data, fonts)
+4. COPY BLOCKS — write the FULL ready-to-customize copy for every section (use [BRACKETS] for buyer fields)
+5. HEADLINE OPTIONS — 3 complete, ready-to-use headline variations specific to ${niche}
+6. CTA OPTIONS — 2 specific calls-to-action
+7. CUSTOMIZATION GUIDE — 5 specific, actionable steps to customize this template
+8. EXPORT INSTRUCTIONS — exact format recommendations (PDF/PNG/JPG, resolution, naming convention)
+9. QUALITY CONTROL — 5 checklist items to verify before delivering to a client
 
 Rules:
-- Max 350 words
-- Write ACTUAL copy and layout specs — not advice about templates
-- Use [BRACKETS] for buyer-specific fields (e.g. [YOUR NAME], [INSERT PRICE], [ADD LOGO HERE])
-- Be specific to ${niche} — not generic
+- Minimum 400 words — this is the product, not a summary
+- Write ACTUAL copy and layout specs — the buyer must be able to build this template from your specification alone
+- Use [BRACKETS] for every buyer-specific field
+- Be specific to ${niche} — no generic placeholders
 
-Return ONLY valid JSON: {"body": "...template specification..."}`
-    : `You are writing content for a premium digital ${productType} in the ${niche} niche.
+Return ONLY valid JSON: {"body": "...complete template specification..."}`
+    : `You are writing substantive content for a premium digital ${productType} in the ${niche} niche.
 Tone: ${tone}. Target audience: ${audience}. Product promise: ${productPromise}.
 
-Expand this section with useful, specific, actionable content:
+RULE: This section is the PRODUCT. It must deliver standalone, actionable value — not an introduction to something else.
+
+Write complete, substantive content for this section:
 Section title: "${sec.title}"
 Existing stub (if any): "${sec.body || ''}"
 
-Rules:
-- Maximum 300 words
-- Use clear headers, bullet points or numbered steps as appropriate
-- Be specific to the niche — not generic filler
+Requirements:
+- Minimum 250 words of real, specific, actionable content
+- Use appropriate structure: headers, numbered steps, bullet points, examples, or frameworks
+- Every point must be specific to ${niche} — no generic filler
+- Include at least one concrete example, framework, or template the buyer can use immediately
+- Do NOT write "Introduction to..." or "Overview of..." — write the actual content
 - Do NOT repeat the section title in the body
 
-Return ONLY valid JSON: {"body": "...expanded content..."}`;
+Return ONLY valid JSON: {"body": "...complete section content..."}`;
 
   const result = await withTimeout(
     base44.integrations.Core.InvokeLLM({

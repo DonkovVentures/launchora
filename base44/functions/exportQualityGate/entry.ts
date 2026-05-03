@@ -261,10 +261,12 @@ Deno.serve(async (req) => {
       'Use straight quotes and hyphens in buildMasterGuide — PDF renderer requires ASCII-safe characters');
 
     // ── Score + verdict ───────────────────────────────────────────────────────
+    // RULE 10: A product is either 100% ready or it is NOT launchable.
+    // Any failed check means the product is a work-in-progress, not a launchable product.
     const total = passed.length + failed.length;
     let score = total > 0 ? Math.round((passed.length / total) * 100) : 100;
 
-    // Cap score based on severity of issues (Issue 9)
+    // Cap score based on severity
     const hasTemplateMismatch = criticalIssues.some(c => c.label.includes('canonical template') || c.label.includes('old placeholder'));
     const hasWrongDeliverables = criticalIssues.some(c => c.label.includes('deliverables') || c.label.includes('source file'));
     const hasUnsupportedClaims = failed.some(c => c.label.includes('quantified performance'));
@@ -274,17 +276,15 @@ Deno.serve(async (req) => {
     if ((hasUnsupportedClaims || hasBrokenPDF) && score > 84) score = 84;
     if (criticalIssues.length > 0 && score > 79) score = 79;
 
+    // RULE 10: Only 100% passes. Anything below is NOT launchable.
+    // Do not show partial readiness scores to the user — fix all issues first.
     let readinessVerdict;
-    if (criticalIssues.length > 0) {
-      readinessVerdict = 'NOT LAUNCHABLE — critical issues must be resolved first';
-    } else if (score >= 95) {
+    if (failed.length === 0 && score === 100) {
       readinessVerdict = 'READY TO LAUNCH';
-    } else if (score >= 85) {
-      readinessVerdict = 'BETA READY — needs polish before paid launch';
-    } else if (score >= 70) {
-      readinessVerdict = 'INTERNAL REVIEW ONLY — not ready for paid customers';
+    } else if (criticalIssues.length > 0) {
+      readinessVerdict = `NOT LAUNCHABLE — ${criticalIssues.length} critical issue${criticalIssues.length > 1 ? 's' : ''} must be resolved`;
     } else {
-      readinessVerdict = 'NOT LAUNCHABLE — resolve failed checks before publishing';
+      readinessVerdict = `NOT LAUNCHABLE — ${failed.length} issue${failed.length > 1 ? 's' : ''} must be resolved before publishing`;
     }
 
     console.log(`[exportQualityGate] score=${score}% passed=${passed.length} failed=${failed.length} critical=${criticalIssues.length} verdict="${readinessVerdict}"`);
