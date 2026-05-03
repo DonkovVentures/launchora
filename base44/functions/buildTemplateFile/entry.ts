@@ -905,148 +905,317 @@ PNG at 1080×1350px for Instagram feed (lifestyle content series)`,
 };
 
 // ── Generic template definitions for non-RE niches ────────────────────────────
+// RULE 2: Each template at each index position must have a UNIQUE layout, purpose, and copy.
+// RULE 4: Copy must be niche-specific — never generic business filler.
+// RULE 6: Every visual product must specify exact visual assets and mockup requirements.
+const GENERIC_LAYOUT_VARIANTS = [
+  // Index 0 — Cover / Hero presentation
+  {
+    layoutType: 'cover',
+    layout: (useCase, niche) => `Full-bleed cover layout (A4 portrait / US Letter — 210×297mm)
+• Top 65%: Hero image zone — full bleed, no border, minimum 2400×1600px
+• Bottom 35%: Deep brand-color panel (#1A1A1A or your darkest brand tone)
+• Main headline: Display serif font (Lora, Playfair Display, or Merriweather), 38–48pt, white, left-aligned, 40px left margin
+• Subheadline: 14pt sans-serif, white at 65% opacity, immediately below headline
+• Logo: Bottom-right corner, white version, max 110px wide
+• Accent rule: 2px brand primary color separating image from dark panel
+• Client/project name (optional): Bottom-left, 10pt sans-serif, white at 80% opacity`,
+    assets: (useCase, niche) => `• Hero image — minimum 2400×1600px, professionally shot, high contrast
+• Your logo — SVG or PNG with transparent background, white/light version for dark backgrounds
+• Brand primary hex code + accent hex code
+• Headline text (use the copy blocks below — do not use placeholder text)
+• Client or project name (if applicable)
+• Your name/business name for the bottom attribution line`,
+    exportFormat: `PDF/X-1a at 300 DPI — for print delivery and client-facing presentations
+PNG at 150 DPI — for digital sharing via email or messaging
+JPEG at 1920×1200px — for social media preview`,
+  },
+  // Index 1 — Two-column document / report
+  {
+    layoutType: 'report',
+    layout: (useCase, niche) => `Two-column report layout (A4 portrait)
+• Full-width header band (40px height): Brand primary color, white text — title + date + brand name
+• Left column (62% width): Primary content zone
+  - Section headers: 16pt serif, brand accent color underline rule (1px)
+  - Body text: 10pt sans-serif, 1.6 line height, dark charcoal (#2C2C2C)
+  - Data callout boxes: Accent-color background, stat number (28pt bold) + label (9pt)
+• Right column (38% width): Light grey background (#F5F4F2)
+  - Key stats at a glance: 4–5 metrics in clean list format
+  - Visual accent: thin vertical brand-color rule on the right column's left edge
+• Footer: Full-width, light border top — Logo (left) + page number (center) + contact (right)`,
+    assets: (useCase, niche) => `• Data or statistics to populate the left-column callout boxes (specific numbers, not placeholders)
+• 4–5 key metrics for the right-column summary (must be real figures relevant to ${niche})
+• Brand primary color hex + secondary/accent color hex
+• Logo (color version for light backgrounds)
+• Your contact details: phone, email, website`,
+    exportFormat: `PDF at 150 DPI — email distribution (keep under 2MB)
+PDF/X-1a at 300 DPI — professional print on 100gsm silk
+PNG at 1080×1350px — social media (crop to header + stats section)`,
+  },
+  // Index 2 — Single-page tracker / planner
+  {
+    layoutType: 'tracker',
+    layout: (useCase, niche) => `Grid/tracker layout (A4 portrait or landscape depending on column count)
+• Header block (full width, 50px): Brand color background, white title (18pt bold), date range
+• Column headers row: Dark charcoal background (#1A1A1A), white text (9pt, uppercase, 0.5 tracking)
+• Data rows: Alternating white and off-white (#FAFAF9), 32px row height
+• Totals / summary row at bottom: Brand accent-color background, bold text
+• Left-side row labels: 10pt semi-bold, dark charcoal
+• Footer: Thin brand-accent top rule + brand name/logo (right-aligned)
+• Notes section: 3 ruled lines at page bottom with "Notes:" label in brand color`,
+    assets: (useCase, niche) => `• Column header labels for your specific ${niche} use case (do not leave generic)
+• Row categories/labels specific to what you are tracking in ${niche}
+• Brand colors: 2 maximum for clean readability
+• Logo for footer (small, 60px max)
+• Timeframe or date range to populate the header`,
+    exportFormat: `PDF (with interactive fillable fields if using Adobe Acrobat) — for digital completion
+PDF at 300 DPI — for print on 80gsm standard paper or 100gsm for premium feel
+PNG at 1080×1350px — for showing the template on social media`,
+  },
+  // Index 3 — Visual flyer / announcement
+  {
+    layoutType: 'flyer',
+    layout: (useCase, niche) => `Visual-first single-page flyer (A5 portrait — 148×210mm — or square 1080×1080px)
+• Top third: Bold announcement headline — 48pt+ display font, centered, brand primary color
+• Middle: Hero image or graphic — full-width, 200px height, with subtle brand-color overlay
+• Event/offer details block (centered, 24px top/bottom padding):
+  - Primary detail line: 16pt bold, dark charcoal
+  - Secondary detail lines: 11pt sans-serif, muted grey, generous line spacing
+  - Thin accent rule above and below this block
+• CTA block at bottom: Brand-color background strip, white text (12pt bold), centered
+• QR code: Bottom-right corner, 70×70px, white background, links to your landing page
+• Footer text: Business name + website in 9pt, centered, muted`,
+    assets: (useCase, niche) => `• Hero image — minimum 1920×1080px, relevant to the specific announcement or offer
+• Headline text (use the completed copy block below — no placeholder headlines)
+• Key details: date, time, location, price point, or offer specifics (all must be real)
+• CTA text (e.g. "Book your spot →" or "Download now →")
+• QR code — generate at qr.io or qr-code-generator.com, test on 3 devices before printing
+• Logo for footer`,
+    exportFormat: `PDF/X-1a at 300 DPI with 3mm bleed — professional print distribution
+PNG at 1080×1350px — Instagram feed (portrait)
+PNG at 1080×1080px — Instagram / Facebook / LinkedIn (square)
+PDF at 150 DPI — email attachment`,
+  },
+  // Index 4 — Form / intake / questionnaire
+  {
+    layoutType: 'form',
+    layout: (useCase, niche) => `Single-column form layout (A4 portrait)
+• Header: Full-width brand-color bar (40px) with white title + logo top-right (80×40px)
+• Intro paragraph zone: 40px top margin, 11pt body text, left-aligned, max 3 sentences
+• Section dividers: Thin brand-accent rule + section label (8pt, uppercase, bold, 0.8 tracking)
+• Short-answer fields: Underline input style (0.5pt rule), 24px height, label in 9pt above
+• Multi-line fields: Bordered rectangle, 3–5 lines, rounded corners 4px
+• Checkbox questions: 16×16px square check boxes, left-aligned, 11pt label text
+• Signature block: Underline rule + "Signature" label (9pt) + "Date" field (right-aligned)
+• Footer: Contact details centered, 8pt, brand logo bottom-right`,
+    assets: (useCase, niche) => `• Form title specific to your ${niche} use case (not "Form 1" — give it a real name)
+• Section labels: the actual categories of information you are collecting from ${niche} clients
+• Intro paragraph text (use the copy block below — explains the purpose and what to expect)
+• Your business name, phone, email, website for the footer
+• Logo (color version for header, can be monochrome for footer)
+• Any required legal disclaimer or confidentiality notice for your jurisdiction`,
+    exportFormat: `PDF with interactive form fields (Adobe Acrobat Pro) — for digital completion and return
+PDF at 300 DPI (flat) — for printing and handwritten completion
+Google Form equivalent: use the field labels from this blueprint to build the digital version`,
+  },
+  // Index 5 — Social media content kit
+  {
+    layoutType: 'social',
+    layout: (useCase, niche) => `Social media content template set — 3 format variants
+FORMAT A: Square post (1080×1080px)
+• Background: Brand primary color or high-quality lifestyle photograph with 35% dark overlay
+• Center text zone: Headline (24pt bold, white) + subtext (14pt, white at 80%) centered with generous padding
+• Bottom strip: 60px white strip — logo (left, 40px) + handle/website (center, 10pt) + CTA icon (right)
+
+FORMAT B: Story/Reel cover (1080×1920px)
+• Full-bleed background image or gradient
+• Safe zone text (center 70% of height): Headline (36pt, white) + 2-line description + CTA button
+• Top 15%: Brand logo (centered, 60px, white)
+• Bottom 15%: Account handle + swipe/tap CTA text
+
+FORMAT C: LinkedIn banner (1200×628px)
+• Left 55%: Brand color panel — headline (28pt) + 2-line description + small logo
+• Right 45%: High-quality image or branded graphic`,
+    assets: (useCase, niche) => `• 1 high-quality lifestyle or product photograph per format (minimum 1080×1080px for square, 1080×1920px for Stories)
+• Headline text — use the completed copy blocks below, do not leave generic
+• Brand primary hex + secondary hex
+• Logo (white version for dark backgrounds, color version for light)
+• Social media handle or website URL
+• CTA text specific to what you want the audience to do`,
+    exportFormat: `PNG at 1080×1080px — Instagram/Facebook/LinkedIn square post
+PNG at 1080×1920px — Instagram/Facebook Stories and Reels cover
+PNG at 1200×628px — LinkedIn post image
+PNG at 1080×1350px — Instagram portrait post (optimal reach format)`,
+  },
+];
+
 function buildGenericTemplate(useCase, index, n) {
-  const isTracker = /track|log|calendar|planner|sheet|budget|schedule/i.test(useCase);
-  const isForm = /form|questionnaire|intake|checklist|invoice/i.test(useCase);
-  const isFlyer = /flyer|poster|card|invitation|certificate/i.test(useCase);
-  const isPresentation = /pitch|deck|slide|presentation|cover/i.test(useCase);
-  const aud = n.av.audiencePlural;
-  const audShort = n.av.audienceShort;
-  const sectionBody = n.sections[index] ? (n.sections[index].body || '') : '';
+  const aud = (n.av && n.av.audiencePlural) ? n.av.audiencePlural : `${n.niche} professionals`;
+  const audShort = (n.av && n.av.audienceShort) ? n.av.audienceShort : n.niche;
+  const sectionBody = n.sections && n.sections[index] ? (n.sections[index].body || '') : '';
+  const niche = n.niche || 'professional services';
 
-  let layout, assets, exportFormat;
+  // RULE 2: Use index-specific layout to ensure every template is visually distinct
+  const variantIndex = index % GENERIC_LAYOUT_VARIANTS.length;
+  const variant = GENERIC_LAYOUT_VARIANTS[variantIndex];
 
-  if (isPresentation) {
-    layout = `Full-bleed single-page cover or slide layout (1920×1080px or A4 portrait)
-• Top 60%: Hero image or brand graphic — full bleed
-• Bottom 40%: Dark brand panel
-• Headline: 36–48pt display font, white, left-aligned
-• Subheadline: 14pt sans-serif, white 70% opacity
-• Logo: Bottom-right corner, white version
-• Accent rule: 2px brand color line at panel top`;
-    assets = `• Hero image or brand graphic (min 1920×1080px)
-• Logo — SVG or PNG, white/light version
-• Brand hex color codes (primary + accent)
-• Headline text for this specific use case
-• Subtitle or tagline`;
-    exportFormat = `PDF at 300 DPI for print | PNG at 1920×1080px for digital/social`;
-  } else if (isTracker) {
-    layout = `Grid/table layout (A4 landscape or portrait depending on column count)
-• Full-width header: dark background, white text labels, brand accent
-• Data rows: Alternating white / light grey stripes (alternating every other row)
-• Totals row: Accent color background at bottom
-• Notes section: 3 lines at page bottom
-• Column label row: Bold, 9pt, consistent with brand font`;
-    assets = `• Brand colors (2 maximum for clean tables)
-• Column header labels for this specific use case
-• Row labels or categories
-• Logo for header or footer (optional)`;
-    exportFormat = `PDF (fillable) for digital use | PDF at 300 DPI for print`;
-  } else if (isForm) {
-    layout = `Single-column form layout (A4 portrait)
-• Header: Title + logo + date field
-• Section dividers: Thin rule + section label (bold, 8pt, uppercase)
-• Input fields: Underline style, 22px height
-• Checkboxes: 16px squares, left-aligned
-• Signature line at bottom with date field
-• Footer: Contact info + brokerage`;
-    assets = `• Logo (top-right, 80×80px)
-• Form title specific to use case
-• Section labels and field names
-• Business name and contact details
-• Any required legal disclaimers`;
-    exportFormat = `PDF (fillable form) for digital completion | PDF at 300 DPI for print`;
-  } else if (isFlyer) {
-    layout = `Single-page visual-first layout (A5 or A4 portrait)
-• Top third: Bold headline (48pt+), centered
-• Middle: Key details — scannable, generous whitespace
-• Strong image or graphic element
-• CTA block at bottom: contrasting color background
-• QR code placeholder: Bottom-right corner`;
-    assets = `• Hero image or background graphic
-• Headline for this specific announcement
-• Key details (date, time, location, offer details as applicable)
-• CTA text and link
-• QR code (generate at qr-code-generator.com)`;
-    exportFormat = `PDF at 300 DPI for print (A5/A4) | PNG at 1080×1350px for social`;
-  } else {
-    layout = `Professional document layout (A4 portrait)
-• Full-width header: Brand color + white text, title + date
-• Left column (60%): Main content area — headings, body, data
-• Right column (40%): Supporting stats, callout boxes, secondary info
-• Section headers: Accent color rule below H2
-• Data callouts: Large number + label in accent-color box
-• Footer: Logo + page number + contact details`;
-    assets = `• Brand colors and fonts
-• Content for each section of this specific template
-• Statistics or data to populate callout boxes
-• Logo (color and white versions)
-• Contact details`;
-    exportFormat = `PDF at 150 DPI for email distribution | PDF at 300 DPI for print`;
-  }
+  const layout = variant.layout(useCase, niche);
+  const assets = variant.assets(useCase, niche);
+  const exportFormat = variant.exportFormat;
 
-  const copyBlockContent = sectionBody && sectionBody.trim().length > 60
-    ? sectionBody
-    : `${useCase} for ${n.niche}
+  // RULE 4: Niche-specific copy — use sectionBody if available, otherwise build from niche context
+  const hasSectionContent = sectionBody && sectionBody.trim().length > 80;
+  const primaryCopyBlock = hasSectionContent
+    ? sectionBody.trim()
+    : buildNicheSpecificCopy(useCase, niche, aud, n);
 
-This blueprint covers the exact layout, copy, and field structure for a professional ${useCase.toLowerCase()} built for ${audShort}.
-
-Key content fields for this template:
-• Primary headline: [Your specific headline for this use case]
-• Body section 1: [Your primary content block — specific to ${useCase.toLowerCase()}]
-• Body section 2: [Supporting content or data relevant to ${n.niche}]
-• CTA / closing element: [Your call-to-action specific to the purpose of this template]
-
-Tone: ${n.tone || 'Professional, clear, and specific to your audience.'}`;
+  // RULE 3: All copy blocks must have zero generic placeholders in the primary content
+  const ctaMap = {
+    'tracker': `Open your design tool, set the column headers to match your ${niche} workflow, apply your brand colors, and save as a fillable PDF. Your clients can complete it digitally or print and return it.`,
+    'form': `Share the form link with your ${niche} clients before their first session or consultation. A completed form lets you prepare properly — and signals professionalism from the first interaction.`,
+    'flyer': `Export as PNG at 1080×1350px for Instagram, then export at 1080×1080px for Facebook. Post 48 hours before your event or offer closes for maximum attention.`,
+    'cover': `Export as a high-resolution PDF and open the first slide in front of your ${niche} client. This cover signals the quality of everything that follows.`,
+    'report': `Email to your ${niche} clients or prospects on a consistent schedule — monthly or quarterly. A branded report positions you as the authority in ${niche}.`,
+    'social': `Post the square format on Instagram, the Story format 24 hours before a launch or event, and the LinkedIn banner when you publish a professional update.`,
+  };
+  const specificCTA = ctaMap[variant.layoutType] || `Customize in your design tool, replace all [BRACKET] fields with your real information, and export in the format matching your delivery method.`;
 
   return {
     internalName: useCase.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-    bestUseCase: `${useCase} — specifically for ${aud} in the ${n.niche} space.`,
-    buyerScenario: `You need a professional ${useCase.toLowerCase()} ready for client delivery. This blueprint tells you exactly what to build, what assets you need, and what to write.`,
+    bestUseCase: buildBestUseCase(useCase, niche, aud, variant.layoutType),
+    buyerScenario: buildBuyerScenario(useCase, niche, aud, audShort, variant.layoutType, index),
     layout,
     assets,
     copyBlocks: [
-      { label: `${useCase} Headline`, copy: `${n.title} — ${useCase}` },
-      { label: 'Primary Content Block', copy: copyBlockContent },
-      { label: 'CTA', copy: `Download Now → Customize in Minutes` },
-      { label: 'Social Share Caption', copy: `Just released: ${useCase} for ${audShort}. Download at [LINK].` },
-      { label: 'Email Subject Line', copy: `Your ${useCase} is ready — ${n.title}` },
+      {
+        label: `${useCase} — Primary Headline`,
+        copy: buildNicheHeadline(useCase, niche, audShort, 0),
+      },
+      {
+        label: `${useCase} — Main Content Block`,
+        copy: primaryCopyBlock,
+      },
+      {
+        label: `${useCase} — Secondary Headline (alternate)`,
+        copy: buildNicheHeadline(useCase, niche, audShort, 1),
+      },
+      {
+        label: `Call-to-Action`,
+        copy: specificCTA,
+      },
+      {
+        label: `Social Media Caption`,
+        copy: buildSocialCaption(useCase, niche, audShort, n),
+      }
     ],
-    primaryHeadline: `${useCase} — ${n.niche} Professional Edition`,
+    primaryHeadline: buildNicheHeadline(useCase, niche, audShort, 0),
     altHeadlines: [
-      `The ${n.niche} ${useCase} Built for Results`,
-      `Professional ${useCase} for ${audShort}`,
-      `${useCase}: Ready to Customize and Deliver`,
-      `Stop Starting From Scratch — Here Is Your ${useCase} Blueprint`,
-      `${n.title}: ${useCase} Done Right`
+      buildNicheHeadline(useCase, niche, audShort, 1),
+      buildNicheHeadline(useCase, niche, audShort, 2),
+      `The ${niche} ${useCase} Built for ${audShort} Who Want Results`,
+      `Professional ${useCase} — Built for Real ${niche} Work`,
+      `${useCase}: Designed for How ${audShort} Actually Operate`,
     ],
     ctaExamples: [
-      `Open the blueprint → Build in Canva or PowerPoint → Deliver to your client.`,
-      `Download, customize in under 30 minutes, export as PDF — done.`,
-      `Use this blueprint every time you need a ${useCase.toLowerCase()} — never start from scratch again.`,
-      `$${n.priceMin} for the full pack including this blueprint. Link in bio.`,
-      `Comment "TEMPLATES" for the direct download link.`
+      specificCTA,
+      `Build this in Canva (use the layout spec above), PowerPoint, or Adobe. The blueprint tells you exactly what to put where — your design tool is just the execution layer.`,
+      `Every time you need a ${useCase.toLowerCase()}, open this blueprint first. It halves your setup time and eliminates design guesswork.`,
+      `Share the exported PDF directly with your ${niche} client. A polished ${useCase.toLowerCase()} delivered within 24 hours of a meeting sets you apart from every competitor.`,
+      `Once you have built the branded master version, duplicate it per client — never start from scratch again.`,
     ],
     customizationNotes: [
-      `Apply your brand colors to all designated color zones — limit to 2–3 tones maximum for a professional result.`,
-      `Replace all copy with language specific to your client, project, or campaign — never deliver a generic version.`,
-      `Fonts: use your brand headline font for all headers, and a clean sans-serif for body text. Maximum 2 font families.`,
-      `Images: replace any placeholder image zones with high-quality, relevant photography — 1920×1080px minimum.`,
-      `Export as PDF for formal client delivery, PNG for social media, and retain the source file for future editing.`,
-      `Quality-check at 100% zoom before exporting — what looks fine at 50% often has errors at full size.`
+      `Apply your brand colors to the designated zones listed in the Layout Structure — 2 colors maximum for a professional result. More than 3 colors signals DIY.`,
+      `Replace every [BRACKET] field with your real information before delivering to any client. A document with visible [BRACKETS] signals an unfinished product.`,
+      `Typography: your brand headline font for all H1/H2 elements, and a clean complementary sans-serif for body text. Two font families maximum. Mixing more than two creates visual noise.`,
+      `Images: every image zone must be filled with a specific, high-quality photograph at the resolution specified in the Required Assets section. 1920×1080px minimum for full-bleed zones.`,
+      `Build a MASTER_BRANDED version first — with your brand applied but no client-specific data. Duplicate it per project. Never modify the original master.`,
+      `Quality check at 100% zoom before exporting. Errors visible at full size are invisible at 50% zoom. Check every text field, every image crop, every color zone.`,
     ],
     exportFormat,
     qcChecklist: [
-      ['Brand colors applied consistently throughout', '☐'],
-      ['No [BRACKET] placeholder fields remain in the final export', '☐'],
-      ['All images are high-resolution and relevant to the specific use case', '☐'],
-      ['Headline and body copy are specific to this client/project — not generic', '☐'],
-      ['Typography uses maximum 2 font families', '☐'],
-      ['Exported in the correct format for the intended delivery method', '☐'],
-      ['File named clearly: [ClientName]_[TemplateName]_[Date]', '☐'],
-      ['Reviewed at 100% zoom before final export', '☐'],
+      ['Brand colors applied consistently to all designated zones — 2 colors maximum', '☐'],
+      ['Zero [BRACKET] placeholder fields remain in the final export', '☐'],
+      ['All images are high-resolution and specific to this use case — no generic stock', '☐'],
+      ['Headline and body copy are specific to your niche, client, or campaign — not generic', '☐'],
+      ['Typography: maximum 2 font families — headline font + body font only', '☐'],
+      ['MASTER_BRANDED file saved separately before client-specific customization', '☐'],
+      ['Exported in the correct format for the delivery method (see Export Format above)', '☐'],
+      ['Reviewed at 100% zoom — all text, crops, and spacing verified before export', '☐'],
     ]
   };
+}
+
+// ── Niche-specific copy helpers (RULE 4) ──────────────────────────────────────
+function buildBestUseCase(useCase, niche, aud, layoutType) {
+  const useCaseLower = useCase.toLowerCase();
+  if (layoutType === 'cover') return `The first visual a ${niche} client sees when you open your presentation or deliver your proposal. Sets the tone for the entire engagement.`;
+  if (layoutType === 'report') return `A data-backed document delivered to ${aud} regularly — monthly or after key milestones. Positions you as the informed authority in ${niche}.`;
+  if (layoutType === 'tracker') return `A working document used by ${aud} to monitor progress, capture data, or manage ongoing activity in their ${niche} workflow.`;
+  if (layoutType === 'form') return `The intake or qualification document you send to ${aud} before a first session, consultation, or project kickoff in ${niche}.`;
+  if (layoutType === 'flyer') return `A visual announcement for ${aud} — used to promote an event, offer, program, or launch specific to the ${niche} market.`;
+  if (layoutType === 'social') return `Branded social content that ${aud} post to establish authority, announce offers, or drive enquiries in the ${niche} space.`;
+  return `A professional ${useCaseLower} used by ${aud} in their day-to-day ${niche} practice.`;
+}
+
+function buildBuyerScenario(useCase, niche, aud, audShort, layoutType, index) {
+  const scenarios = {
+    'cover': `You have a new ${niche} client meeting in 48 hours. You want to walk in with a presentation that immediately signals premium positioning. This cover page does that before you speak a word.`,
+    'report': `You want to stay front-of-mind with past ${niche} clients and convert warm leads into active engagements. A branded monthly report positions you as the expert they call first.`,
+    'tracker': `You are onboarding a new ${niche} client and need a professional tracking document that reflects your standard of work. A polished tracker communicates that you run a systematic, results-focused practice.`,
+    'form': `A prospective ${niche} client has inquired about working with you. Sending a professional intake form before the first call demonstrates that your process is structured, thorough, and worth the investment.`,
+    'flyer': `You are launching a new ${niche} offer, program, or event and need a visual that commands attention in a crowded feed or inbox — without looking like every other ${niche} flyer.`,
+    'social': `You want to consistently show up as the authority in ${niche} without spending hours designing content from scratch. This template system makes every post look intentional and brand-consistent.`,
+  };
+  return scenarios[layoutType] || `You need a professional ${useCase.toLowerCase()} for your ${niche} practice. This blueprint gives you exactly what to build, what to write, and how to deliver it to ${audShort}.`;
+}
+
+function buildNicheHeadline(useCase, niche, audShort, variant) {
+  const useCaseLower = useCase.toLowerCase();
+  const headlines = [
+    `The ${niche} ${useCase} Built for ${audShort} Who Work at a Premium Level`,
+    `Professional ${useCase} for ${audShort} — Built for Your Real Workflow`,
+    `${useCase}: The ${niche} Standard for Client-Facing Materials`,
+    `How Serious ${audShort} Present ${useCaseLower} to Clients`,
+    `Your ${niche} Practice Deserves a ${useCase} That Looks Like It`,
+  ];
+  return headlines[variant % headlines.length];
+}
+
+function buildNicheSpecificCopy(useCase, niche, aud, n) {
+  const useCaseLower = useCase.toLowerCase();
+  const promise = n.promise || `help ${aud} work more effectively`;
+  const pa = n.pa || {};
+  return `${useCase} for ${niche} Professionals
+
+Purpose: This ${useCaseLower} is designed specifically for ${aud} who need a professional-grade deliverable they can use with clients immediately.
+
+${pa.painPoint ? `The problem this solves: ${pa.painPoint}` : `Most ${niche} professionals either spend hours building ${useCaseLower}s from scratch or use generic templates that undermine their positioning. Neither is acceptable at a premium price point.`}
+
+What this ${useCaseLower} delivers:
+• A visually consistent, brand-compliant document that clients perceive as professional from the first glance
+• Clear structure that guides the reader through the information in the right order for the right outcome
+• Copy blocks you can use as-is or adapt — so you spend time on your craft, not on writing headings
+
+How to use it:
+1. Open your design tool (Canva, Adobe, PowerPoint, or Google Slides)
+2. Apply the layout structure described in this blueprint exactly
+3. Insert your brand colors, logo, and typography as specified
+4. Replace all [BUYER_INFO] fields with your real client and business details
+5. Export in the recommended format before delivery
+
+${pa.transformation ? `The outcome: ${pa.transformation}` : `When your ${niche} client opens this document, they should feel they made the right decision in choosing you.`}`;
+}
+
+function buildSocialCaption(useCase, niche, audShort, n) {
+  const priceMin = n.priceMin || 17;
+  const title = n.title || `${niche} Template Pack`;
+  return `Here is the ${useCase.toLowerCase()} I use in my ${niche} practice.
+
+Every ${audShort} I know has spent time building these from scratch — time that should go to clients, not to formatting.
+
+This pack includes the exact layout, copy, and export specs I use. $${priceMin}. Download instantly.
+
+[Link in bio] or comment "TEMPLATE" and I will send it directly.`;
 }
 
 // ── Main builder ──────────────────────────────────────────────────────────────
@@ -1097,6 +1266,36 @@ ${E60}
 Part of: ${n.title}
 Niche: ${n.niche} | Type: Template Blueprint | Format: Layout Spec + Copy Blocks
 ${E60}
+
+IMPORTANT — WHAT THIS FILE IS AND HOW TO USE IT
+${hr()}
+This is a TEMPLATE BLUEPRINT. It contains:
+  ✓ Exact layout specification (dimensions, zones, hierarchy, typography)
+  ✓ Required assets checklist (photos, logos, data, fonts)
+  ✓ Ready-to-use copy blocks with completed text
+  ✓ Step-by-step customization guide
+  ✓ Export format recommendations
+  ✓ Quality control checklist
+
+This is NOT a Canva file, InDesign file, Figma file, or PowerPoint file.
+NEXT STEP: Open Canva (canva.com), Adobe, PowerPoint, or Google Slides.
+Create a new document at the dimensions specified in LAYOUT STRUCTURE below.
+Follow the layout spec to build the template. The hard work — what to build,
+what to write, and how to structure it — is already done for you in this file.
+
+REQUIRED VISUAL ASSETS (RULE 6 — Visual Products)
+${hr()}
+This template requires the following visual deliverables before it can be used:
+  1. MOCKUP IMAGE — Build the template in your design tool, export as PNG, create
+     a device or print mockup using smartmockups.com or Anthony Boyd Graphics.
+     Minimum 1 mockup per template. Ideal: show it in context (laptop, print, phone).
+  2. FILLED EXAMPLE — Complete one version of this template with realistic, fictional
+     content (not your real client data). This is your product preview for marketplace listings.
+  3. COLOR PALETTE — Use exactly the hex codes listed in the Visual Style Guide section
+     of your Master_Product_Guide.pdf. Apply consistently to this template.
+  4. TYPOGRAPHY — Apply the font pairing from your Visual Style Guide. Do not substitute.
+  5. PREVIEW PDF — Once all templates are built, assemble a single visual_preview.pdf
+     showing every template at full size. This is your primary marketplace thumbnail content.
 
 INTERNAL NAME
 ${hr()}

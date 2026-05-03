@@ -253,12 +253,51 @@ Deno.serve(async (req) => {
 
     // 18. PDF safe characters — detect common broken unicode in PDF text (heuristic via markdown)
     const pdfBrokenChars = masterGuideMd ? /[\u2018\u2019\u201C\u201D\u2013\u2014\u2026\u2605\u2714\u2718\u26A0\uFFFD]/.test(masterGuideMd) : false;
-    // Only flag if the markdown itself has curly quotes/em-dashes that won't survive PDF encoding
     check('Master Guide markdown uses PDF-safe characters (no curly quotes or em-dashes in critical fields)',
       !pdfBrokenChars,
       '01_Product/Master_Product_Guide.md',
       'Master Guide markdown contains curly quotes or Unicode dashes that may render as broken characters in PDF',
       'Use straight quotes and hyphens in buildMasterGuide — PDF renderer requires ASCII-safe characters');
+
+    // ── 19. RULE 3: Zero generic copy placeholders in deliverable content ──────
+    const genericPlaceholderRx = /\[your specific (headline|content|copy|text|information)\]|\[insert your specific\]|template \d+ — business professional edition|\[a \w+ professional who needs a template\]/gi;
+    const allProductCopyText = Object.entries(fileMap)
+      .filter(([name]) => name.startsWith('01_Product') || name.startsWith('02_Sales'))
+      .map(([, data]) => data).join(' ');
+    const hasGenericPlaceholders = genericPlaceholderRx.test(allProductCopyText);
+    check('RULE 3: No generic copy placeholders in deliverable content',
+      !hasGenericPlaceholders,
+      '01_Product/ + 02_Sales_Page/',
+      'Generic copy placeholders found. All product copy must be niche-specific and complete, not abstract.',
+      'Re-run section expansion — all copy must be specific to the niche, not generic business filler', true);
+
+    // ── 20. RULE 4: Copy must be niche-specific ───────────────────────────────
+    const genericNichePhrases = [
+      'business professional edition',
+      'a professional who needs a template for an upcoming client interaction',
+      'template for your audience',
+      'built for results in your niche',
+    ];
+    const productFileText = Object.entries(fileMap)
+      .filter(([name]) => name.startsWith('01_Product'))
+      .map(([, data]) => data).join(' ').toLowerCase();
+    const genericNicheFound = genericNichePhrases.find(p => productFileText.includes(p));
+    check('RULE 4: Product copy is niche-specific, not generic filler',
+      !genericNicheFound,
+      '01_Product/',
+      `Generic phrase found: "${genericNicheFound}". Copy must reflect the specific buyer and their daily reality.`,
+      'Re-run section expansion with niche-specific prompts', true);
+
+    // ── 21. RULE 8: "Would I pay for this?" — content must be substantive ──────
+    const productWordCount = productFileText.split(/\s+/).filter(Boolean).length;
+    const sectionCount = (n.sections || []).length;
+    const avgWords = sectionCount > 0 ? Math.round(productWordCount / sectionCount) : 0;
+    const isSubstantive = productWordCount >= 800 || (sectionCount >= 3 && avgWords >= 150);
+    check('RULE 8: Product content is substantive (buyer gets immediate value)',
+      isSubstantive,
+      '01_Product/',
+      `Content too thin: ${productWordCount} words across ${sectionCount} sections (avg ${avgWords}/section). A paid product must deliver immediate standalone value.`,
+      'Re-run section expansion — each section needs minimum 150 words of specific, actionable content', true);
 
     // ── Score + verdict ───────────────────────────────────────────────────────
     // RULE 10: A product is either 100% ready or it is NOT launchable.
