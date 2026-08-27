@@ -38,7 +38,7 @@
     },
     "product_angle": {
       "type": "object",
-      "description": "Strategic product angle \u2014 generated before full content to ensure specificity",
+      "description": "Strategic product angle",
       "properties": {
         "audience": {
           "type": "string"
@@ -226,6 +226,48 @@
         }
       }
     },
+    "visual_assets": {
+      "type": "array",
+      "description": "AI-generated visual mockups, marketplace thumbnails, and style references",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "aspect_ratio": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "quality": {
+            "type": "string"
+          },
+          "generated_at": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "source_image_url": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "quality_score": {
       "type": "object",
       "properties": {
@@ -269,12 +311,10 @@
         "generation_failed",
         "completed"
       ],
-      "default": "idle",
-      "description": "High-level state machine status for generation pipeline"
+      "default": "idle"
     },
     "generationProgress": {
       "type": "object",
-      "description": "Per-phase generation progress for granular tracking",
       "properties": {
         "blueprint": {
           "type": "string",
@@ -330,7 +370,6 @@
     },
     "generationTimings": {
       "type": "object",
-      "description": "Per-step timestamps and durations for performance debugging",
       "properties": {
         "enrichStartedAt": {
           "type": "string"
@@ -399,7 +438,6 @@
     },
     "exportTimings": {
       "type": "object",
-      "description": "Per-step timestamps and durations for ZIP export performance debugging",
       "properties": {
         "exportStartedAt": {
           "type": "string"
